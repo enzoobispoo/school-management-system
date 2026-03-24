@@ -1,0 +1,254 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum StatusAluno {
+  ATIVO
+  INATIVO
+  TRANCADO
+  ARQUIVADO
+}
+
+enum StatusMatricula {
+  ATIVA
+  TRANCADA
+  CANCELADA
+  CONCLUIDA
+}
+
+enum StatusPagamento {
+  PENDENTE
+  PAGO
+  ATRASADO
+  CANCELADO
+}
+
+enum DiaSemana {
+  SEGUNDA
+  TERCA
+  QUARTA
+  QUINTA
+  SEXTA
+  SABADO
+  DOMINGO
+}
+
+enum TipoEvento {
+  GERAL
+  REUNIAO
+  PROVA
+  REPOSICAO
+  FERIADO
+  LEMBRETE
+}
+
+enum TipoNotificacao {
+  NOVO_ALUNO
+  NOVA_MATRICULA
+  PAGAMENTO
+  PAGAMENTO_CONFIRMADO
+  PAGAMENTO_ATRASADO
+  MATRICULA_CANCELADA
+  SISTEMA
+}
+
+enum EntidadeNotificacao {
+  ALUNO
+  MATRICULA
+  PAGAMENTO
+  TURMA
+  CURSO
+  PROFESSOR
+  SISTEMA
+}
+
+model Aluno {
+  id             String      @id @default(cuid())
+  nome           String
+  email          String?     @unique
+  cpf            String?     @unique
+  telefone       String?
+  dataNascimento DateTime?
+  endereco       String?
+  status         StatusAluno @default(ATIVO)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  matriculas Matricula[]
+
+  @@index([nome])
+  @@index([status])
+}
+
+model Curso {
+  id           String   @id @default(cuid())
+  nome         String   @unique
+  categoria    String
+  descricao    String?
+  duracaoTexto String?
+  valorMensal  Decimal  @db.Decimal(10, 2)
+  ativo        Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  turmas  Turma[]
+  eventos Evento[]
+
+  @@index([categoria])
+  @@index([ativo])
+}
+
+model Professor {
+  id        String   @id @default(cuid())
+  nome      String
+  email     String?  @unique
+  telefone  String?
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  turmas  Turma[]
+  eventos Evento[]
+
+  @@index([nome])
+  @@index([ativo])
+}
+
+model Turma {
+  id               String   @id @default(cuid())
+  cursoId          String
+  professorId      String
+  nome             String
+  capacidadeMaxima Int
+  ativo            Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  curso      Curso          @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  professor  Professor      @relation(fields: [professorId], references: [id], onDelete: Restrict)
+  horarios   TurmaHorario[]
+  matriculas Matricula[]
+  eventos    Evento[]
+
+  @@unique([cursoId, nome])
+  @@index([cursoId])
+  @@index([professorId])
+  @@index([ativo])
+}
+
+model TurmaHorario {
+  id         String    @id @default(cuid())
+  turmaId    String
+  diaSemana  DiaSemana
+  horaInicio String
+  horaFim    String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  turma Turma @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+
+  @@index([turmaId])
+  @@index([diaSemana])
+}
+
+model Matricula {
+  id                 String          @id @default(cuid())
+  alunoId            String
+  turmaId            String
+  dataMatricula      DateTime        @default(now())
+  dataCancelamento   DateTime?
+  motivoCancelamento String?
+  observacoes        String?
+  status             StatusMatricula @default(ATIVA)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  aluno      Aluno       @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  turma      Turma       @relation(fields: [turmaId], references: [id], onDelete: Restrict)
+  pagamentos Pagamento[]
+
+  @@unique([alunoId, turmaId])
+  @@index([alunoId])
+  @@index([turmaId])
+  @@index([status])
+  @@index([dataMatricula])
+}
+
+model Pagamento {
+  id              String          @id @default(cuid())
+  matriculaId     String
+  competenciaMes  Int
+  competenciaAno  Int
+  descricao       String
+  valor           Decimal         @db.Decimal(10, 2)
+  vencimento      DateTime
+  dataPagamento   DateTime?
+  status          StatusPagamento @default(PENDENTE)
+  metodoPagamento String?
+  observacoes     String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  matricula Matricula @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+
+  @@unique([matriculaId, competenciaMes, competenciaAno])
+  @@index([matriculaId])
+  @@index([status])
+  @@index([vencimento])
+  @@index([competenciaAno, competenciaMes])
+}
+
+model Evento {
+  id        String     @id @default(cuid())
+  titulo    String
+  descricao String?
+  tipo      TipoEvento @default(GERAL)
+
+  dataInicio DateTime
+  dataFim    DateTime
+  diaInteiro Boolean  @default(false)
+
+  cor   String?
+  local String?
+
+  professorId String?
+  professor   Professor? @relation(fields: [professorId], references: [id], onDelete: SetNull)
+
+  turmaId String?
+  turma   Turma?  @relation(fields: [turmaId], references: [id], onDelete: SetNull)
+
+  cursoId String?
+  curso   Curso?  @relation(fields: [cursoId], references: [id], onDelete: SetNull)
+
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tipo])
+  @@index([ativo])
+  @@index([dataInicio])
+  @@index([dataFim])
+  @@index([professorId])
+  @@index([turmaId])
+  @@index([cursoId])
+}
+
+model Notificacao {
+  id           String              @id @default(cuid())
+  tipo         TipoNotificacao
+  titulo       String
+  mensagem     String
+  lida         Boolean             @default(false)
+  entidadeTipo EntidadeNotificacao @default(SISTEMA)
+  entidadeId   String?
+  createdAt    DateTime            @default(now())
+
+  @@index([tipo])
+  @@index([lida])
+  @@index([createdAt])
+  @@index([entidadeTipo, entidadeId])
+}
