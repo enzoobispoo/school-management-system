@@ -1,3 +1,5 @@
+> ⚠️ Código proprietário. Uso não autorizado não é permitido.
+
 # Sistema de Gestão Escolar
 
 Sistema completo de gestão escolar desenvolvido com foco em performance, usabilidade e escalabilidade. Ideal para escolas, cursos e instituições de ensino que desejam centralizar suas operações em uma única plataforma moderna.
@@ -64,3 +66,11 @@ cd seu-repo
 
 # Instale as dependências
 npm install
+
+
+## Licença
+
+Este projeto é proprietário.
+
+Você pode visualizar o código para fins educacionais,  
+mas não é permitido copiar, modificar, distribuir ou vender sem autorização.
