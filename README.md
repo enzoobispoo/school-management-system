@@ -55,6 +55,15 @@ Sistema completo de gestão escolar desenvolvido com foco em performance, usabil
 
 ---
 
+## Licença
+
+Este projeto é proprietário.
+
+Você pode visualizar o código para fins educacionais,  
+mas não é permitido copiar, modificar, distribuir ou vender sem autorização.
+
+---
+
 ## Instalação
 
 ```bash
@@ -68,9 +77,3 @@ cd seu-repo
 npm install
 
 
-## Licença
-
-Este projeto é proprietário.
-
-Você pode visualizar o código para fins educacionais,  
-mas não é permitido copiar, modificar, distribuir ou vender sem autorização.
