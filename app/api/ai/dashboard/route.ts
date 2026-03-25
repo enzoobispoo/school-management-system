@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { prisma } from "@/lib/prisma";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function formatCurrency(value: number) {
   return `R$ ${value.toLocaleString("pt-BR", {
@@ -15,6 +14,15 @@ function formatCurrency(value: number) {
 
 export async function POST(request: NextRequest) {
   try {
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "OPENAI_API_KEY não configurada." },
+        { status: 500 }
+      );
+    }
+
     const body = await request.json();
     const message = String(body?.message ?? "").trim();
 
@@ -25,16 +33,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json(
-        { error: "OPENAI_API_KEY não configurada." },
-        { status: 500 }
-      );
-    }
+    const client = new OpenAI({
+      apiKey,
+    });
 
     const hoje = new Date();
     const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    const fimMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59);
+    const fimMes = new Date(
+      hoje.getFullYear(),
+      hoje.getMonth() + 1,
+      0,
+      23,
+      59,
+      59
+    );
 
     const [
       totalAlunos,
@@ -173,7 +185,11 @@ Não invente números, nomes ou datas.
         },
         {
           role: "user",
-          content: `Contexto do sistema:\n${JSON.stringify(contexto, null, 2)}\n\nPergunta do usuário:\n${message}`,
+          content: `Contexto do sistema:\n${JSON.stringify(
+            contexto,
+            null,
+            2
+          )}\n\nPergunta do usuário:\n${message}`,
         },
       ],
       store: false,
@@ -185,7 +201,10 @@ Não invente números, nomes ou datas.
   } catch (error) {
     console.error("Erro na IA do dashboard:", error);
     return NextResponse.json(
-      { error: "IA indisponivel no momento. Entre em contato com o Enzo para mais informações." },
+      {
+        error:
+          "IA indisponivel no momento. Entre em contato com o Enzo para mais informações.",
+      },
       { status: 500 }
     );
   }
