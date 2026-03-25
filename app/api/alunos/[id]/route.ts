@@ -22,12 +22,14 @@ function getComputedPaymentStatus(pagamento: {
 }
 
 interface RouteContext {
-  params: Promise<{ id: string }>
+  params: {
+    id: string
+  }
 }
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
-    const { id } = await context.params
+    const { id } = context.params
 
     const aluno = await prisma.aluno.findUnique({
       where: { id },
