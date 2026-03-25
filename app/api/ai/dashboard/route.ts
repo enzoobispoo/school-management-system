@@ -14,7 +14,7 @@ function formatCurrency(value: number) {
 
 export async function POST(request: NextRequest) {
   try {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
 
     if (!apiKey) {
       return NextResponse.json(
@@ -196,15 +196,20 @@ Não invente números, nomes ou datas.
     });
 
     return NextResponse.json({
-      answer: response.output_text,
+      message:
+        response.output_text?.trim() ||
+        "Não foi possível gerar uma resposta no momento.",
     });
   } catch (error) {
     console.error("Erro na IA do dashboard:", error);
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : "IA indisponivel no momento. Entre em contato com o Enzo para mais informações.";
+
     return NextResponse.json(
-      {
-        error:
-          "IA indisponivel no momento. Entre em contato com o Enzo para mais informações.",
-      },
+      { error: message },
       { status: 500 }
     );
   }

@@ -60,7 +60,8 @@ export function useDashboardAi() {
 
       if (!response.ok) {
         throw new Error(
-          result.error || "EduIA não está disponivel no momento. Entre em contato com Enzo para mais informações."
+          result.error ||
+            "EduIA não está disponivel no momento. Entre em contato com Enzo para mais informações."
         );
       }
 
