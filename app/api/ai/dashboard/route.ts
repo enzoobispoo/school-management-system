@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: "OPENAI_API_KEY não configurada." },
+        { error: "EduIA não está configurada no momento." },
         { status: 500 }
       );
     }
@@ -203,13 +203,24 @@ Não invente números, nomes ou datas.
   } catch (error) {
     console.error("Erro na IA do dashboard:", error);
 
-    const message =
-      error instanceof Error
-        ? error.message
-        : "IA indisponivel no momento. Entre em contato com o Enzo para mais informações.";
+    let friendlyMessage =
+      "EduIA está temporariamente indisponível. Tente novamente em alguns instantes.";
+
+    if (error instanceof Error) {
+      if (error.message.includes("429")) {
+        friendlyMessage =
+          "EduIA não está disponivel no momento. Entre em contato com Enzo para mais informações.";
+      } else if (
+        error.message.toLowerCase().includes("api key") ||
+        error.message.toLowerCase().includes("incorrect api key")
+      ) {
+        friendlyMessage =
+          "EduIA não está disponivel no momento. Entre em contato com Enzo para mais informações.";
+      }
+    }
 
     return NextResponse.json(
-      { error: message },
+      { error: friendlyMessage },
       { status: 500 }
     );
   }
