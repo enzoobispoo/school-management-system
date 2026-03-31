@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Sidebar } from "./sidebar";
+import { AiFloatingButton } from "@/components/dashboard/ai/ai-floating-button";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -20,6 +21,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <main className={collapsed ? "lg:pl-20" : "lg:pl-64"}>
         {children}
       </main>
+
+      <AiFloatingButton />
     </div>
   );
 }

@@ -22,15 +22,15 @@ export function CalendarFilters({
   ];
 
   return (
-    <div className="mb-6 flex flex-wrap items-center gap-2">
+    <div className="mb-6 flex flex-wrap items-center gap-2 overflow-hidden">
       {filters.map((filter) => (
         <button
           key={filter.value}
           onClick={() => onChange(filter.value)}
           className={
             value === filter.value
-              ? "rounded-full bg-black px-4 py-2 text-sm font-medium text-white"
-              : "rounded-full bg-[#f6f6f6] px-4 py-2 text-sm text-[#6b7280]"
+              ? "max-w-full rounded-full bg-black px-4 py-2 text-sm font-medium text-white"
+              : "max-w-full rounded-full bg-[#f6f6f6] px-4 py-2 text-sm text-[#6b7280]"
           }
         >
           {filter.label}

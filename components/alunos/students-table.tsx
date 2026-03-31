@@ -52,34 +52,36 @@ export function StudentsTable({
 
   return (
     <div className="overflow-hidden rounded-[24px] border border-border/50 bg-card">
-      <Table>
-        <TableHeader>
-          <TableRow className="border-border/50 hover:bg-transparent">
-            <TableHead className="w-10"></TableHead>
-            <TableHead className="font-medium">Aluno</TableHead>
-            <TableHead className="font-medium">Contato</TableHead>
-            <TableHead className="font-medium">Curso(s)</TableHead>
-            <TableHead className="font-medium">Status</TableHead>
-            <TableHead className="font-medium">Matrícula</TableHead>
-            <TableHead className="w-10"></TableHead>
-          </TableRow>
-        </TableHeader>
+      <div className="overflow-x-auto">
+        <Table className="min-w-[760px]">
+          <TableHeader>
+            <TableRow className="border-border/50 hover:bg-transparent">
+              <TableHead className="w-10"></TableHead>
+              <TableHead className="font-medium">Aluno</TableHead>
+              <TableHead className="font-medium">Contato</TableHead>
+              <TableHead className="font-medium">Curso(s)</TableHead>
+              <TableHead className="font-medium">Status</TableHead>
+              <TableHead className="font-medium">Matrícula</TableHead>
+              <TableHead className="w-10"></TableHead>
+            </TableRow>
+          </TableHeader>
 
-        <TableBody>
-          {students.map((student) => (
-            <StudentTableRow
-              key={student.id}
-              student={student}
-              expanded={expandedRow === student.id}
-              onToggle={() => toggleRow(student.id)}
-              onEnroll={onEnroll}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onViewDetails={onViewDetails}
-            />
-          ))}
-        </TableBody>
-      </Table>
+          <TableBody>
+            {students.map((student) => (
+              <StudentTableRow
+                key={student.id}
+                student={student}
+                expanded={expandedRow === student.id}
+                onToggle={() => toggleRow(student.id)}
+                onEnroll={onEnroll}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onViewDetails={onViewDetails}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

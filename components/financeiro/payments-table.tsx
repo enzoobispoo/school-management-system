@@ -69,78 +69,80 @@ export function PaymentsTable({
 
   return (
     <div className="overflow-hidden rounded-[24px] border border-border/50 bg-card">
-      <Table>
-        <TableHeader>
-          <TableRow className="border-border/50 hover:bg-transparent">
-            <TableHead className="font-medium">Aluno</TableHead>
-            <TableHead className="font-medium">Descrição</TableHead>
-            <TableHead className="font-medium">Valor</TableHead>
-            <TableHead className="font-medium">Status</TableHead>
-            <TableHead className="font-medium">Vencimento</TableHead>
-            <TableHead className="font-medium">Pagamento</TableHead>
-            <TableHead className="w-10"></TableHead>
-          </TableRow>
-        </TableHeader>
+      <div className="overflow-x-auto">
+        <Table className="min-w-[820px]">
+          <TableHeader>
+            <TableRow className="border-border/50 hover:bg-transparent">
+              <TableHead className="font-medium">Aluno</TableHead>
+              <TableHead className="font-medium">Descrição</TableHead>
+              <TableHead className="font-medium">Valor</TableHead>
+              <TableHead className="font-medium">Status</TableHead>
+              <TableHead className="font-medium">Vencimento</TableHead>
+              <TableHead className="font-medium">Pagamento</TableHead>
+              <TableHead className="w-10"></TableHead>
+            </TableRow>
+          </TableHeader>
 
-        <TableBody>
-          {payments.map((payment) => {
-            const isUpdating = actionLoadingId === payment.id;
+          <TableBody>
+            {payments.map((payment) => {
+              const isUpdating = actionLoadingId === payment.id;
 
-            return (
-              <TableRow
-                key={payment.id}
-                className={cn(
-                  "border-border/50",
-                  payment.status === "overdue" && "bg-destructive/5"
-                )}
-              >
-                <TableCell className="py-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-black/[0.04] text-xs font-medium text-black">
-                        {payment.studentInitials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="font-medium text-foreground">
-                      {payment.student}
-                    </span>
-                  </div>
-                </TableCell>
+              return (
+                <TableRow
+                  key={payment.id}
+                  className={cn(
+                    "border-border/50",
+                    payment.status === "overdue" && "bg-destructive/5"
+                  )}
+                >
+                  <TableCell className="py-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="bg-black/[0.04] text-xs font-medium text-black">
+                          {payment.studentInitials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium text-foreground">
+                        {payment.student}
+                      </span>
+                    </div>
+                  </TableCell>
 
-                <TableCell className="py-3 text-muted-foreground">
-                  {payment.description}
-                </TableCell>
+                  <TableCell className="py-3 text-muted-foreground">
+                    {payment.description}
+                  </TableCell>
 
-                <TableCell className="py-3 font-medium text-foreground">
-                  R$ {payment.amount.toFixed(2).replace(".", ",")}
-                </TableCell>
+                  <TableCell className="py-3 font-medium text-foreground">
+                    R$ {payment.amount.toFixed(2).replace(".", ",")}
+                  </TableCell>
 
-                <TableCell className="py-3">
-                  <PaymentStatusBadge status={payment.status} />
-                </TableCell>
+                  <TableCell className="py-3">
+                    <PaymentStatusBadge status={payment.status} />
+                  </TableCell>
 
-                <TableCell className="py-3 text-muted-foreground">
-                  {payment.dueDate}
-                </TableCell>
+                  <TableCell className="py-3 text-muted-foreground">
+                    {payment.dueDate}
+                  </TableCell>
 
-                <TableCell className="py-3 text-muted-foreground">
-                  {payment.date}
-                </TableCell>
+                  <TableCell className="py-3 text-muted-foreground">
+                    {payment.date}
+                  </TableCell>
 
-                <TableCell className="py-3">
-                  <PaymentsTableActions
-                    payment={payment}
-                    isUpdating={isUpdating}
-                    onViewDetails={onViewDetails}
-                    onRegisterPayment={onRegisterPayment}
-                    onDeletePayment={onDeletePayment}
-                  />
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+                  <TableCell className="py-3">
+                    <PaymentsTableActions
+                      payment={payment}
+                      isUpdating={isUpdating}
+                      onViewDetails={onViewDetails}
+                      onRegisterPayment={onRegisterPayment}
+                      onDeletePayment={onDeletePayment}
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

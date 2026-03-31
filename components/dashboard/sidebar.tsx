@@ -25,9 +25,16 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
         onClose={() => setMobileMenuOpen(false)}
       />
 
+      {mobileMenuOpen ? (
+        <div
+          className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px] lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      ) : null}
+
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300 ease-in-out lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300 ease-in-out lg:z-40 lg:translate-x-0",
           collapsed ? "w-20" : "w-64",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}

@@ -10,16 +10,14 @@ interface AiAssistantPanelProps {
   embedded?: boolean;
 }
 
-export function AiAssistantPanel({
-  embedded = false,
-}: AiAssistantPanelProps) {
+export function AiAssistantPanel({ embedded = false }: AiAssistantPanelProps) {
   const { messages, input, setInput, loading, sendMessage } = useDashboardAi();
 
   return (
     <div
       className={
         embedded
-          ? "flex h-full min-h-0 flex-col"
+          ? "flex h-full min-h-0 flex-col px-3"
           : "flex min-h-[520px] flex-col rounded-[28px] border border-black/5 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
       }
     >
@@ -32,7 +30,7 @@ export function AiAssistantPanel({
         </div>
       ) : null}
 
-      <div className="mb-4">
+      <div className={embedded ? "mb-4 px-1" : "mb-4"}>
         <h4 className="text-[26px] font-semibold leading-8 tracking-[-0.04em] text-black">
           Como posso ajudar?
         </h4>
@@ -41,9 +39,17 @@ export function AiAssistantPanel({
         </p>
       </div>
 
-      <AiQuickPrompts onSelect={sendMessage} />
+      <div className={embedded ? "mb-4 px-1" : ""}>
+        <AiQuickPrompts onSelect={sendMessage} />
+      </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-[24px] bg-[#fafafa] p-4">
+      <div
+        className={
+          embedded
+            ? "min-h-0 flex-1 overflow-y-auto rounded-[24px] border border-black/5 bg-[#fafafa] p-4"
+            : "min-h-0 flex-1 overflow-y-auto rounded-[24px] bg-[#fafafa] p-4"
+        }
+      >
         <div className="space-y-3">
           {messages.length === 0 ? (
             <p className="text-sm text-black/45">
@@ -63,7 +69,13 @@ export function AiAssistantPanel({
         </div>
       </div>
 
-      <div className="mt-4 flex gap-2">
+      <div
+        className={
+          embedded
+            ? "mt-4 flex gap-2 px-1 pb-[calc(env(safe-area-inset-bottom)+8px)]"
+            : "mt-4 flex gap-2"
+        }
+      >
         <Input
           placeholder="Ex: quais alunos estão inadimplentes?"
           value={input}
