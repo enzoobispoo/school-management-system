@@ -11,8 +11,7 @@ import { useDashboardPage } from "@/hooks/dashboard/use-dashboard-page";
 
 export default function DashboardPage() {
   const dashboard = useDashboardPage();
-
-  const [userName, setUserName] = useState<string>("");
+  const [userName, setUserName] = useState("");
 
   useEffect(() => {
     async function loadUser() {

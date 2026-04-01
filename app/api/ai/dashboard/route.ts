@@ -1,16 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { registerAiAudit } from "@/lib/ai/audit";
+import { buildAiContext } from "@/lib/ai/context";
+import { classifyIntent } from "@/lib/ai/classifier";
+import { extractPaymentActionParams } from "@/lib/ai/extractor";
+import { runAiFallback } from "@/lib/ai/fallback";
+import {
+  generateMonthlyPayments,
+  getMonthlyRevenue,
+  getTotalStudents,
+  getUpcomingEvents,
+  listOverdueStudents,
+  registerPayment,
+  getTotalActiveStudents,
+  getMonthlyFinancialSummary,
+  listOverduePayments,
+} from "@/lib/ai/actions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function formatCurrency(value: number) {
-  return `R$ ${value.toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+function isConfirmationMessage(message: string, phrase: string) {
+  return message.toLowerCase().includes(phrase.toLowerCase());
 }
 
 export async function POST(request: NextRequest) {
@@ -24,16 +36,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const apiKey =
-      user.openaiApiKey?.trim() || process.env.OPENAI_API_KEY?.trim();
-
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "EduIA não está configurada no momento." },
-        { status: 500 }
-      );
-    }
-
     const body = await request.json();
     const message = String(body?.message ?? "").trim();
 
@@ -44,194 +46,201 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const client = new OpenAI({
-      apiKey,
-    });
+    const apiKey =
+      user.openaiApiKey?.trim() || process.env.OPENAI_API_KEY?.trim();
 
-    const hoje = new Date();
-    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    const fimMes = new Date(
-      hoje.getFullYear(),
-      hoje.getMonth() + 1,
-      0,
-      23,
-      59,
-      59
-    );
+    const client = apiKey ? new OpenAI({ apiKey }) : null;
 
-    const [
-      totalAlunos,
-      matriculasAtivas,
-      pagamentosPendentes,
-      pagamentosAtrasados,
-      receitaRecebidaNoMes,
-      cursosTop,
-      proximosEventos,
-    ] = await Promise.all([
-      prisma.aluno.count(),
-      prisma.matricula.count({ where: { status: "ATIVA" } }),
-      prisma.pagamento.findMany({
-        where: { status: "PENDENTE" },
-        include: {
-          matricula: {
-            include: {
-              aluno: true,
-              turma: { include: { curso: true } },
+    const classification = client
+      ? await classifyIntent(client, message)
+      : { intent: "CHAT" as const, confidence: 0 };
+
+    let resultMessage = "";
+    let executed = false;
+    let suggestions:
+      | Array<{ label: string; prompt: string }>
+      | undefined;
+
+    switch (classification.intent) {
+      case "TOTAL_STUDENTS": {
+        const result = await getTotalStudents();
+        resultMessage = result.message;
+        suggestions = result.suggestions;
+        executed = !!result.executed;
+        break;
+      }
+
+      case "TOTAL_ACTIVE_STUDENTS": {
+        const result = await getTotalActiveStudents();
+        resultMessage = result.message;
+        suggestions = result.suggestions;
+        executed = !!result.executed;
+        break;
+      }
+
+      case "MONTHLY_REVENUE": {
+        const result = await getMonthlyRevenue();
+        resultMessage = result.message;
+        suggestions = result.suggestions;
+        executed = !!result.executed;
+        break;
+      }
+
+      case "MONTHLY_FINANCIAL_SUMMARY": {
+        const result = await getMonthlyFinancialSummary();
+        resultMessage = result.message;
+        suggestions = result.suggestions;
+        executed = !!result.executed;
+        break;
+      }
+
+      case "UPCOMING_EVENTS": {
+        const result = await getUpcomingEvents();
+        resultMessage = result.message;
+        suggestions = result.suggestions;
+        executed = !!result.executed;
+        break;
+      }
+
+      case "LIST_OVERDUE_STUDENTS": {
+        const result = await listOverdueStudents();
+        resultMessage = result.message;
+        suggestions = result.suggestions;
+        executed = !!result.executed;
+        break;
+      }
+
+      case "LIST_OVERDUE_PAYMENTS": {
+        const result = await listOverduePayments();
+        resultMessage = result.message;
+        suggestions = result.suggestions;
+        executed = !!result.executed;
+        break;
+      }
+
+      case "GENERATE_MONTHLY_PAYMENTS": {
+        const result = await generateMonthlyPayments(
+          isConfirmationMessage(message, "confirmar geração de mensalidades")
+        );
+        resultMessage = result.message;
+        suggestions = result.suggestions;
+        executed = !!result.executed;
+        break;
+      }
+
+      case "MARK_PAYMENT_PAID": {
+        const params = client
+          ? await extractPaymentActionParams(client, message)
+          : {
+              studentName: message,
+              paymentMethod: "",
+            };
+
+        const result = await registerPayment({
+          studentName: params.studentName,
+          paymentMethod: params.paymentMethod,
+          confirmed: isConfirmationMessage(message, "confirmar pagamento"),
+        });
+
+        resultMessage = result.message;
+        suggestions = result.suggestions;
+        executed = !!result.executed;
+        break;
+      }
+
+      default: {
+        if (!client) {
+          resultMessage =
+            "A EduIA está sem o modo avançado no momento, mas ainda posso responder consultas operacionais como alunos, pagamentos, inadimplência, eventos e receitas.";
+          suggestions = [
+            {
+              label: "Total de alunos",
+              prompt: "Quantos alunos eu tenho no sistema?",
             },
-          },
-        },
-        orderBy: { vencimento: "asc" },
-        take: 8,
-      }),
-      prisma.pagamento.findMany({
-        where: { status: "ATRASADO" },
-        include: {
-          matricula: {
-            include: {
-              aluno: true,
-              turma: { include: { curso: true } },
+            {
+              label: "Resumo financeiro",
+              prompt: "Mostre um resumo financeiro do mês.",
             },
-          },
-        },
-        orderBy: { vencimento: "asc" },
-        take: 8,
-      }),
-      prisma.pagamento.aggregate({
-        _sum: { valor: true },
-        where: {
-          status: "PAGO",
-          dataPagamento: {
-            gte: inicioMes,
-            lte: fimMes,
-          },
-        },
-      }),
-      prisma.curso.findMany({
-        include: {
-          turmas: {
-            include: {
-              matriculas: {
-                where: { status: "ATIVA" },
-                select: { id: true },
-              },
+            {
+              label: "Pagamentos atrasados",
+              prompt: "Quais pagamentos estão atrasados?",
             },
-          },
-        },
-      }),
-      prisma.evento.findMany({
-        where: {
-          dataInicio: { gte: hoje },
-          ativo: true,
-        },
-        include: {
-          professor: true,
-          turma: true,
-          curso: true,
-        },
-        orderBy: { dataInicio: "asc" },
-        take: 6,
-      }),
-    ]);
+            {
+              label: "Cursos com mais alunos",
+              prompt: "Quais cursos têm mais alunos?",
+            },
+          ];
+          executed = false;
+          break;
+        }
 
-    const cursosRankeados = cursosTop
-      .map((curso) => ({
-        nome: curso.nome,
-        alunos: curso.turmas.reduce(
-          (acc, turma) => acc + turma.matriculas.length,
-          0
-        ),
-      }))
-      .sort((a, b) => b.alunos - a.alunos)
-      .slice(0, 5);
+        try {
+          const context = await buildAiContext();
+          resultMessage = await runAiFallback({
+            client,
+            message,
+            context,
+          });
+          suggestions = [
+            {
+              label: "Total de alunos",
+              prompt: "Quantos alunos eu tenho no sistema?",
+            },
+            {
+              label: "Resumo financeiro",
+              prompt: "Mostre um resumo financeiro do mês.",
+            },
+          ];
+          executed = false;
+        } catch (fallbackError) {
+          console.error("Erro no fallback avançado da EduIA:", fallbackError);
 
-    const contexto = {
-      resumo: {
-        totalAlunos,
-        matriculasAtivas,
-        receitaMensalRecebida: formatCurrency(
-          Number(receitaRecebidaNoMes._sum.valor ?? 0)
-        ),
-        quantidadePagamentosPendentes: pagamentosPendentes.length,
-        quantidadePagamentosAtrasados: pagamentosAtrasados.length,
-      },
-      pagamentosPendentes: pagamentosPendentes.map((p) => ({
-        aluno: p.matricula.aluno.nome,
-        curso: p.matricula.turma.curso.nome,
-        valor: formatCurrency(Number(p.valor)),
-        vencimento: p.vencimento.toISOString(),
-      })),
-      pagamentosAtrasados: pagamentosAtrasados.map((p) => ({
-        aluno: p.matricula.aluno.nome,
-        curso: p.matricula.turma.curso.nome,
-        valor: formatCurrency(Number(p.valor)),
-        vencimento: p.vencimento.toISOString(),
-      })),
-      cursosMaisPopulares: cursosRankeados,
-      proximosEventos: proximosEventos.map((e) => ({
-        titulo: e.titulo,
-        tipo: e.tipo,
-        inicio: e.dataInicio.toISOString(),
-        professor: e.professor?.nome ?? null,
-        turma: e.turma?.nome ?? null,
-        curso: e.curso?.nome ?? null,
-      })),
-    };
+          resultMessage =
+            "No momento o modo avançado da EduIA está indisponível, mas posso continuar respondendo consultas operacionais do sistema.";
+          suggestions = [
+            {
+              label: "Total de alunos",
+              prompt: "Quantos alunos eu tenho no sistema?",
+            },
+            {
+              label: "Resumo financeiro",
+              prompt: "Mostre um resumo financeiro do mês.",
+            },
+            {
+              label: "Pagamentos atrasados",
+              prompt: "Quais pagamentos estão atrasados?",
+            },
+          ];
+          executed = false;
+        }
+      }
+    }
 
-    const systemPrompt = `
-Você é um assistente de IA de um sistema de gestão escolar.
-Responda em português do Brasil.
-Seja objetivo, útil e natural.
-Use APENAS os dados fornecidos no contexto.
-Se a resposta não estiver no contexto, diga isso claramente.
-Quando fizer sentido, responda em tópicos curtos.
-Não invente números, nomes ou datas.
-`;
-
-    const response = await client.responses.create({
-      model: "gpt-5.4-mini",
-      input: [
-        {
-          role: "system",
-          content: systemPrompt,
-        },
-        {
-          role: "user",
-          content: `Contexto do sistema:\n${JSON.stringify(
-            contexto,
-            null,
-            2
-          )}\n\nPergunta do usuário:\n${message}`,
-        },
-      ],
-      store: false,
+    await registerAiAudit({
+      userId: user.id,
+      message,
+      intent: classification.intent,
+      response: resultMessage,
+      executed,
     });
 
     return NextResponse.json({
-      message:
-        response.output_text?.trim() ||
-        "Não foi possível gerar uma resposta no momento.",
+      message: resultMessage,
+      suggestions,
+      meta: {
+        intent: classification.intent,
+        confidence: classification.confidence,
+        executed,
+      },
     });
   } catch (error) {
     console.error("Erro na IA do dashboard:", error);
 
-    let friendlyMessage =
-      "EduIA está temporariamente indisponível. Tente novamente em alguns instantes.";
-
-    if (error instanceof Error) {
-      if (error.message.includes("429")) {
-        friendlyMessage =
-          "EduIA não está disponivel no momento. Entre em contato com Enzo para mais informações.";
-      } else if (
-        error.message.toLowerCase().includes("api key") ||
-        error.message.toLowerCase().includes("incorrect api key")
-      ) {
-        friendlyMessage =
-          "EduIA não está disponivel no momento. Entre em contato com Enzo para mais informações.";
-      }
-    }
-
     return NextResponse.json(
-      { error: friendlyMessage },
+      {
+        error:
+          "EduIA está temporariamente indisponível. Tente novamente em alguns instantes.",
+      },
       { status: 500 }
     );
   }

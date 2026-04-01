@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AiAssistantPanel } from "@/components/dashboard/ai-assistant-panel";
+import { AiAssistantPanel } from "@/components/dashboard/ai/ai-assistant-panel";
 
 export function AiFloatingButton() {
   const [open, setOpen] = useState(false);
@@ -19,21 +19,18 @@ export function AiFloatingButton() {
 
       {open ? (
         <div className="fixed inset-0 z-50 bg-white lg:hidden">
-          <div className="flex h-full flex-col px-3 pt-[max(12px,env(safe-area-inset-top))] pb-[max(16px,env(safe-area-inset-bottom))]">
-          <div className="flex items-center justify-between border-b border-black/5 px-3 py-4">
-              <span className="text-sm font-semibold text-black">
-                Assistente IA
-              </span>
-
+          <div className="flex h-full flex-col">
+            <div className="flex items-center justify-between border-b px-4 py-4">
+              <span className="font-semibold text-black">Assistente IA</span>
               <button
                 onClick={() => setOpen(false)}
-                className="rounded-full px-2 py-1 text-sm text-black/75 transition hover:bg-black/[0.03]"
+                className="text-sm text-black/70"
               >
                 Fechar
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 py-3">
+            <div className="min-h-0 flex-1 p-3">
               <AiAssistantPanel embedded />
             </div>
           </div>

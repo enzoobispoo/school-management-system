@@ -323,3 +323,46 @@ model UserInvite {
   @@index([expiresAt])
   @@index([usedAt])
 }
+
+model AiAuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  message   String
+  intent    String
+  response  String
+  executed  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([intent])
+  @@index([createdAt])
+}
+
+model AiChatSession {
+  id        String          @id @default(cuid())
+  userId    String
+  title     String?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  messages  AiChatMessage[]
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model AiChatMessage {
+  id         String   @id @default(cuid())
+  sessionId  String
+  role       String
+  content    String
+  intent     String?
+  confidence Float?
+  executed   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  session AiChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([createdAt])
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { AiAssistantPanel } from "@/components/dashboard/ai-assistant-panel";
+import { AiAssistantPanel } from "@/components/dashboard/ai/ai-assistant-panel";
 
 export function DashboardRightPanel() {
   return (

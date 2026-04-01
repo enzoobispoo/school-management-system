@@ -60,12 +60,22 @@ export interface PaymentTableItem {
   competence: string;
 }
 
+interface FinancialTotals {
+  receitaTotal: number;
+  recebidoMes: number;
+  valoresPendentes: number;
+  valoresAtrasados: number;
+  quantidadePendentes: number;
+  quantidadeAtrasados: number;
+}
+
 function formatDate(dateString?: string | null) {
   if (!dateString) return "-";
   return new Date(dateString).toLocaleDateString("pt-BR");
 }
 
-function formatCompetence(month: number, year: number) {
+function formatCompetence(month?: number, year?: number) {
+  if (!month || !year) return "-";
   return `${String(month).padStart(2, "0")}/${year}`;
 }
 
@@ -112,13 +122,65 @@ function normalizePayments(
   return normalized.sort((a, b) => order[a.status] - order[b.status]);
 }
 
+function calculateFinancialTotals(
+  payments: PagamentosResponse["data"]
+): FinancialTotals {
+  const validPayments = payments.filter(
+    (payment) => payment.status !== "CANCELADO"
+  );
+
+  const receitaTotal = validPayments
+    .filter((payment) => payment.status === "PAGO")
+    .reduce((acc, payment) => acc + payment.valor, 0);
+
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+
+  const recebidoMes = validPayments
+    .filter(
+      (payment) =>
+        payment.status === "PAGO" &&
+        payment.competenciaMes === currentMonth &&
+        payment.competenciaAno === currentYear
+    )
+    .reduce((acc, payment) => acc + payment.valor, 0);
+
+  const pendentes = validPayments.filter(
+    (payment) => payment.status === "PENDENTE"
+  );
+
+  const atrasados = validPayments.filter(
+    (payment) => payment.status === "ATRASADO"
+  );
+
+  const valoresPendentes = pendentes.reduce(
+    (acc, payment) => acc + payment.valor,
+    0
+  );
+
+  const valoresAtrasados = atrasados.reduce(
+    (acc, payment) => acc + payment.valor,
+    0
+  );
+
+  return {
+    receitaTotal,
+    recebidoMes,
+    valoresPendentes,
+    valoresAtrasados,
+    quantidadePendentes: pendentes.length,
+    quantidadeAtrasados: atrasados.length,
+  };
+}
+
 export function useFinancialQuery() {
   const [payments, setPayments] = useState<PaymentTableItem[]>([]);
-  const [rawPayments, setRawPayments] = useState<PagamentosResponse["data"]>([]);
   const [tabStatus, setTabStatus] = useState("all");
   const [search, setSearch] = useState("");
   const [month, setMonth] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [loadingTotals, setLoadingTotals] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState<PagamentosResponse["meta"]>({
@@ -126,6 +188,15 @@ export function useFinancialQuery() {
     page: 1,
     pageSize: 10,
     totalPages: 1,
+  });
+
+  const [financialTotals, setFinancialTotals] = useState<FinancialTotals>({
+    receitaTotal: 0,
+    recebidoMes: 0,
+    valoresPendentes: 0,
+    valoresAtrasados: 0,
+    quantidadePendentes: 0,
+    quantidadeAtrasados: 0,
   });
 
   const statusQuery = useMemo(() => {
@@ -167,7 +238,6 @@ export function useFinancialQuery() {
       }
 
       const result: PagamentosResponse = await response.json();
-      setRawPayments(result.data);
       setPayments(normalizePayments(result.data));
       setMeta(result.meta);
     } catch (err) {
@@ -178,53 +248,30 @@ export function useFinancialQuery() {
     }
   }
 
-  const financialTotals = useMemo(() => {
-    const validPayments = rawPayments.filter(
-      (payment) => payment.status !== "CANCELADO"
-    );
+  async function fetchFinancialTotals() {
+    try {
+      setLoadingTotals(true);
 
-    const receitaTotal = validPayments
-      .filter((payment) => payment.status === "PAGO")
-      .reduce((acc, payment) => acc + payment.valor, 0);
+      const params = new URLSearchParams();
+      params.set("page", "1");
+      params.set("pageSize", "1000");
 
-    const now = new Date();
-    const currentMonth = now.getMonth() + 1;
-    const currentYear = now.getFullYear();
+      const response = await fetch(`/api/pagamentos?${params.toString()}`, {
+        cache: "no-store",
+      });
 
-    const recebidoMes = validPayments
-      .filter(
-        (payment) =>
-          payment.status === "PAGO" &&
-          payment.competenciaMes === currentMonth &&
-          payment.competenciaAno === currentYear
-      )
-      .reduce((acc, payment) => acc + payment.valor, 0);
+      if (!response.ok) {
+        throw new Error("Falha ao carregar totais financeiros");
+      }
 
-    const pendentes = validPayments.filter(
-      (payment) => payment.status === "PENDENTE"
-    );
-    const atrasados = validPayments.filter(
-      (payment) => payment.status === "ATRASADO"
-    );
-
-    const valoresPendentes = pendentes.reduce(
-      (acc, payment) => acc + payment.valor,
-      0
-    );
-    const valoresAtrasados = atrasados.reduce(
-      (acc, payment) => acc + payment.valor,
-      0
-    );
-
-    return {
-      receitaTotal,
-      recebidoMes,
-      valoresPendentes,
-      valoresAtrasados,
-      quantidadePendentes: pendentes.length,
-      quantidadeAtrasados: atrasados.length,
-    };
-  }, [rawPayments]);
+      const result: PagamentosResponse = await response.json();
+      setFinancialTotals(calculateFinancialTotals(result.data));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingTotals(false);
+    }
+  }
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -234,9 +281,12 @@ export function useFinancialQuery() {
     return () => clearTimeout(timeout);
   }, [page, search, statusQuery, month]);
 
+  useEffect(() => {
+    fetchFinancialTotals();
+  }, []);
+
   return {
     payments,
-    rawPayments,
     tabStatus,
     setTabStatus,
     search,
@@ -244,12 +294,14 @@ export function useFinancialQuery() {
     month,
     setMonth,
     loading,
+    loadingTotals,
     error,
     setError,
     page,
     setPage,
     meta,
     fetchPayments,
+    fetchFinancialTotals,
     financialTotals,
   };
 }

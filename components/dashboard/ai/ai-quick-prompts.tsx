@@ -1,31 +1,48 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { AiSuggestionCard } from "@/components/dashboard/ai/ai-suggestion-card";
 
 interface AiQuickPromptsProps {
-  onSelect: (text: string) => void | Promise<void>;
+  onSelect: (prompt: string) => void;
 }
 
-const prompts = [
-  "Quais pagamentos estão atrasados?",
-  "Quantos alunos ativos temos hoje?",
-  "Mostre um resumo financeiro do mês.",
-  "Quais cursos têm mais alunos?",
+const quickPrompts = [
+  {
+    prompt: "Quantos alunos eu tenho no sistema?",
+  },
+  {
+    prompt: "Quanto foi recebido este mês?",
+  },
+  {
+    prompt: "Quem está inadimplente?",
+  },
+  {
+    prompt: "Quais são os próximos eventos?",
+  },
+  {
+    prompt: "Quais pagamentos estão atrasados?",
+  },
+  {
+    prompt: "Quantos alunos ativos temos hoje?",
+  },
+  {
+    prompt: "Mostre um resumo financeiro do mês.",
+  },
+  {
+    prompt: "Quais cursos têm mais alunos?",
+  },
 ];
 
 export function AiQuickPrompts({ onSelect }: AiQuickPromptsProps) {
   return (
-    <div className="mb-4 flex flex-wrap gap-2">
-      {prompts.map((prompt) => (
-        <Button
-          key={prompt}
-          type="button"
-          variant="outline"
-          className="rounded-full border-black/10 bg-white text-black/70 hover:bg-black/[0.03]"
-          onClick={() => onSelect(prompt)}
-        >
-          {prompt}
-        </Button>
+    <div className="flex flex-col gap-3">
+      {quickPrompts.map((item) => (
+        <AiSuggestionCard
+          key={item.prompt}
+          prompt={item.prompt}
+          onClick={onSelect}
+          variant="list"
+        />
       ))}
     </div>
   );
