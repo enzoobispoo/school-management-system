@@ -22,6 +22,7 @@ interface Payment {
   status: "paid" | "pending" | "overdue";
   date: string;
   dueDate: string;
+  competence: string;
 }
 
 interface PaymentsTableProps {
@@ -70,11 +71,12 @@ export function PaymentsTable({
   return (
     <div className="overflow-hidden rounded-[24px] border border-border/50 bg-card">
       <div className="overflow-x-auto">
-        <Table className="min-w-[820px]">
+        <Table className="min-w-[940px]">
           <TableHeader>
             <TableRow className="border-border/50 hover:bg-transparent">
               <TableHead className="font-medium">Aluno</TableHead>
               <TableHead className="font-medium">Descrição</TableHead>
+              <TableHead className="font-medium">Competência</TableHead>
               <TableHead className="font-medium">Valor</TableHead>
               <TableHead className="font-medium">Status</TableHead>
               <TableHead className="font-medium">Vencimento</TableHead>
@@ -110,6 +112,10 @@ export function PaymentsTable({
 
                   <TableCell className="py-3 text-muted-foreground">
                     {payment.description}
+                  </TableCell>
+
+                  <TableCell className="py-3 text-muted-foreground">
+                    {payment.competence}
                   </TableCell>
 
                   <TableCell className="py-3 font-medium text-foreground">

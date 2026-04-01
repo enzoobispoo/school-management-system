@@ -66,6 +66,14 @@ enum EntidadeNotificacao {
   SISTEMA
 }
 
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  FINANCEIRO
+  SECRETARIA
+  PROFESSOR
+}
+
 model Aluno {
   id             String      @id @default(cuid())
   nome           String
@@ -251,4 +259,67 @@ model Notificacao {
   @@index([lida])
   @@index([createdAt])
   @@index([entidadeTipo, entidadeId])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  nome         String
+  username     String?  @unique
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(ADMIN)
+  ativo        Boolean  @default(true)
+
+  // IA
+  openaiApiKey String?
+  plan         String   @default("starter")
+  aiUsage      Int      @default(0)
+
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([email])
+  @@index([username])
+  @@index([role])
+  @@index([ativo])
+}
+
+enum AiProviderMode {
+  PLATFORM
+  CUSTOM
+}
+
+model SystemSetting {
+  id              String         @id @default("default")
+  aiProviderMode  AiProviderMode @default(PLATFORM)
+  openaiApiKey    String?
+  aiMonthlyLimit  Int            @default(1000)
+  aiUsageCount    Int            @default(0)
+  aiUsageResetAt  DateTime       @default(now())
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+
+model SchoolSetting {
+  id        String   @id @default("default")
+  nome      String   @default("EduGestão")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserInvite {
+  id         String   @id @default(cuid())
+  email      String
+  role       UserRole @default(SECRETARIA)
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([email])
+  @@index([expiresAt])
+  @@index([usedAt])
 }

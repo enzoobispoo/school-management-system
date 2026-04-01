@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Header } from "@/components/dashboard/header";
 import { DashboardPageContent } from "@/components/dashboard/dashboard-page-content";
@@ -11,6 +12,25 @@ import { useDashboardPage } from "@/hooks/dashboard/use-dashboard-page";
 export default function DashboardPage() {
   const dashboard = useDashboardPage();
 
+  const [userName, setUserName] = useState<string>("");
+
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+
+        if (res.ok) {
+          setUserName(data.user?.nome || "");
+        }
+      } catch (error) {
+        console.error("Erro ao carregar usuário:", error);
+      }
+    }
+
+    loadUser();
+  }, []);
+
   return (
     <DashboardLayout>
       <Header
@@ -19,7 +39,9 @@ export default function DashboardPage() {
       />
 
       <DashboardMainLayout rightPanel={<DashboardRightPanel />}>
-        <DashboardGreeting name="Administrador" />
+        <DashboardGreeting
+          name={userName ? userName.split(" ")[0] : "Usuário"}
+        />
 
         <DashboardPageContent
           data={dashboard.data}

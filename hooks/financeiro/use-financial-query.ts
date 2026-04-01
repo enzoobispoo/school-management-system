@@ -57,11 +57,16 @@ export interface PaymentTableItem {
   status: "paid" | "pending" | "overdue";
   date: string;
   dueDate: string;
+  competence: string;
 }
 
 function formatDate(dateString?: string | null) {
   if (!dateString) return "-";
   return new Date(dateString).toLocaleDateString("pt-BR");
+}
+
+function formatCompetence(month: number, year: number) {
+  return `${String(month).padStart(2, "0")}/${year}`;
 }
 
 function getInitials(name: string) {
@@ -92,6 +97,10 @@ function normalizePayments(
           : "paid",
       date: payment.dataPagamento ? formatDate(payment.dataPagamento) : "-",
       dueDate: formatDate(payment.vencimento),
+      competence: formatCompetence(
+        payment.competenciaMes,
+        payment.competenciaAno
+      ),
     }));
 
   const order: Record<PaymentTableItem["status"], number> = {

@@ -13,7 +13,7 @@ function getGreeting() {
 }
 
 export function DashboardGreeting({
-  name = "Administrador",
+  name = "Usuário",
 }: DashboardGreetingProps) {
   return (
     <div className="rounded-[28px] border border-black/[0.04] bg-[#fafafa] px-6 py-6 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
