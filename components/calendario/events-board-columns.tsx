@@ -64,6 +64,7 @@ export function EventsBoardColumns({ events }: EventsBoardColumnsProps) {
   return (
     <div className="overflow-x-auto pb-2">
       <div className="grid min-w-[1200px] grid-cols-4 gap-5">
+        
         <EventsBoardColumn
           title="Hoje"
           count={columns.hoje.length}

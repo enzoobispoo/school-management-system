@@ -61,5 +61,5 @@ export async function getCurrentUserFromRequest(request: NextRequest) {
 }
 
 export function isAdmin(user: { role: string } | null | undefined) {
-  return user?.role === "ADMIN";
+  return user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
 }

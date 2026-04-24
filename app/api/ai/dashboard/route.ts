@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { registerAiAudit } from "@/lib/ai/audit";
-import { buildAiContext } from "@/lib/ai/context";
 import { classifyIntent } from "@/lib/ai/classifier";
+import { normalizeConversationContext } from "@/lib/ai/conversation-context";
+import { listTopCourses } from "@/lib/ai/actions/list-top-courses";
+import { resolveLocalFollowUp } from "@/lib/ai/follow-up";
 import { extractPaymentActionParams } from "@/lib/ai/extractor";
-import { runAiFallback } from "@/lib/ai/fallback";
+import { runAiWithTools } from "@/lib/ai/tool-runner";
 import {
   generateMonthlyPayments,
   getMonthlyRevenue,
@@ -21,8 +24,76 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+type ConversationMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 function isConfirmationMessage(message: string, phrase: string) {
   return message.toLowerCase().includes(phrase.toLowerCase());
+}
+
+function normalizeConversationMessages(input: unknown): ConversationMessage[] {
+  if (!Array.isArray(input)) return [];
+
+  return input
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+
+      const message = item as {
+        role?: unknown;
+        content?: unknown;
+      };
+
+      if (
+        (message.role !== "user" && message.role !== "assistant") ||
+        typeof message.content !== "string" ||
+        !message.content.trim()
+      ) {
+        return null;
+      }
+
+      return {
+        role: message.role,
+        content: message.content.trim(),
+      } satisfies ConversationMessage;
+    })
+    .filter((item): item is ConversationMessage => item !== null)
+    .slice(-10);
+}
+
+async function resolveOpenAiConfig(user: {
+  openaiApiKey?: string | null;
+}) {
+  const systemSetting = await prisma.systemSetting.findUnique({
+    where: { id: "default" },
+    select: {
+      aiProviderMode: true,
+      openaiApiKey: true,
+      aiMonthlyLimit: true,
+      aiUsageCount: true,
+    },
+  });
+
+  const providerMode = systemSetting?.aiProviderMode ?? "PLATFORM";
+
+  let apiKey = "";
+
+  if (providerMode === "CUSTOM") {
+    apiKey =
+      systemSetting?.openaiApiKey?.trim() || user.openaiApiKey?.trim() || "";
+  } else {
+    apiKey =
+      process.env.OPENAI_API_KEY?.trim() ||
+      systemSetting?.openaiApiKey?.trim() ||
+      "";
+  }
+
+  return {
+    providerMode,
+    apiKey,
+    systemSetting,
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -38,6 +109,10 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const message = String(body?.message ?? "").trim();
+    const conversationMessages = normalizeConversationMessages(body?.messages);
+    const conversationContext = normalizeConversationContext(
+      body?.conversationContext
+    );
 
     if (!message) {
       return NextResponse.json(
@@ -46,20 +121,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const apiKey =
-      user.openaiApiKey?.trim() || process.env.OPENAI_API_KEY?.trim();
+    const { providerMode, apiKey } = await resolveOpenAiConfig(user);
 
     const client = apiKey ? new OpenAI({ apiKey }) : null;
-
-    const classification = client
-      ? await classifyIntent(client, message)
-      : { intent: "CHAT" as const, confidence: 0 };
 
     let resultMessage = "";
     let executed = false;
     let suggestions:
       | Array<{ label: string; prompt: string }>
       | undefined;
+
+    let nextConversationContext: Record<string, unknown> | undefined =
+      conversationContext ?? undefined;
+
+    const localFollowUp = resolveLocalFollowUp({
+      message,
+      conversationContext,
+    });
+
+    if (localFollowUp) {
+      resultMessage = localFollowUp.message;
+      suggestions = [
+        {
+          label: "Resumo financeiro",
+          prompt: "Mostre um resumo financeiro do mês.",
+        },
+        {
+          label: "Pagamentos atrasados",
+          prompt: "Quais pagamentos estão atrasados?",
+        },
+      ];
+      executed = false;
+      nextConversationContext = localFollowUp.conversationContext;
+
+      await registerAiAudit({
+        userId: user.id,
+        message,
+        intent: "CHAT",
+        response: resultMessage,
+        executed,
+      });
+
+      return NextResponse.json({
+        message: resultMessage,
+        suggestions,
+        meta: {
+          intent: "CHAT",
+          confidence: 1,
+          executed,
+          conversationContext: nextConversationContext,
+        },
+      });
+    }
+
+    const classification = client
+      ? await classifyIntent(client, message)
+      : { intent: "CHAT" as const, confidence: 0 };
 
     switch (classification.intent) {
       case "TOTAL_STUDENTS": {
@@ -94,6 +211,24 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      case "TOP_COURSES": {
+        const result = await listTopCourses();
+        resultMessage = result.message;
+        suggestions = [
+          {
+            label: "Pagamentos atrasados",
+            prompt: "Quais pagamentos estão atrasados?",
+          },
+          {
+            label: "Resumo financeiro",
+            prompt: "Mostre um resumo financeiro do mês.",
+          },
+        ];
+        executed = true;
+        nextConversationContext = result.conversationContext;
+        break;
+      }
+
       case "UPCOMING_EVENTS": {
         const result = await getUpcomingEvents();
         resultMessage = result.message;
@@ -115,6 +250,7 @@ export async function POST(request: NextRequest) {
         resultMessage = result.message;
         suggestions = result.suggestions;
         executed = !!result.executed;
+        nextConversationContext = result.conversationContext;
         break;
       }
 
@@ -151,7 +287,10 @@ export async function POST(request: NextRequest) {
       default: {
         if (!client) {
           resultMessage =
-            "A EduIA está sem o modo avançado no momento, mas ainda posso responder consultas operacionais como alunos, pagamentos, inadimplência, eventos e receitas.";
+            providerMode === "CUSTOM"
+              ? "A EduIA está configurada para usar uma chave própria, mas nenhuma chave válida foi encontrada nas Configurações de IA."
+              : "A EduIA está sem a chave da plataforma no momento, mas ainda posso responder consultas operacionais como alunos, pagamentos, inadimplência, eventos e receitas.";
+
           suggestions = [
             {
               label: "Total de alunos",
@@ -175,11 +314,10 @@ export async function POST(request: NextRequest) {
         }
 
         try {
-          const context = await buildAiContext();
-          resultMessage = await runAiFallback({
+          resultMessage = await runAiWithTools({
             client,
             message,
-            context,
+            conversationMessages,
           });
           suggestions = [
             {
@@ -193,7 +331,7 @@ export async function POST(request: NextRequest) {
           ];
           executed = false;
         } catch (fallbackError) {
-          console.error("Erro no fallback avançado da EduIA:", fallbackError);
+          console.error("Erro no modo tools da EduIA:", fallbackError);
 
           resultMessage =
             "No momento o modo avançado da EduIA está indisponível, mas posso continuar respondendo consultas operacionais do sistema.";
@@ -231,6 +369,7 @@ export async function POST(request: NextRequest) {
         intent: classification.intent,
         confidence: classification.confidence,
         executed,
+        conversationContext: nextConversationContext,
       },
     });
   } catch (error) {

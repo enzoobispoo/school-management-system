@@ -25,21 +25,19 @@ function formatCurrency(value: number) {
   })}`;
 }
 
-export function RevenueChart({
-  data,
-  loading = false,
-}: RevenueChartProps) {
+export function RevenueChart({ data, loading = false }: RevenueChartProps) {
   return (
-    <div className="rounded-[24px] border border-black/5 bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+    <div className="rounded-[24px] border border-black/5 bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:border-white/10 dark:bg-[#1a1a1a] dark:text-white">
       <div className="mb-6">
-        <p className="text-sm text-black/45">Receita</p>
-        <h3 className="text-[28px] font-semibold tracking-[-0.04em] text-black">
+        <p className="text-sm text-black/42 dark:text-white/50">Receita</p>
+
+        <h3 className="text-[28px] font-semibold tracking-[-0.04em] text-black dark:text-white">
           Receita ao longo do tempo
         </h3>
       </div>
 
       {loading ? (
-        <div className="flex h-[320px] items-center justify-center text-sm text-black/45">
+        <div className="flex h-[320px] items-center justify-center text-sm text-black/45 dark:text-white/50">
           Carregando gráfico...
         </div>
       ) : (
@@ -48,36 +46,53 @@ export function RevenueChart({
             <AreaChart data={data}>
               <defs>
                 <linearGradient id="receitaFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="currentColor" stopOpacity={0.18} />
-                  <stop offset="95%" stopColor="currentColor" stopOpacity={0.02} />
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.22} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.03} />
                 </linearGradient>
               </defs>
 
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
+              <CartesianGrid
+                stroke="rgba(255,255,255,0.08)"
+                strokeDasharray="3 3"
+              />
+
               <XAxis
                 dataKey="month"
-                tick={{ fontSize: 12, fill: "rgba(0,0,0,0.45)" }}
+                tick={{ fontSize: 12, fill: "rgba(255,255,255,0.45)" }}
+                tickMargin={10}
                 axisLine={false}
                 tickLine={false}
               />
+
               <YAxis
                 tickFormatter={(value) => `R$ ${value / 1000}k`}
-                tick={{ fontSize: 12, fill: "rgba(0,0,0,0.45)" }}
+                tick={{ fontSize: 12, fill: "rgba(255,255,255,0.45)" }}
+                tickMargin={10}
                 axisLine={false}
                 tickLine={false}
               />
+
               <Tooltip
-                formatter={(value: number) => [formatCurrency(value), "Receita"]}
+                formatter={(value: number) => [
+                  formatCurrency(value),
+                  "Receita",
+                ]}
                 contentStyle={{
                   borderRadius: 18,
-                  border: "1px solid rgba(0,0,0,0.06)",
-                  boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+                  border: "1px solid rgba(255,255,255,0.10)",
+                  background: "#111111",
+                  color: "#ffffff",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+                }}
+                labelStyle={{
+                  color: "rgba(255,255,255,0.55)",
                 }}
               />
+
               <Area
                 type="monotone"
                 dataKey="receita"
-                stroke="black"
+                stroke="#3b82f6"
                 fill="url(#receitaFill)"
                 strokeWidth={2.5}
               />

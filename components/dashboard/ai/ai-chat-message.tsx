@@ -1,18 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { AiMessage } from "@/hooks/dashboard/use-dashboard-ai";
 import { AiSuggestionCard } from "@/components/dashboard/ai/ai-suggestion-card";
 
 interface AiChatMessageProps {
   message: AiMessage;
+  typingRef?: React.MutableRefObject<boolean>;
+  setIsTyping?: (value: boolean) => void;
   onSelectSuggestion?: (prompt: string) => void;
   onTypingProgress?: () => void;
 }
 
-function useTypewriter(text: string, enabled: boolean, speed = 14) {
+function useTypewriter(
+  text: string,
+  enabled: boolean,
+  typingRef?: React.MutableRefObject<boolean>,
+  setIsTyping?: (value: boolean) => void,
+  speed = 14
+) {
   const [displayedText, setDisplayedText] = useState(enabled ? "" : text);
+  const intervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!enabled) {
@@ -22,24 +31,53 @@ function useTypewriter(text: string, enabled: boolean, speed = 14) {
 
     setDisplayedText("");
 
+    if (typingRef) {
+      typingRef.current = true;
+    }
+    setIsTyping?.(true);
+
     let currentIndex = 0;
-    const interval = window.setInterval(() => {
+
+    intervalRef.current = window.setInterval(() => {
+      if (typingRef && typingRef.current === false) {
+        setIsTyping?.(false);
+
+        if (intervalRef.current) {
+          window.clearInterval(intervalRef.current);
+        }
+
+        return;
+      }
+
       currentIndex += 1;
       setDisplayedText(text.slice(0, currentIndex));
 
       if (currentIndex >= text.length) {
-        window.clearInterval(interval);
+        if (typingRef) {
+          typingRef.current = false;
+        }
+        setIsTyping?.(false);
+
+        if (intervalRef.current) {
+          window.clearInterval(intervalRef.current);
+        }
       }
     }, speed);
 
-    return () => window.clearInterval(interval);
-  }, [text, enabled, speed]);
+    return () => {
+      if (intervalRef.current) {
+        window.clearInterval(intervalRef.current);
+      }
+    };
+  }, [text, enabled, typingRef, setIsTyping, speed]);
 
   return displayedText;
 }
 
 export function AiChatMessage({
   message,
+  typingRef,
+  setIsTyping,
   onSelectSuggestion,
   onTypingProgress,
 }: AiChatMessageProps) {
@@ -56,6 +94,8 @@ export function AiChatMessage({
   const animatedContent = useTypewriter(
     message.content,
     shouldAnimateText,
+    typingRef,
+    setIsTyping,
     14
   );
 
@@ -80,14 +120,14 @@ export function AiChatMessage({
           className={cn(
             "max-w-[90%] rounded-[24px] px-4 py-3 text-sm leading-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
             isUser
-              ? "bg-black text-white"
-              : "border border-black/5 bg-white text-black"
+              ? "bg-primary text-primary-foreground"
+              : "border border-border bg-card text-card-foreground"
           )}
         >
           <div className="whitespace-pre-wrap break-words leading-6">
             {isUser ? message.content : animatedContent}
             {!isUser && !animationFinished ? (
-              <span className="ml-1 inline-block h-4 w-[2px] animate-pulse rounded-full bg-black/70 align-middle" />
+              <span className="ml-1 inline-block h-4 w-0.5 animate-pulse rounded-full bg-muted-foreground align-middle" />
             ) : null}
           </div>
         </div>
@@ -101,12 +141,12 @@ export function AiChatMessage({
         <div className="grid grid-cols-2 gap-3">
           {message.suggestions.map((suggestion) => (
             <AiSuggestionCard
-            key={`${message.id}-${suggestion.prompt}`}
-            prompt={suggestion.prompt}
-            label={suggestion.label}
-            onClick={onSelectSuggestion}
-            variant="grid"
-          />
+              key={`${message.id}-${suggestion.prompt}`}
+              prompt={suggestion.prompt}
+              label={suggestion.label}
+              onClick={onSelectSuggestion}
+              variant="grid"
+            />
           ))}
         </div>
       ) : null}

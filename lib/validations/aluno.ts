@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { StatusAluno } from "@prisma/client"
+import { cpf as cpfValidator } from "cpf-cnpj-validator"
 
 const emptyToUndefined = <T extends z.ZodTypeAny>(schema: T) =>
   z.preprocess((value) => {
@@ -23,7 +24,7 @@ export const createAlunoSchema = z.object({
     z
       .string()
       .transform((value) => onlyDigits(value))
-      .refine((value) => value.length === 11, "CPF deve ter 11 dígitos")
+      .refine((value) => cpfValidator.isValid(value), "CPF inválido")
   ),
 
   telefone: emptyToUndefined(
@@ -38,6 +39,30 @@ export const createAlunoSchema = z.object({
 
   endereco: emptyToUndefined(
     z.string().max(255, "Endereço deve ter no máximo 255 caracteres")
+  ),
+
+  responsavelNome: emptyToUndefined(
+    z
+      .string()
+      .min(3, "Nome do responsável deve ter pelo menos 3 caracteres")
+      .max(120, "Nome do responsável deve ter no máximo 120 caracteres")
+  ),
+
+  responsavelTelefone: emptyToUndefined(
+    z
+      .string()
+      .transform((value) => onlyDigits(value))
+      .refine(
+        (value) => value.length >= 10 && value.length <= 11,
+        "Telefone do responsável deve ter 10 ou 11 dígitos"
+      )
+  ),
+
+  responsavelEmail: emptyToUndefined(
+    z
+      .string()
+      .email("E-mail do responsável inválido")
+      .max(120, "E-mail do responsável muito longo")
   ),
 
   status: z.nativeEnum(StatusAluno).optional().default(StatusAluno.ATIVO),

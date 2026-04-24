@@ -27,10 +27,10 @@ export function ReportsToolbar({
   return (
     <DashboardSectionCard className="mb-6 p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-black/45" />
-            <span className="text-sm text-black/45">Período:</span>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Período:</span>
           </div>
 
           <Select value={year} onValueChange={setYear}>
@@ -59,7 +59,18 @@ export function ReportsToolbar({
           </Select>
         </div>
 
-        <Button variant="outline" className="gap-2 rounded-2xl">
+        <Button
+          className="
+    h-11 rounded-2xl px-5 gap-2
+
+    bg-white text-black border border-black/10 shadow-sm
+    hover:bg-black/[0.03]
+
+    dark:bg-white/10 dark:text-white
+    dark:border-white/10 dark:hover:bg-white/20
+    dark:backdrop-blur-md
+  "
+        >
           <Download className="h-4 w-4" />
           Exportar Relatório
         </Button>

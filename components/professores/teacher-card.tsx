@@ -63,7 +63,7 @@ export function TeacherCard({
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
               <Avatar className="h-12 w-12">
-                <AvatarFallback className="bg-black/[0.04] text-sm font-medium text-black">
+              <AvatarFallback className="bg-black/[0.04] text-sm font-medium text-black dark:bg-muted dark:text-foreground">
                   {teacher.initials}
                 </AvatarFallback>
               </Avatar>

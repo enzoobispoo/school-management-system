@@ -1,16 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { DashboardMetricsView } from "@/components/dashboard/metrics/dashboard-metric-card-config";
 
 interface DashboardResponse {
   metricas: {
     totalAlunos: number;
     matriculasAtivas: number;
+    novosAlunosNoMes: number;
     receitaMensal: number;
+    receitaPrevistaMes: number;
     pagamentosPendentes: number;
     valoresAtrasados: number;
     quantidadePagamentosPendentes: number;
     quantidadePagamentosAtrasados: number;
+    trocasProfessorNoMes: number;
+    turmasAtivas: number;
+    turmasLotadas: number;
+    turmasComVagasOciosas: number;
+    professoresInativos: number;
+    notificacoesNaoLidas: number;
+    receitaMensalVariacao: number;
+    novosAlunosVariacao: number;
+    trocasProfessorVariacao: number;
   };
   receitaAoLongoDoTempo: Array<{
     month: string;
@@ -35,6 +47,16 @@ interface DashboardResponse {
     mensagem: string;
     lida: boolean;
     createdAt: string;
+  }>;
+  insights: Array<{
+    id: string;
+    tone: "positive" | "negative" | "warning" | "neutral";
+    title: string;
+    description: string;
+    action?: {
+      label: string;
+      href: string;
+    };
   }>;
 }
 
@@ -122,12 +144,13 @@ export function useDashboardPage() {
 
   const metricas = data?.metricas;
 
-  const metrics = {
+  const metrics: DashboardMetricsView = {
     totalAlunos: loading ? "..." : String(metricas?.totalAlunos ?? 0),
     matriculasAtivas: loading ? "..." : String(metricas?.matriculasAtivas ?? 0),
     receitaMensal: loading
       ? "..."
       : formatCurrency(metricas?.receitaMensal ?? 0),
+    receitaMensalVariacao: metricas?.receitaMensalVariacao ?? 0,
     pagamentosAtrasados: loading
       ? "..."
       : formatCurrency(metricas?.valoresAtrasados ?? 0),
@@ -135,6 +158,26 @@ export function useDashboardPage() {
       metricas?.quantidadePagamentosAtrasados ?? 0,
     quantidadePagamentosPendentes:
       metricas?.quantidadePagamentosPendentes ?? 0,
+    trocasProfessorNoMes: loading
+      ? "..."
+      : String(metricas?.trocasProfessorNoMes ?? 0),
+    trocasProfessorVariacao: metricas?.trocasProfessorVariacao ?? 0,
+    novosAlunosNoMes: loading ? "..." : String(metricas?.novosAlunosNoMes ?? 0),
+    novosAlunosVariacao: metricas?.novosAlunosVariacao ?? 0,
+    turmasAtivas: loading ? "..." : String(metricas?.turmasAtivas ?? 0),
+    turmasLotadas: loading ? "..." : String(metricas?.turmasLotadas ?? 0),
+    turmasComVagasOciosas: loading
+      ? "..."
+      : String(metricas?.turmasComVagasOciosas ?? 0),
+    professoresInativos: loading
+      ? "..."
+      : String(metricas?.professoresInativos ?? 0),
+    notificacoesNaoLidas: loading
+      ? "..."
+      : String(metricas?.notificacoesNaoLidas ?? 0),
+    receitaPrevistaMes: loading
+      ? "..."
+      : formatCurrency(metricas?.receitaPrevistaMes ?? 0),
   };
 
   const recentActivities: RecentActivityItem[] =
@@ -153,6 +196,7 @@ export function useDashboardPage() {
     error,
     metrics,
     recentActivities,
+    insights: data?.insights ?? [],
     refreshDashboard: fetchDashboard,
   };
 }

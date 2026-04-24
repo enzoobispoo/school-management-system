@@ -37,21 +37,31 @@ export function PaymentConfirmForm({
   return (
     <>
       <div className="grid gap-4 py-2">
-        <div className="rounded-[22px] border border-black/[0.05] bg-[#fafafa] p-4">
+        <div className="rounded-[20px] border border-black/5 bg-black/[0.03] p-4 dark:border-white/10 dark:bg-[#111111]">
           <div className="grid gap-2 text-sm">
             <div>
-              <span className="font-medium text-black">Aluno:</span>{" "}
-              <span className="text-black/60">{payment.student}</span>
+              <span className="font-medium text-black/90 dark:text-white/90">
+                Aluno:
+              </span>{" "}
+              <span className="text-black/65 dark:text-white/65">
+                {payment.student}
+              </span>
             </div>
 
             <div>
-              <span className="font-medium text-black">Descrição:</span>{" "}
-              <span className="text-black/60">{payment.description}</span>
+              <span className="font-medium text-black/90 dark:text-white/90">
+                Descrição:
+              </span>{" "}
+              <span className="text-black/65 dark:text-white/65">
+                {payment.description}
+              </span>
             </div>
 
             <div>
-              <span className="font-medium text-black">Valor:</span>{" "}
-              <span className="text-black/60">
+              <span className="font-medium text-black/90 dark:text-white/90">
+                Valor:
+              </span>{" "}
+              <span className="text-black/65 dark:text-white/65">
                 R$ {payment.amount.toFixed(2).replace(".", ",")}
               </span>
             </div>
@@ -59,16 +69,20 @@ export function PaymentConfirmForm({
         </div>
 
         <div className="grid gap-2">
-          <Label>Método de pagamento</Label>
+          <Label className="text-black dark:text-white">
+            Método de pagamento
+          </Label>
+
           <Select
             value={metodoPagamento}
             onValueChange={setMetodoPagamento}
             disabled={loading}
           >
-            <SelectTrigger className="rounded-2xl">
+            <SelectTrigger className="rounded-2xl border-black/10 bg-white text-black dark:border-white/10 dark:bg-[#111111] dark:text-white">
               <SelectValue placeholder="Selecione um método" />
             </SelectTrigger>
-            <SelectContent>
+
+            <SelectContent className="border-black/10 bg-white text-black dark:border-white/10 dark:bg-[#111111] dark:text-white">
               <SelectItem value="PIX">Pix</SelectItem>
               <SelectItem value="DINHEIRO">Dinheiro</SelectItem>
               <SelectItem value="CARTAO">Cartão</SelectItem>
@@ -90,12 +104,13 @@ export function PaymentConfirmForm({
         >
           Cancelar
         </Button>
+
         <Button
           onClick={async () => {
             await onConfirm();
           }}
           disabled={loading}
-          className="rounded-2xl bg-black text-white hover:bg-black/90"
+          className="rounded-2xl bg-black text-white hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90"
         >
           {loading ? "Confirmando..." : "Confirmar pagamento"}
         </Button>

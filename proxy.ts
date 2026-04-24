@@ -6,6 +6,8 @@ const PUBLIC_API_PREFIXES = [
   "/api/auth/login",
   "/api/auth/logout",
   "/api/configuracoes/escola/public",
+  "/api/webhooks/asaas",
+  "/api/cron/cobrancas-atrasadas",
 ];
 
 type UserRole =

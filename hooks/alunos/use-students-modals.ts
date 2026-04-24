@@ -11,6 +11,9 @@ type EditingStudent = {
   telefone?: string;
   dataNascimento?: string;
   endereco?: string;
+  responsavelNome?: string;
+  responsavelTelefone?: string;
+  responsavelEmail?: string;
 };
 
 export function useStudentsModals() {
@@ -28,7 +31,9 @@ export function useStudentsModals() {
     nome: string;
   } | null>(null);
 
-  const [editingStudent, setEditingStudent] = useState<EditingStudent | null>(null);
+  const [editingStudent, setEditingStudent] = useState<EditingStudent | null>(
+    null
+  );
 
   function openEditStudent(student: StudentTableItem) {
     setEditingStudent({
@@ -43,6 +48,15 @@ export function useStudentsModals() {
         : undefined,
       endereco: student.address ?? undefined,
       cpf: student.cpf ?? undefined,
+      responsavelNome: student.guardianName ?? undefined,
+      responsavelTelefone:
+        student.guardianPhone && student.guardianPhone !== "-"
+          ? student.guardianPhone
+          : undefined,
+      responsavelEmail:
+        student.guardianEmail && student.guardianEmail !== "-"
+          ? student.guardianEmail
+          : undefined,
     });
     setEditOpen(true);
   }

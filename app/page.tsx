@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Header } from "@/components/dashboard/header";
 import { DashboardPageContent } from "@/components/dashboard/dashboard-page-content";
@@ -11,7 +12,10 @@ import { useDashboardPage } from "@/hooks/dashboard/use-dashboard-page";
 
 export default function DashboardPage() {
   const dashboard = useDashboardPage();
+  const searchParams = useSearchParams();
   const [userName, setUserName] = useState("");
+
+  const initialAiPrompt = searchParams.get("ai") || "";
 
   useEffect(() => {
     async function loadUser() {
@@ -37,7 +41,9 @@ export default function DashboardPage() {
         description="Visão geral do seu sistema escolar"
       />
 
-      <DashboardMainLayout rightPanel={<DashboardRightPanel />}>
+      <DashboardMainLayout
+        rightPanel={<DashboardRightPanel initialPrompt={initialAiPrompt} />}
+      >
         <DashboardGreeting
           name={userName ? userName.split(" ")[0] : "Usuário"}
         />
@@ -48,6 +54,7 @@ export default function DashboardPage() {
           error={dashboard.error}
           metrics={dashboard.metrics}
           recentActivities={dashboard.recentActivities}
+          insights={dashboard.insights}
         />
       </DashboardMainLayout>
     </DashboardLayout>

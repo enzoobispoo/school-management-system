@@ -14,16 +14,18 @@ export function UpcomingEventsList({
 }: UpcomingEventsListProps) {
   if (!events.length) {
     return (
-      <div className="rounded-3xl border border-black/5 bg-white p-4 text-sm text-muted-foreground shadow-sm">
+      <div className="rounded-3xl border border-border bg-card p-4 text-sm text-muted-foreground shadow-sm">
         {emptyMessage}
       </div>
     );
   }
 
   return (
-    <div className="rounded-3xl border border-black/5 bg-white p-4 shadow-sm">
+    <div className="rounded-3xl border border-border bg-card p-4 shadow-sm">
       <div className="mb-3">
-        <h3 className="text-sm font-semibold text-black">Próximos eventos</h3>
+        <h3 className="text-sm font-semibold text-foreground">
+          Próximos eventos
+        </h3>
       </div>
 
       <div className="space-y-3">
@@ -33,10 +35,12 @@ export function UpcomingEventsList({
           return (
             <div
               key={event.id}
-              className="rounded-2xl border border-black/5 p-3"
+              className="rounded-2xl border border-border bg-muted/30 p-3"
             >
               <div className="mb-1 flex items-start justify-between gap-2">
-                <p className="text-sm font-medium text-black">{event.title}</p>
+                <p className="text-sm font-medium text-foreground">
+                  {event.title}
+                </p>
                 <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                   {getEventTypeLabel(event)}
                 </span>

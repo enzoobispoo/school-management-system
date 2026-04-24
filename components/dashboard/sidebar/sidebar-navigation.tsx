@@ -50,12 +50,19 @@ export function SidebarNavigation({
                   "flex items-center rounded-lg py-2.5 text-sm font-medium transition-all duration-200",
                   collapsed ? "justify-center px-2" : "gap-3 px-3",
                   isActive
-                    ? "bg-sidebar-accent text-sidebar-primary"
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                 )}
                 title={collapsed ? item.name : undefined}
               >
-                <item.icon className={cn("h-5 w-5", isActive && "text-sidebar-primary")} />
+                <item.icon
+                  className={cn(
+                    "h-5 w-5 transition-colors",
+                    isActive
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                  )}
+                />
                 {!collapsed ? item.name : null}
               </Link>
             </li>

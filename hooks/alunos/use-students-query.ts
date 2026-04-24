@@ -12,6 +12,9 @@ export interface StudentTableItem {
   cpf?: string;
   phone: string;
   courses: string[];
+  guardianName?: string;
+  guardianPhone?: string;
+  guardianEmail?: string;
   paymentStatus: StudentPaymentStatus;
   enrollmentDate: string;
   address?: string;
@@ -33,6 +36,9 @@ interface AlunosResponse {
     email: string | null;
     telefone: string | null;
     dataNascimento: string | null;
+    responsavelNome: string | null;
+    responsavelTelefone: string | null;
+    responsavelEmail: string | null;
     endereco: string | null;
     cursos: string[];
     matriculas: Array<{
@@ -80,9 +86,13 @@ function mapPaymentStatus(statuses: string[]): StudentPaymentStatus {
   return "paid";
 }
 
-function normalizeStudents(apiData: AlunosResponse["data"]): StudentTableItem[] {
+function normalizeStudents(
+  apiData: AlunosResponse["data"]
+): StudentTableItem[] {
   return apiData.map((aluno) => {
-    const paymentStatus = mapPaymentStatus(aluno.pagamentos.map((p) => p.status));
+    const paymentStatus = mapPaymentStatus(
+      aluno.pagamentos.map((p) => p.status)
+    );
 
     return {
       id: aluno.id,
@@ -91,12 +101,17 @@ function normalizeStudents(apiData: AlunosResponse["data"]): StudentTableItem[] 
       email: aluno.email ?? "-",
       phone: aluno.telefone ?? "-",
       courses: aluno.cursos,
+      guardianName: aluno.responsavelNome ?? undefined,
+      guardianPhone: aluno.responsavelTelefone ?? undefined,
+      guardianEmail: aluno.responsavelEmail ?? undefined,
       paymentStatus,
       enrollmentDate: aluno.matriculas[0]?.dataMatricula
         ? formatDate(aluno.matriculas[0].dataMatricula)
         : "-",
       address: aluno.endereco ?? undefined,
-      birthDate: aluno.dataNascimento ? formatDate(aluno.dataNascimento) : undefined,
+      birthDate: aluno.dataNascimento
+        ? formatDate(aluno.dataNascimento)
+        : undefined,
       financialHistory: aluno.pagamentos.map((pagamento) => ({
         id: pagamento.id,
         date: pagamento.dataPagamento
@@ -123,6 +138,9 @@ function normalizeStudents(apiData: AlunosResponse["data"]): StudentTableItem[] 
 export function useStudentsQuery() {
   const searchParams = useSearchParams();
   const courseId = searchParams.get("courseId") || "";
+  const selectedId = searchParams.get("id") || "";
+  const matriculaStatus = searchParams.get("matriculaStatus") || "";
+  const recent = searchParams.get("recent") || "";
 
   const [students, setStudents] = useState<StudentTableItem[]>([]);
   const [search, setSearch] = useState("");
@@ -151,9 +169,12 @@ export function useStudentsQuery() {
       params.set("page", String(page));
       params.set("pageSize", "10");
 
+      if (selectedId) params.set("id", selectedId);
       if (search.trim()) params.set("search", search.trim());
       if (statusQuery) params.set("status", statusQuery);
       if (courseId) params.set("courseId", courseId);
+      if (matriculaStatus) params.set("matriculaStatus", matriculaStatus);
+      if (recent) params.set("recent", recent);
 
       const response = await fetch(`/api/alunos?${params.toString()}`, {
         cache: "no-store",
@@ -180,7 +201,15 @@ export function useStudentsQuery() {
     }, 350);
 
     return () => clearTimeout(timeout);
-  }, [page, search, statusQuery, courseId]);
+  }, [
+    page,
+    search,
+    statusQuery,
+    courseId,
+    selectedId,
+    matriculaStatus,
+    recent,
+  ]);
 
   return {
     students,

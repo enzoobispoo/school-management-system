@@ -15,6 +15,9 @@ interface PaymentActionItem {
   description: string;
   amount: number;
   status: "paid" | "pending" | "overdue";
+  billingInvoiceUrl?: string | null;
+  billingBankSlipUrl?: string | null;
+  hasBoleto: boolean;
 }
 
 interface PaymentsTableActionsProps<T extends PaymentActionItem> {
@@ -33,6 +36,18 @@ interface PaymentsTableActionsProps<T extends PaymentActionItem> {
     description: string;
     amount: number;
   }) => void;
+  onSendReminder?: (payment: {
+    id: string;
+    student: string;
+    description: string;
+    amount: number;
+  }) => void;
+  onGenerateBoleto?: (payment: {
+    id: string;
+    student: string;
+    description: string;
+    amount: number;
+  }) => void;
 }
 
 export function PaymentsTableActions<T extends PaymentActionItem>({
@@ -41,7 +56,16 @@ export function PaymentsTableActions<T extends PaymentActionItem>({
   onViewDetails,
   onRegisterPayment,
   onDeletePayment,
+  onSendReminder,
+  onGenerateBoleto,
 }: PaymentsTableActionsProps<T>) {
+  const boletoUrl = payment.billingBankSlipUrl || payment.billingInvoiceUrl;
+
+  async function handleCopyBoletoLink() {
+    if (!boletoUrl) return;
+    await navigator.clipboard.writeText(boletoUrl);
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild disabled={isUpdating}>
@@ -54,6 +78,12 @@ export function PaymentsTableActions<T extends PaymentActionItem>({
         <DropdownMenuItem onClick={() => onViewDetails?.(payment)}>
           Ver detalhes
         </DropdownMenuItem>
+
+        {boletoUrl ? (
+          <DropdownMenuItem onClick={handleCopyBoletoLink}>
+            Copiar link do boleto
+          </DropdownMenuItem>
+        ) : null}
 
         {payment.status !== "paid" ? (
           <DropdownMenuItem
@@ -71,8 +101,37 @@ export function PaymentsTableActions<T extends PaymentActionItem>({
           </DropdownMenuItem>
         ) : null}
 
-        <DropdownMenuItem>Enviar lembrete</DropdownMenuItem>
-        <DropdownMenuItem>Gerar boleto</DropdownMenuItem>
+        {payment.status !== "paid" ? (
+          <DropdownMenuItem
+            onClick={() =>
+              onSendReminder?.({
+                id: payment.id,
+                student: payment.student,
+                description: payment.description,
+                amount: payment.amount,
+              })
+            }
+            disabled={isUpdating}
+          >
+            {isUpdating ? "Enviando..." : "Enviar lembrete"}
+          </DropdownMenuItem>
+        ) : null}
+
+        {payment.status !== "paid" ? (
+          <DropdownMenuItem
+            onClick={() =>
+              onGenerateBoleto?.({
+                id: payment.id,
+                student: payment.student,
+                description: payment.description,
+                amount: payment.amount,
+              })
+            }
+            disabled={isUpdating}
+          >
+            {payment.hasBoleto ? "Gerenciar boleto" : "Gerar boleto"}
+          </DropdownMenuItem>
+        ) : null}
 
         <DropdownMenuItem
           className="text-destructive"

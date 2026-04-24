@@ -9,6 +9,9 @@ interface StudentPayload {
   telefone?: string;
   dataNascimento?: string;
   endereco?: string;
+  responsavelNome?: string;
+  responsavelTelefone?: string;
+  responsavelEmail?: string;
 }
 
 export function useStudentsActions(onSuccess: () => Promise<void>) {
@@ -39,35 +42,47 @@ export function useStudentsActions(onSuccess: () => Promise<void>) {
   }
 
   async function handleUpdateStudent(id: string, payload: StudentPayload) {
-    const response = await fetch(`/api/alunos/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    try {
+      setSubmitting(true);
 
-    const result = await response.json();
+      const response = await fetch(`/api/alunos/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-    if (!response.ok) {
-      throw new Error(result.error || "Erro ao atualizar aluno");
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Erro ao atualizar aluno");
+      }
+
+      await onSuccess();
+    } finally {
+      setSubmitting(false);
     }
-
-    await onSuccess();
   }
 
   async function handleDeleteStudent(id: string) {
-    const response = await fetch(`/api/alunos/${id}`, {
-      method: "DELETE",
-    });
+    try {
+      setSubmitting(true);
 
-    const result = await response.json();
+      const response = await fetch(`/api/alunos/${id}`, {
+        method: "DELETE",
+      });
 
-    if (!response.ok) {
-      throw new Error(result.error || "Erro ao excluir aluno");
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Erro ao excluir aluno");
+      }
+
+      await onSuccess();
+    } finally {
+      setSubmitting(false);
     }
-
-    await onSuccess();
   }
 
   return {

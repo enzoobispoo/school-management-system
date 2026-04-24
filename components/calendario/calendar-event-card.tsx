@@ -37,18 +37,18 @@ export function CalendarEventCard({ event, onClick }: Props) {
       style={style}
     >
       <div className="mb-1 flex items-start justify-between gap-2">
-        <p className="line-clamp-2 text-[13px] font-semibold leading-4">
+        <p className="line-clamp-2 text-[13px] font-semibold leading-4 text-foreground">
           {event.title}
         </p>
-        <span className="text-xs opacity-40">•••</span>
+        <span className="text-xs text-muted-foreground">•••</span>
       </div>
 
-      <p className="text-[11px] font-medium opacity-75">
+      <p className="text-[11px] font-medium text-muted-foreground">
         {typeLabel} • {startText} - {endText}
       </p>
 
       {event.turma?.nome && (
-        <p className="mt-2 text-[11px] font-medium opacity-75">
+        <p className="mt-2 text-[11px] font-medium text-muted-foreground">
           {event.turma.nome}
         </p>
       )}

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useDebouncedValue } from "@/hooks/shared/use-debounced-value";
 
 interface PagamentosResponse {
   data: Array<{
@@ -14,6 +16,25 @@ interface PagamentosResponse {
     competenciaAno: number;
     metodoPagamento?: string | null;
     observacoes?: string | null;
+    billingProvider?: string | null;
+    billingExternalId?: string | null;
+    billingInvoiceUrl?: string | null;
+    billingBankSlipUrl?: string | null;
+    billingStatus?: string | null;
+    boletoGeradoEm?: string | null;
+    ultimoLembreteEnviadoEm?: string | null;
+    ultimoEnvio?: {
+      id: string;
+      canal: "WHATSAPP" | "EMAIL" | "SMS" | "SISTEMA";
+      tipo: "BOLETO" | "LEMBRETE" | "COBRANCA_ATRASO";
+      destino: string;
+      status: "PENDENTE" | "ENVIADO" | "FALHO";
+      provedor?: string | null;
+      externalId?: string | null;
+      mensagem?: string | null;
+      erro?: string | null;
+      createdAt: string;
+    } | null;
     matricula: {
       id: string;
       status: string;
@@ -58,6 +79,19 @@ export interface PaymentTableItem {
   date: string;
   dueDate: string;
   competence: string;
+  metodoPagamento?: string | null;
+  billingProvider?: string | null;
+  billingExternalId?: string | null;
+  billingInvoiceUrl?: string | null;
+  billingBankSlipUrl?: string | null;
+  billingStatus?: string | null;
+  boletoGeradoEm?: string | null;
+  hasBoleto: boolean;
+  wasPaidAutomatically: boolean;
+  lastSendAt?: string | null;
+  lastSendStatus?: "sent" | "failed" | "pending" | null;
+  lastSendType?: "boleto" | "reminder" | "overdue" | null;
+  lastSendError?: string | null;
 }
 
 interface FinancialTotals {
@@ -69,9 +103,27 @@ interface FinancialTotals {
   quantidadeAtrasados: number;
 }
 
+export interface FinancialAdvancedMetrics {
+  receitaPrevista: number;
+  taxaRecebimento: number;
+  taxaInadimplencia: number;
+}
+
 function formatDate(dateString?: string | null) {
   if (!dateString) return "-";
   return new Date(dateString).toLocaleDateString("pt-BR");
+}
+
+function formatDateTime(dateString?: string | null) {
+  if (!dateString) return null;
+
+  return new Date(dateString).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatCompetence(month?: number, year?: number) {
@@ -88,30 +140,73 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
+function mapLastSendStatus(
+  status?: "PENDENTE" | "ENVIADO" | "FALHO"
+): "sent" | "failed" | "pending" | null {
+  if (!status) return null;
+  if (status === "ENVIADO") return "sent";
+  if (status === "FALHO") return "failed";
+  return "pending";
+}
+
+function mapLastSendType(
+  type?: "BOLETO" | "LEMBRETE" | "COBRANCA_ATRASO"
+): "boleto" | "reminder" | "overdue" | null {
+  if (!type) return null;
+  if (type === "BOLETO") return "boleto";
+  if (type === "LEMBRETE") return "reminder";
+  return "overdue";
+}
+
 function normalizePayments(
   apiData: PagamentosResponse["data"]
 ): PaymentTableItem[] {
   const normalized: PaymentTableItem[] = apiData
     .filter((payment) => payment.status !== "CANCELADO")
-    .map((payment) => ({
-      id: payment.id,
-      student: payment.matricula.aluno.nome,
-      studentInitials: getInitials(payment.matricula.aluno.nome),
-      description: payment.descricao,
-      amount: payment.valor,
-      status:
-        payment.status === "ATRASADO"
-          ? "overdue"
-          : payment.status === "PENDENTE"
-          ? "pending"
-          : "paid",
-      date: payment.dataPagamento ? formatDate(payment.dataPagamento) : "-",
-      dueDate: formatDate(payment.vencimento),
-      competence: formatCompetence(
-        payment.competenciaMes,
-        payment.competenciaAno
-      ),
-    }));
+    .map((payment) => {
+      const hasBoleto = Boolean(
+        payment.billingExternalId &&
+          (payment.billingBankSlipUrl || payment.billingInvoiceUrl)
+      );
+
+      const wasPaidAutomatically =
+        payment.status === "PAGO" &&
+        !payment.metodoPagamento &&
+        payment.billingStatus === "RECEIVED";
+
+      return {
+        id: payment.id,
+        student: payment.matricula.aluno.nome,
+        studentInitials: getInitials(payment.matricula.aluno.nome),
+        description: payment.descricao,
+        amount: payment.valor,
+        status:
+          payment.status === "ATRASADO"
+            ? "overdue"
+            : payment.status === "PENDENTE"
+            ? "pending"
+            : "paid",
+        date: payment.dataPagamento ? formatDate(payment.dataPagamento) : "-",
+        dueDate: formatDate(payment.vencimento),
+        competence: formatCompetence(
+          payment.competenciaMes,
+          payment.competenciaAno
+        ),
+        metodoPagamento: payment.metodoPagamento,
+        billingProvider: payment.billingProvider,
+        billingExternalId: payment.billingExternalId,
+        billingInvoiceUrl: payment.billingInvoiceUrl,
+        billingBankSlipUrl: payment.billingBankSlipUrl,
+        billingStatus: payment.billingStatus,
+        boletoGeradoEm: payment.boletoGeradoEm,
+        hasBoleto,
+        wasPaidAutomatically,
+        lastSendAt: formatDateTime(payment.ultimoEnvio?.createdAt),
+        lastSendStatus: mapLastSendStatus(payment.ultimoEnvio?.status),
+        lastSendType: mapLastSendType(payment.ultimoEnvio?.tipo),
+        lastSendError: payment.ultimoEnvio?.erro ?? null,
+      };
+    });
 
   const order: Record<PaymentTableItem["status"], number> = {
     overdue: 0,
@@ -174,15 +269,45 @@ function calculateFinancialTotals(
   };
 }
 
+function calculateAdvancedMetrics(
+  totals: FinancialTotals
+): FinancialAdvancedMetrics {
+  const receitaPrevista = totals.valoresPendentes + totals.valoresAtrasados;
+
+  const baseRecebimento = totals.recebidoMes + totals.valoresPendentes;
+  const taxaRecebimento =
+    baseRecebimento > 0 ? (totals.recebidoMes / baseRecebimento) * 100 : 0;
+
+  const baseInadimplencia =
+    totals.receitaTotal + totals.valoresPendentes + totals.valoresAtrasados;
+  const taxaInadimplencia =
+    baseInadimplencia > 0
+      ? (totals.valoresAtrasados / baseInadimplencia) * 100
+      : 0;
+
+  return {
+    receitaPrevista,
+    taxaRecebimento,
+    taxaInadimplencia,
+  };
+}
+
 export function useFinancialQuery() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const paymentId = searchParams.get("paymentId") || "";
+  const tabStatus = searchParams.get("tab") || "all";
+  const search = searchParams.get("search") || "";
+  const month = searchParams.get("month") || "all";
+  const page = Math.max(Number(searchParams.get("page") || "1"), 1);
+
+  const debouncedSearch = useDebouncedValue(search, 400);
+
   const [payments, setPayments] = useState<PaymentTableItem[]>([]);
-  const [tabStatus, setTabStatus] = useState("all");
-  const [search, setSearch] = useState("");
-  const [month, setMonth] = useState("all");
   const [loading, setLoading] = useState(true);
   const [loadingTotals, setLoadingTotals] = useState(true);
   const [error, setError] = useState("");
-  const [page, setPage] = useState(1);
   const [meta, setMeta] = useState<PagamentosResponse["meta"]>({
     total: 0,
     page: 1,
@@ -199,6 +324,55 @@ export function useFinancialQuery() {
     quantidadeAtrasados: 0,
   });
 
+  function updateParams(nextParams: Record<string, string | number | null>) {
+    const params = new URLSearchParams(searchParams.toString());
+
+    Object.entries(nextParams).forEach(([key, value]) => {
+      if (
+        value === null ||
+        value === "" ||
+        value === "all" ||
+        (key === "page" && String(value) === "1")
+      ) {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+
+    const queryString = params.toString();
+    router.push(queryString ? `?${queryString}` : "?", { scroll: false });
+  }
+
+  const setTabStatus = (value: string) => {
+    updateParams({
+      tab: value,
+      page: 1,
+    });
+  };
+
+  const setSearch = (value: string) => {
+    updateParams({
+      search: value,
+      page: 1,
+    });
+  };
+
+  const setMonth = (value: string) => {
+    updateParams({
+      month: value,
+      page: 1,
+    });
+  };
+
+  const setPage = (value: number | ((prev: number) => number)) => {
+    const nextPage = typeof value === "function" ? value(page) : value;
+
+    updateParams({
+      page: nextPage,
+    });
+  };
+
   const statusQuery = useMemo(() => {
     if (tabStatus === "all") return "";
     if (tabStatus === "paid") return "PAGO";
@@ -213,6 +387,11 @@ export function useFinancialQuery() {
     return { month: m, year: y };
   }, [month]);
 
+  const advancedMetrics = useMemo(
+    () => calculateAdvancedMetrics(financialTotals),
+    [financialTotals]
+  );
+
   async function fetchPayments() {
     try {
       setLoading(true);
@@ -222,8 +401,10 @@ export function useFinancialQuery() {
       params.set("page", String(page));
       params.set("pageSize", "10");
 
-      if (search.trim()) params.set("search", search.trim());
+      if (paymentId) params.set("paymentId", paymentId);
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (statusQuery) params.set("status", statusQuery);
+
       if (monthQuery) {
         params.set("competenciaMes", monthQuery.month);
         params.set("competenciaAno", monthQuery.year);
@@ -274,12 +455,8 @@ export function useFinancialQuery() {
   }
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      fetchPayments();
-    }, 300);
-
-    return () => clearTimeout(timeout);
-  }, [page, search, statusQuery, month]);
+    fetchPayments();
+  }, [page, debouncedSearch, statusQuery, month, paymentId]);
 
   useEffect(() => {
     fetchFinancialTotals();
@@ -303,5 +480,6 @@ export function useFinancialQuery() {
     fetchPayments,
     fetchFinancialTotals,
     financialTotals,
+    advancedMetrics,
   };
 }

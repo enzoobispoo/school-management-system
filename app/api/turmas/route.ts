@@ -1,21 +1,21 @@
-import { NextRequest, NextResponse } from "next/server"
-import { Prisma } from "@prisma/client"
-import { prisma } from "@/lib/prisma"
-import { createTurmaSchema } from "@/lib/validations/turma"
+import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { createTurmaSchema } from "@/lib/validations/turma";
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
+    const { searchParams } = new URL(request.url);
 
-    const search = searchParams.get("search")?.trim() || ""
-    const cursoId = searchParams.get("cursoId")?.trim() || ""
-    const professorId = searchParams.get("professorId")?.trim() || ""
-    const ativo = searchParams.get("ativo")
-    const page = Math.max(Number(searchParams.get("page") || "1"), 1)
+    const search = searchParams.get("search")?.trim() || "";
+    const cursoId = searchParams.get("cursoId")?.trim() || "";
+    const professorId = searchParams.get("professorId")?.trim() || "";
+    const ativo = searchParams.get("ativo");
+    const page = Math.max(Number(searchParams.get("page") || "1"), 1);
     const pageSize = Math.min(
       Math.max(Number(searchParams.get("pageSize") || "12"), 1),
       100
-    )
+    );
 
     const where: Prisma.TurmaWhereInput = {
       ...(cursoId ? { cursoId } : {}),
@@ -26,11 +26,13 @@ export async function GET(request: NextRequest) {
             OR: [
               { nome: { contains: search, mode: "insensitive" } },
               { curso: { nome: { contains: search, mode: "insensitive" } } },
-              { professor: { nome: { contains: search, mode: "insensitive" } } },
+              {
+                professor: { nome: { contains: search, mode: "insensitive" } },
+              },
             ],
           }
         : {}),
-    }
+    };
 
     const [total, turmas] = await Promise.all([
       prisma.turma.count({ where }),
@@ -54,7 +56,7 @@ export async function GET(request: NextRequest) {
           },
         },
       }),
-    ])
+    ]);
 
     const data = turmas.map((turma) => ({
       id: turma.id,
@@ -72,12 +74,14 @@ export async function GET(request: NextRequest) {
         valorMensal: Number(turma.curso.valorMensal),
         duracaoTexto: turma.curso.duracaoTexto,
       },
-      professor: {
-        id: turma.professor.id,
-        nome: turma.professor.nome,
-        email: turma.professor.email,
-        telefone: turma.professor.telefone,
-      },
+      professor: turma.professor
+        ? {
+            id: turma.professor.id,
+            nome: turma.professor.nome,
+            email: turma.professor.email,
+            telefone: turma.professor.telefone,
+          }
+        : null,
       horarios: turma.horarios,
       matriculas: turma.matriculas.map((matricula) => ({
         id: matricula.id,
@@ -91,7 +95,7 @@ export async function GET(request: NextRequest) {
           status: matricula.aluno.status,
         },
       })),
-    }))
+    }));
 
     return NextResponse.json({
       data,
@@ -101,87 +105,123 @@ export async function GET(request: NextRequest) {
         pageSize,
         totalPages: Math.ceil(total / pageSize),
       },
-    })
+    });
   } catch (error) {
-    console.error("Erro ao buscar turmas:", error)
-    return NextResponse.json({ error: "Erro ao buscar turmas" }, { status: 500 })
+    console.error("Erro ao buscar turmas:", error);
+    return NextResponse.json(
+      { error: "Erro ao buscar turmas" },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const parsed = createTurmaSchema.safeParse(body)
+    const body = await request.json();
+    const parsed = createTurmaSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Dados inválidos", details: parsed.error.flatten() },
         { status: 400 }
-      )
+      );
     }
 
-    const { cursoId, professorId, nome, capacidadeMaxima, ativo, horarios } = parsed.data
+    const { cursoId, professorId, nome, capacidadeMaxima, ativo, horarios } =
+      parsed.data;
 
     const [curso, professor] = await Promise.all([
       prisma.curso.findUnique({
         where: { id: cursoId },
-        select: { id: true, nome: true, ativo: true },
+        select: {
+          id: true,
+          nome: true,
+          ativo: true,
+          categoria: true,
+          valorMensal: true,
+          duracaoTexto: true,
+        },
       }),
       prisma.professor.findUnique({
         where: { id: professorId },
-        select: { id: true, nome: true, ativo: true },
+        select: {
+          id: true,
+          nome: true,
+          email: true,
+          telefone: true,
+          ativo: true,
+        },
       }),
-    ])
+    ]);
 
     if (!curso) {
-      return NextResponse.json({ error: "Curso não encontrado" }, { status: 404 })
+      return NextResponse.json(
+        { error: "Curso não encontrado" },
+        { status: 404 }
+      );
     }
 
     if (!professor) {
-      return NextResponse.json({ error: "Professor não encontrado" }, { status: 404 })
+      return NextResponse.json(
+        { error: "Professor não encontrado" },
+        { status: 404 }
+      );
     }
 
     if (!curso.ativo) {
       return NextResponse.json(
         { error: "Não é possível criar turma para um curso inativo" },
         { status: 400 }
-      )
+      );
     }
 
     if (!professor.ativo) {
       return NextResponse.json(
         { error: "Não é possível criar turma com um professor inativo" },
         { status: 400 }
-      )
+      );
     }
 
-    const turma = await prisma.turma.create({
-      data: {
-        cursoId,
-        professorId,
-        nome,
-        capacidadeMaxima,
-        ativo,
-        horarios: {
-          create: horarios,
+    const turma = await prisma.$transaction(async (tx) => {
+      const novaTurma = await tx.turma.create({
+        data: {
+          cursoId,
+          professorId,
+          nome,
+          capacidadeMaxima,
+          ativo,
+          horarios: {
+            create: horarios,
+          },
         },
-      },
-      include: {
-        curso: true,
-        professor: true,
-        horarios: true,
-      },
-    })
+        include: {
+          curso: true,
+          professor: true,
+          horarios: true,
+        },
+      });
 
-    await prisma.notificacao.create({
-      data: {
-        tipo: "SISTEMA",
-        titulo: "Nova turma criada",
-        mensagem: `A turma ${turma.nome} foi criada para o curso ${turma.curso.nome}.`,
-        entidadeTipo: "TURMA",
-        entidadeId: turma.id,
-      },
-    })
+      await tx.turmaProfessorHistorico.create({
+        data: {
+          turmaId: novaTurma.id,
+          professorId,
+          dataInicio: new Date(),
+          motivoTroca: "Professor inicial",
+        },
+      });
+
+      await tx.notificacao.create({
+        data: {
+          tipo: "SISTEMA",
+          titulo: "Nova turma criada",
+          mensagem: `A turma ${novaTurma.nome} foi criada para o curso ${novaTurma.curso.nome}.`,
+          entidadeTipo: "TURMA",
+          entidadeId: novaTurma.id,
+        },
+      });
+
+      return novaTurma;
+    });
 
     return NextResponse.json(
       {
@@ -207,9 +247,9 @@ export async function POST(request: NextRequest) {
         horarios: turma.horarios,
       },
       { status: 201 }
-    )
+    );
   } catch (error) {
-    console.error("Erro ao criar turma:", error)
+    console.error("Erro ao criar turma:", error);
 
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -218,9 +258,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Já existe uma turma com esse nome nesse curso" },
         { status: 409 }
-      )
+      );
     }
 
-    return NextResponse.json({ error: "Erro ao criar turma" }, { status: 500 })
+    return NextResponse.json({ error: "Erro ao criar turma" }, { status: 500 });
   }
 }

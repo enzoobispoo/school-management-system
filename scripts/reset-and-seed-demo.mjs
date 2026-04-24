@@ -91,14 +91,14 @@ async function main() {
   await prisma.aluno.deleteMany();
   await prisma.userInvite.deleteMany();
 
-  await prisma.schoolSetting.upsert({
+  await prisma.escolaSettings.upsert({
     where: { id: "default" },
     update: {
-      nome: "Centro de Formação Alpha",
+      nomeEscola: "Centro de Formação Alpha",
     },
     create: {
       id: "default",
-      nome: "Centro de Formação Alpha",
+      nomeEscola: "Centro de Formação Alpha",
     },
   });
 

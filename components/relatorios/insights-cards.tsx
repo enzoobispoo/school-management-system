@@ -28,21 +28,21 @@ export function InsightsCards({ insights }: InsightsCardsProps) {
       value: `${(insights?.annualGrowth ?? 0).toFixed(1).replace(".", ",")}%`,
       description: "Aumento no número de alunos em relação ao ano anterior",
       icon: TrendingUp,
-      iconBg: "bg-black/[0.04] text-black",
+      iconBg: "bg-black/[0.04] text-black dark:bg-muted dark:text-foreground",
     },
     {
       title: "Taxa de Retenção",
       value: `${(insights?.retentionRate ?? 0).toFixed(1).replace(".", ",")}%`,
       description: "Alunos que renovaram matrícula nos últimos 12 meses",
       icon: Users,
-      iconBg: "bg-black/[0.04] text-black",
+      iconBg: "bg-black/[0.04] text-black dark:bg-muted dark:text-foreground",
     },
     {
       title: "Ticket Médio",
       value: formatCurrency(insights?.averageTicket ?? 0),
       description: "Valor médio de mensalidade por aluno",
       icon: Wallet,
-      iconBg: "bg-black/[0.04] text-black",
+      iconBg: "bg-black/[0.04] text-black dark:bg-muted dark:text-foreground",
     },
     {
       title: "Meta Mensal",
@@ -51,7 +51,7 @@ export function InsightsCards({ insights }: InsightsCardsProps) {
         insights?.monthlyReceived ?? 0
       )} de ${formatCurrency(insights?.monthlyGoalTarget ?? 0)} atingidos`,
       icon: Target,
-      iconBg: "bg-black/[0.04] text-black",
+      iconBg: "bg-black/[0.04] text-black dark:bg-muted dark:text-foreground",
     },
   ];
 

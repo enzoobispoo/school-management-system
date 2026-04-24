@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 interface ApiCourseResponse {
   data: Array<{
@@ -107,6 +108,8 @@ function normalizeCourses(
 }
 
 export function useCoursesQuery() {
+  const searchParams = useSearchParams();
+  const selectedId = searchParams.get("id") || "";
   const [courses, setCourses] = useState<CourseCardItem[]>([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
@@ -131,6 +134,7 @@ export function useCoursesQuery() {
       params.set("page", "1");
       params.set("pageSize", "50");
 
+      if (selectedId) params.set("id", selectedId);
       if (search.trim()) params.set("search", search.trim());
       if (categoryQuery) params.set("categoria", categoryQuery);
 
@@ -158,7 +162,7 @@ export function useCoursesQuery() {
     }, 300);
 
     return () => clearTimeout(timeout);
-  }, [search, categoryQuery]);
+  }, [search, categoryQuery, selectedId]);
 
   return {
     courses,

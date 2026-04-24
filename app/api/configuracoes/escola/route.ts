@@ -42,21 +42,53 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const nome = String(body?.nome ?? "").trim();
 
-    if (!nome) {
+    const nomeEscola = String(body?.nomeEscola ?? "").trim();
+    const billingProvider = String(body?.billingProvider ?? "asaas").trim();
+    const billingEnabled = Boolean(body?.billingEnabled);
+    const asaasApiKey = body?.asaasApiKey
+      ? String(body.asaasApiKey).trim()
+      : null;
+    const asaasWalletId = body?.asaasWalletId
+      ? String(body.asaasWalletId).trim()
+      : null;
+    const asaasEnvironment = String(
+      body?.asaasEnvironment ?? "sandbox"
+    ).trim();
+    const defaultChargeMethod = String(
+      body?.defaultChargeMethod ?? "boleto"
+    ).trim();
+    const autoGenerateBoleto = Boolean(body?.autoGenerateBoleto);
+
+    if (!nomeEscola) {
       return NextResponse.json(
         { error: "O nome da escola é obrigatório." },
         { status: 400 }
       );
     }
 
-    const school = await prisma.schoolSetting.upsert({
+    const school = await prisma.escolaSettings.upsert({
       where: { id: "default" },
-      update: { nome },
+      update: {
+        nomeEscola,
+        billingProvider,
+        billingEnabled,
+        asaasApiKey,
+        asaasWalletId,
+        asaasEnvironment,
+        defaultChargeMethod,
+        autoGenerateBoleto,
+      },
       create: {
         id: "default",
-        nome,
+        nomeEscola,
+        billingProvider,
+        billingEnabled,
+        asaasApiKey,
+        asaasWalletId,
+        asaasEnvironment,
+        defaultChargeMethod,
+        autoGenerateBoleto,
       },
     });
 
@@ -68,7 +100,7 @@ export async function PUT(request: NextRequest) {
     console.error("Erro ao salvar escola:", error);
 
     return NextResponse.json(
-      { error: "Não foi possível salvar o nome da escola." },
+      { error: "Não foi possível salvar as configurações da escola." },
       { status: 500 }
     );
   }

@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
 
+    const id = searchParams.get("id")?.trim() || ""
     const search = searchParams.get("search")?.trim() || ""
     const categoria = searchParams.get("categoria")?.trim() || ""
     const ativo = searchParams.get("ativo")
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest) {
     )
 
     const where: Prisma.CursoWhereInput = {
+      ...(id ? { id } : {}),
       ...(categoria
         ? { categoria: { equals: categoria, mode: "insensitive" } }
         : {}),

@@ -3,11 +3,22 @@
 import { useState } from "react";
 import type { PaymentTableItem } from "@/hooks/financeiro/use-financial-query";
 
+type BoletoSelectionPayment = {
+  id: string;
+  student: string;
+  description: string;
+  amount: number;
+};
+
 export function useFinancialModals() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [paymentConfirmOpen, setPaymentConfirmOpen] = useState(false);
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const [generateBoletoOpen, setGenerateBoletoOpen] = useState(false);
+  const [selectedPaymentForBoleto, setSelectedPaymentForBoleto] =
+    useState<BoletoSelectionPayment | null>(null);
 
   const [selectedPayment, setSelectedPayment] = useState<{
     id: string;
@@ -66,6 +77,16 @@ export function useFinancialModals() {
     setSelectedPaymentToDelete(null);
   }
 
+  function openGenerateBoleto(payment: BoletoSelectionPayment) {
+    setSelectedPaymentForBoleto(payment);
+    setGenerateBoletoOpen(true);
+  }
+
+  function closeGenerateBoleto() {
+    setGenerateBoletoOpen(false);
+    setSelectedPaymentForBoleto(null);
+  }
+
   return {
     detailsOpen,
     setDetailsOpen,
@@ -75,17 +96,23 @@ export function useFinancialModals() {
     setGenerateDialogOpen,
     deleteOpen,
     setDeleteOpen,
+    generateBoletoOpen,
+    setGenerateBoletoOpen,
     selectedPayment,
     setSelectedPayment,
     selectedPaymentDetails,
     setSelectedPaymentDetails,
     selectedPaymentToDelete,
     setSelectedPaymentToDelete,
+    selectedPaymentForBoleto,
+    setSelectedPaymentForBoleto,
     openRegisterPayment,
     closeRegisterPayment,
     openPaymentDetails,
     closePaymentDetails,
     openDeletePayment,
     closeDeletePayment,
+    openGenerateBoleto,
+    closeGenerateBoleto,
   };
 }

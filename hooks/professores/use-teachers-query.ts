@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 interface ProfessoresResponse {
   data: Array<{
@@ -88,6 +89,10 @@ function normalizeTeachers(
 }
 
 export function useTeachersQuery() {
+  const searchParams = useSearchParams();
+  const selectedId = searchParams.get("id") || "";
+  const ativoParam = searchParams.get("ativo") || "";
+
   const [teachers, setTeachers] = useState<TeacherCardItem[]>([]);
   const [search, setSearch] = useState("");
   const [courseFilter, setCourseFilter] = useState("all");
@@ -108,6 +113,7 @@ export function useTeachersQuery() {
       params.set("page", "1");
       params.set("pageSize", "50");
 
+      if (selectedId) params.set("id", selectedId);
       if (search.trim()) params.set("search", search.trim());
 
       const response = await fetch(`/api/professores?${params.toString()}`, {
@@ -129,6 +135,14 @@ export function useTeachersQuery() {
         );
       }
 
+      if (ativoParam === "true") {
+        normalized = normalized.filter((teacher) => teacher.active);
+      }
+
+      if (ativoParam === "false") {
+        normalized = normalized.filter((teacher) => !teacher.active);
+      }
+
       setTeachers(normalized);
     } catch (err) {
       console.error(err);
@@ -144,7 +158,7 @@ export function useTeachersQuery() {
     }, 300);
 
     return () => clearTimeout(timeout);
-  }, [search, courseQuery]);
+  }, [search, courseQuery, selectedId, ativoParam]);
 
   return {
     teachers,

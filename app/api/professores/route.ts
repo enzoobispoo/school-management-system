@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
 
+    const id = searchParams.get("id")?.trim() || ""
     const search = searchParams.get("search")?.trim() || ""
     const ativo = searchParams.get("ativo")
     const cursoId = searchParams.get("cursoId")?.trim() || ""
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest) {
     )
 
     const where: Prisma.ProfessorWhereInput = {
+      ...(id ? { id } : {}),
       ...(ativo !== null ? { ativo: ativo === "true" } : {}),
       ...(cursoId
         ? {

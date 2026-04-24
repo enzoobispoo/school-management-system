@@ -9,7 +9,12 @@ function formatCurrency(value: number) {
   })}`;
 }
 
-function detectPaymentMethod(method?: string) {
+function normalizeStoredPaymentMethod(method?: string | null) {
+  const normalized = method?.trim();
+  return normalized || "PIX";
+}
+
+function detectPaymentMethod(method?: string, fallbackMethod?: string | null) {
   const normalized = method?.trim().toLowerCase() || "";
 
   if (normalized.includes("pix")) return "PIX";
@@ -20,7 +25,7 @@ function detectPaymentMethod(method?: string) {
   if (normalized.includes("dinheiro")) return "Dinheiro";
   if (normalized.includes("transfer")) return "Transferência";
 
-  return "PIX";
+  return normalizeStoredPaymentMethod(fallbackMethod);
 }
 
 async function findLatestOpenPaymentByStudentName(studentName: string) {
@@ -56,10 +61,7 @@ async function findLatestOpenPaymentByStudentName(studentName: string) {
         },
       },
     },
-    orderBy: [
-      { vencimento: "asc" },
-      { createdAt: "desc" },
-    ],
+    orderBy: [{ vencimento: "asc" }, { createdAt: "desc" }],
     take: 5,
   });
 
@@ -90,7 +92,18 @@ export async function registerPayment(params: {
   confirmed: boolean;
 }): Promise<AiActionResult> {
   const studentName = params.studentName?.trim() || "";
-  const paymentMethod = detectPaymentMethod(params.paymentMethod);
+
+  const settings = await prisma.escolaSettings.findUnique({
+    where: { id: "default" },
+    select: {
+      metodoPagamentoPadrao: true,
+    },
+  });
+
+  const paymentMethod = detectPaymentMethod(
+    params.paymentMethod,
+    settings?.metodoPagamentoPadrao
+  );
 
   if (!params.confirmed) {
     const previewStudentName = studentName || "do aluno desejado";

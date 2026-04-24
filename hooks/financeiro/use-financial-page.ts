@@ -55,6 +55,28 @@ export function useFinancialPage() {
     }
   }
 
+  function openGenerateBoleto(payment: {
+    id: string;
+    student: string;
+    description: string;
+    amount: number;
+  }) {
+    modals.openGenerateBoleto(payment);
+  }
+
+  async function handleGenerateBoleto(paymentIds: string[]) {
+    try {
+      query.setError("");
+      await actions.handleGenerateBoletoBatch(paymentIds);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Erro ao gerar boleto";
+
+      query.setError(message);
+      throw err;
+    }
+  }
+
   return {
     ...query,
     ...actions,
@@ -62,5 +84,8 @@ export function useFinancialPage() {
     submitDeletePayment,
     submitGenerateMonthlyPayments,
     submitRegisterPayment,
+    sendReminder: actions.handleSendReminder,
+    generateBoleto: openGenerateBoleto,
+    handleGenerateBoleto,
   };
 }

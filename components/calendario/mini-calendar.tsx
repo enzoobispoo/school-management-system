@@ -15,10 +15,6 @@ function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
-function endOfMonth(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
-}
-
 function startOfCalendarGrid(date: Date) {
   const firstDay = startOfMonth(date);
   const day = firstDay.getDay();
@@ -56,9 +52,9 @@ export function MiniCalendar({
   const today = new Date();
 
   return (
-    <div className="rounded-3xl border border-black/5 bg-white p-4 shadow-sm">
+    <div className="rounded-3xl border border-border bg-card p-4 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-black">
+        <h3 className="text-sm font-semibold text-foreground">
           {referenceDate.toLocaleDateString("pt-BR", {
             month: "long",
             year: "numeric",
@@ -103,9 +99,9 @@ export function MiniCalendar({
       </div>
 
       <div className="mb-2 grid grid-cols-7 gap-1">
-        {WEEK_DAYS.map((day) => (
+        {WEEK_DAYS.map((day, index) => (
           <div
-            key={day}
+            key={`${day}-${index}`}
             className="flex h-8 items-center justify-center text-xs font-medium text-muted-foreground"
           >
             {day}
@@ -115,21 +111,22 @@ export function MiniCalendar({
 
       <div className="grid grid-cols-7 gap-1">
         {days.map((day) => {
-          const isToday = isSameDay(day, today);
+          const isTodayDate = isSameDay(day, today);
           const isSelected = isSameDay(day, selectedDate);
           const isOutsideMonth = day.getMonth() !== currentMonth;
 
           return (
             <button
               key={day.toISOString()}
+              type="button"
               onClick={() => onSelectDate?.(day)}
               className={[
                 "flex h-9 w-9 items-center justify-center rounded-xl text-sm transition",
                 isSelected
-                  ? "bg-black text-white"
-                  : isToday
-                  ? "border border-black/10 bg-black/5 text-black"
-                  : "text-black hover:bg-black/5",
+                  ? "bg-foreground text-background"
+                  : isTodayDate
+                  ? "border border-border bg-muted text-foreground"
+                  : "text-foreground hover:bg-accent",
                 isOutsideMonth ? "opacity-35" : "",
               ].join(" ")}
             >

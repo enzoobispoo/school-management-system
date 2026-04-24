@@ -23,19 +23,23 @@ export function CalendarFilters({
 
   return (
     <div className="mb-6 flex flex-wrap items-center gap-2 overflow-hidden">
-      {filters.map((filter) => (
-        <button
-          key={filter.value}
-          onClick={() => onChange(filter.value)}
-          className={
-            value === filter.value
-              ? "max-w-full rounded-full bg-black px-4 py-2 text-sm font-medium text-white"
-              : "max-w-full rounded-full bg-[#f6f6f6] px-4 py-2 text-sm text-[#6b7280]"
-          }
-        >
-          {filter.label}
-        </button>
-      ))}
+      {filters.map((filter) => {
+        const isActive = value === filter.value;
+
+        return (
+          <button
+            key={filter.value}
+            onClick={() => onChange(filter.value)}
+            className={
+              isActive
+                ? "max-w-full rounded-full bg-black px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-black"
+                : "max-w-full rounded-full bg-[#f6f6f6] px-4 py-2 text-sm text-[#6b7280] dark:bg-muted dark:text-muted-foreground"
+            }
+          >
+            {filter.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

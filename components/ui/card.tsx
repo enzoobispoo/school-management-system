@@ -2,17 +2,17 @@ import * as React from 'react'
 
 import { cn } from '@/lib/utils'
 
-function Card({ className, ...props }: React.ComponentProps<'div'>) {
+function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card"
       className={cn(
-        'bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm',
-        className,
+        "flex flex-col gap-6 rounded-xl border border-black/5 bg-white py-6 text-black shadow-sm dark:border-border dark:bg-card dark:text-card-foreground",
+        className
       )}
       {...props}
     />
-  )
+  );
 }
 
 function CardHeader({ className, ...props }: React.ComponentProps<'div'>) {

@@ -1,47 +1,76 @@
-import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
-import { createAlunoSchema } from "@/lib/validations/aluno"
-import { Prisma } from "@prisma/client"
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { createAlunoSchema } from "@/lib/validations/aluno";
+import { Prisma } from "@prisma/client";
 
 function getComputedPaymentStatus(pagamento: {
-  status: string
-  vencimento: Date
-  dataPagamento: Date | null
+  status: string;
+  vencimento: Date;
+  dataPagamento: Date | null;
 }) {
-  if (pagamento.status === "CANCELADO") return "CANCELADO"
-  if (pagamento.status === "PAGO" || pagamento.dataPagamento) return "PAGO"
+  if (pagamento.status === "CANCELADO") return "CANCELADO";
+  if (pagamento.status === "PAGO" || pagamento.dataPagamento) return "PAGO";
 
-  const hoje = new Date()
-  const vencimento = new Date(pagamento.vencimento)
+  const hoje = new Date();
+  const vencimento = new Date(pagamento.vencimento);
 
-  hoje.setHours(0, 0, 0, 0)
-  vencimento.setHours(0, 0, 0, 0)
+  hoje.setHours(0, 0, 0, 0);
+  vencimento.setHours(0, 0, 0, 0);
 
-  if (vencimento < hoje) return "ATRASADO"
-  return "PENDENTE"
+  if (vencimento < hoje) return "ATRASADO";
+  return "PENDENTE";
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
+    const { searchParams } = new URL(request.url);
 
-    const search = searchParams.get("search")?.trim() || ""
-    const status = searchParams.get("status")?.trim()
-    const page = Math.max(Number(searchParams.get("page") || "1"), 1)
-    const courseId = searchParams.get("courseId")?.trim() || ""
+    const id = searchParams.get("id")?.trim() || "";
+    const search = searchParams.get("search")?.trim() || "";
+    const status = searchParams.get("status")?.trim();
+    const courseId = searchParams.get("courseId")?.trim() || "";
+    const matriculaStatus = searchParams.get("matriculaStatus")?.trim() || "";
+    const recent = searchParams.get("recent") === "true";
+    const page = Math.max(Number(searchParams.get("page") || "1"), 1);
     const pageSize = Math.min(
       Math.max(Number(searchParams.get("pageSize") || "10"), 1),
       100
-    )
+    );
+
+    const now = new Date();
+    const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfCurrentMonth = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      1
+    );
 
     const where: Prisma.AlunoWhereInput = {
-      ...(courseId
+      ...(id ? { id } : {}),
+      ...(recent
+        ? {
+            createdAt: {
+              gte: startOfCurrentMonth,
+              lt: endOfCurrentMonth,
+            },
+          }
+        : {}),
+      ...(courseId || matriculaStatus
         ? {
             matriculas: {
               some: {
-                turma: {
-                  cursoId: courseId,
-                },
+                ...(courseId
+                  ? {
+                      turma: {
+                        cursoId: courseId,
+                      },
+                    }
+                  : {}),
+                ...(matriculaStatus
+                  ? {
+                      status: matriculaStatus as any,
+                    }
+                  : {}),
               },
             },
           }
@@ -52,10 +81,28 @@ export async function GET(request: NextRequest) {
               { nome: { contains: search, mode: "insensitive" } },
               { email: { contains: search, mode: "insensitive" } },
               { telefone: { contains: search, mode: "insensitive" } },
+              {
+                responsavelNome: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
+              {
+                responsavelTelefone: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
+              {
+                responsavelEmail: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
             ],
           }
         : {}),
-    }
+    };
 
     const [total, alunos] = await Promise.all([
       prisma.aluno.count({ where }),
@@ -81,12 +128,12 @@ export async function GET(request: NextRequest) {
           },
         },
       }),
-    ])
+    ]);
 
     const data = alunos.map((aluno) => {
       const cursos = aluno.matriculas.map(
         (matricula) => matricula.turma.curso.nome
-      )
+      );
 
       const pagamentos = aluno.matriculas.flatMap((matricula) =>
         matricula.pagamentos.map((pagamento) => ({
@@ -100,7 +147,7 @@ export async function GET(request: NextRequest) {
           competenciaMes: pagamento.competenciaMes,
           competenciaAno: pagamento.competenciaAno,
         }))
-      )
+      );
 
       return {
         id: aluno.id,
@@ -108,6 +155,9 @@ export async function GET(request: NextRequest) {
         cpf: aluno.cpf,
         email: aluno.email,
         telefone: aluno.telefone,
+        responsavelNome: aluno.responsavelNome,
+        responsavelTelefone: aluno.responsavelTelefone,
+        responsavelEmail: aluno.responsavelEmail,
         dataNascimento: aluno.dataNascimento,
         endereco: aluno.endereco,
         status: aluno.status,
@@ -129,47 +179,49 @@ export async function GET(request: NextRequest) {
           },
         })),
         pagamentos,
-      }
-    })
+      };
+    });
 
     const filteredData = status
-  ? data.filter((aluno) => {
-      const paymentStatuses = aluno.pagamentos.map((pagamento) => pagamento.status)
+      ? data.filter((aluno) => {
+          const paymentStatuses = aluno.pagamentos.map(
+            (pagamento) => pagamento.status
+          );
 
-      let financialStatus = "paid"
-      if (paymentStatuses.includes("ATRASADO")) {
-        financialStatus = "overdue"
-      } else if (paymentStatuses.includes("PENDENTE")) {
-        financialStatus = "pending"
-      }
+          let financialStatus = "paid";
+          if (paymentStatuses.includes("ATRASADO")) {
+            financialStatus = "overdue";
+          } else if (paymentStatuses.includes("PENDENTE")) {
+            financialStatus = "pending";
+          }
 
-      return financialStatus === status
-    })
-  : data
+          return financialStatus === status;
+        })
+      : data;
 
-  return NextResponse.json({
-    data: filteredData,
-    meta: {
-      total: status ? filteredData.length : total,
+    return NextResponse.json({
+      data: filteredData,
+      meta: {
+        total: status ? filteredData.length : total,
         page,
         pageSize,
-        totalPages: Math.ceil(total / pageSize),
+        totalPages: Math.ceil((status ? filteredData.length : total) / pageSize),
       },
-    })
+    });
   } catch (error) {
-    console.error("Erro ao buscar alunos:", error)
+    console.error("Erro ao buscar alunos:", error);
 
     return NextResponse.json(
       { error: "Erro ao buscar alunos" },
       { status: 500 }
-    )
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const parsed = createAlunoSchema.safeParse(body)
+    const body = await request.json();
+    const parsed = createAlunoSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
@@ -178,20 +230,24 @@ export async function POST(request: NextRequest) {
           details: parsed.error.flatten(),
         },
         { status: 400 }
-      )
+      );
     }
 
     const aluno = await prisma.aluno.create({
       data: {
         nome: parsed.data.nome,
-        email: parsed.data.email,
-        cpf: parsed.data.cpf?.replace(/\D/g, ""),
-        telefone: parsed.data.telefone?.replace(/\D/g, ""),
+        email: parsed.data.email || null,
+        cpf: parsed.data.cpf?.replace(/\D/g, "") || null,
+        telefone: parsed.data.telefone?.replace(/\D/g, "") || null,
         dataNascimento: parsed.data.dataNascimento,
-        endereco: parsed.data.endereco,
+        endereco: parsed.data.endereco || null,
         status: parsed.data.status,
+        responsavelNome: parsed.data.responsavelNome || null,
+        responsavelTelefone:
+          parsed.data.responsavelTelefone?.replace(/\D/g, "") || null,
+        responsavelEmail: parsed.data.responsavelEmail || null,
       },
-    })
+    });
 
     await prisma.notificacao.create({
       data: {
@@ -201,11 +257,11 @@ export async function POST(request: NextRequest) {
         entidadeTipo: "ALUNO",
         entidadeId: aluno.id,
       },
-    })
+    });
 
-    return NextResponse.json(aluno, { status: 201 })
+    return NextResponse.json(aluno, { status: 201 });
   } catch (error) {
-    console.error("Erro ao criar aluno:", error)
+    console.error("Erro ao criar aluno:", error);
 
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -214,12 +270,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Já existe um aluno com esse e-mail ou CPF" },
         { status: 409 }
-      )
+      );
     }
 
     return NextResponse.json(
       { error: "Erro ao criar aluno" },
       { status: 500 }
-    )
+    );
   }
 }

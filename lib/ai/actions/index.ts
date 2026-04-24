@@ -7,3 +7,4 @@ export { registerPayment } from "@/lib/ai/actions/register-payment";
 export { getTotalActiveStudents } from "@/lib/ai/actions/get-total-active-students";
 export { getMonthlyFinancialSummary } from "@/lib/ai/actions/get-monthly-financial-summary";
 export { listOverduePayments } from "@/lib/ai/actions/list-overdue-payments";
+export { listTopCourses } from "@/lib/ai/actions/list-top-courses";

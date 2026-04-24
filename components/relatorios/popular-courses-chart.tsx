@@ -1,7 +1,6 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 
 interface PopularCoursesChartProps {
   courses?: Array<{
@@ -15,12 +14,13 @@ export function PopularCoursesChart({
   courses = [],
 }: PopularCoursesChartProps) {
   return (
-    <Card className="rounded-[24px] border border-black/[0.05] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+    <Card className="rounded-[24px] border border-black/5 bg-white text-black shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:border-white/10 dark:bg-[#1a1a1a] dark:text-white">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base font-medium text-black">
+        <CardTitle className="text-base font-medium text-black dark:text-white">
           Cursos Mais Populares
         </CardTitle>
-        <p className="text-sm text-black/50">
+
+        <p className="text-sm text-black/42 dark:text-white/60">
           Ranking por número de alunos matriculados
         </p>
       </CardHeader>
@@ -30,17 +30,27 @@ export function PopularCoursesChart({
           {courses.map((course, index) => (
             <div key={course.name} className="flex flex-col gap-2">
               <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black/[0.05] text-xs font-medium text-black/55 dark:bg-white/10 dark:text-white/60">
                     {index + 1}
                   </span>
-                  <span className="font-medium text-foreground">{course.name}</span>
+
+                  <span className="truncate font-medium text-black dark:text-white">
+                    {course.name}
+                  </span>
                 </div>
-                <span className="text-muted-foreground">
+
+                <span className="shrink-0 text-black/45 dark:text-white/60">
                   {course.students} alunos
                 </span>
               </div>
-              <Progress value={course.percentage} className="h-2" />
+
+              <div className="h-2 w-full rounded-full bg-black/[0.06] dark:bg-white/10">
+                <div
+                  className="h-2 rounded-full bg-black dark:bg-white"
+                  style={{ width: `${course.percentage}%` }}
+                />
+              </div>
             </div>
           ))}
         </div>

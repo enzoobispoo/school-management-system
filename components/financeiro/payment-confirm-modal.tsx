@@ -45,10 +45,12 @@ export function PaymentConfirmModal({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && handleClose()}>
-      <DialogContent className="sm:max-w-[480px] rounded-[28px] border border-black/[0.05] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
+      <DialogContent className="sm:max-w-[480px] rounded-[28px] border border-black/5 bg-white text-black shadow-[0_20px_60px_rgba(0,0,0,0.12)] dark:border-white/10 dark:bg-[#1a1a1a] dark:text-white">
         <DialogHeader>
-          <DialogTitle>Registrar pagamento</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-black dark:text-white">
+            Registrar pagamento
+          </DialogTitle>
+          <DialogDescription className="text-black/42 dark:text-white/60">
             Confirme o pagamento e selecione o método utilizado.
           </DialogDescription>
         </DialogHeader>

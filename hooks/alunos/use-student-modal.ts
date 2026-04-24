@@ -9,6 +9,9 @@ interface StudentFormData {
   telefone: string;
   dataNascimento: string;
   endereco: string;
+  responsavelNome: string;
+  responsavelTelefone: string;
+  responsavelEmail: string;
 }
 
 interface UseStudentModalParams {
@@ -21,6 +24,9 @@ interface UseStudentModalParams {
     telefone?: string;
     dataNascimento?: string;
     endereco?: string;
+    responsavelNome?: string;
+    responsavelTelefone?: string;
+    responsavelEmail?: string;
   } | null;
   onSubmit: (payload: {
     nome: string;
@@ -29,6 +35,9 @@ interface UseStudentModalParams {
     telefone?: string;
     dataNascimento?: string;
     endereco?: string;
+    responsavelNome?: string;
+    responsavelTelefone?: string;
+    responsavelEmail?: string;
   }) => Promise<void>;
 }
 
@@ -71,6 +80,9 @@ export function useStudentModal({
     telefone: "",
     dataNascimento: "",
     endereco: "",
+    responsavelNome: "",
+    responsavelTelefone: "",
+    responsavelEmail: "",
   });
 
   const currentOpen = isControlled ? open : internalOpen;
@@ -92,6 +104,11 @@ export function useStudentModal({
         telefone: initialData?.telefone ? formatPhone(initialData.telefone) : "",
         dataNascimento: initialData?.dataNascimento ?? "",
         endereco: initialData?.endereco ?? "",
+        responsavelNome: initialData?.responsavelNome ?? "",
+        responsavelTelefone: initialData?.responsavelTelefone
+          ? formatPhone(initialData.responsavelTelefone)
+          : "",
+        responsavelEmail: initialData?.responsavelEmail ?? "",
       });
       setError("");
     }
@@ -109,6 +126,9 @@ export function useStudentModal({
       telefone: "",
       dataNascimento: "",
       endereco: "",
+      responsavelNome: "",
+      responsavelTelefone: "",
+      responsavelEmail: "",
     });
     setError("");
   }
@@ -135,6 +155,9 @@ export function useStudentModal({
         telefone: form.telefone.trim() || undefined,
         dataNascimento: form.dataNascimento || undefined,
         endereco: form.endereco.trim() || undefined,
+        responsavelNome: form.responsavelNome.trim() || undefined,
+        responsavelTelefone: form.responsavelTelefone.trim() || undefined,
+        responsavelEmail: form.responsavelEmail.trim() || undefined,
       });
 
       resetForm();

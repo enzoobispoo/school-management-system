@@ -10,13 +10,28 @@ function getNextCompetence(month: number, year: number) {
   return { month: month + 1, year };
 }
 
-function getDefaultDueDate(month: number, year: number) {
-  return new Date(year, month - 1, 10, 12, 0, 0);
+function getDefaultDueDate(
+  month: number,
+  year: number,
+  dueDay: number | null | undefined
+) {
+  const safeDay =
+    typeof dueDay === "number" && dueDay >= 1 && dueDay <= 28 ? dueDay : 10;
+
+  return new Date(year, month - 1, safeDay, 12, 0, 0);
 }
 
 export async function generateMonthlyPayments(
   confirmed: boolean
 ): Promise<AiActionResult> {
+  const settings = await prisma.escolaSettings.findUnique({
+    where: { id: "default" },
+    select: {
+      diaVencimentoPadrao: true,
+      gerarMensalidadeAuto: true,
+    },
+  });
+
   if (!confirmed) {
     return {
       message:
@@ -40,10 +55,7 @@ export async function generateMonthlyPayments(
         },
       },
       pagamentos: {
-        orderBy: [
-          { competenciaAno: "desc" },
-          { competenciaMes: "desc" },
-        ],
+        orderBy: [{ competenciaAno: "desc" }, { competenciaMes: "desc" }],
         take: 1,
       },
     },
@@ -88,7 +100,11 @@ export async function generateMonthlyPayments(
         competenciaAno,
         descricao: `Mensalidade - ${matricula.turma.curso.nome}`,
         valor: matricula.turma.curso.valorMensal,
-        vencimento: getDefaultDueDate(competenciaMes, competenciaAno),
+        vencimento: getDefaultDueDate(
+          competenciaMes,
+          competenciaAno,
+          settings?.diaVencimentoPadrao
+        ),
         status: "PENDENTE",
       },
     });
@@ -101,7 +117,9 @@ export async function generateMonthlyPayments(
       createdCount > 0
         ? `Mensalidades geradas com sucesso. Foram criadas ${createdCount} cobrança${
             createdCount === 1 ? "" : "s"
-          } nova${createdCount === 1 ? "" : "s"}.`
+          } nova${createdCount === 1 ? "" : "s"}. Vencimento padrão aplicado: dia ${
+            settings?.diaVencimentoPadrao ?? 10
+          }.`
         : "Nenhuma nova mensalidade precisou ser gerada. Todas as matrículas ativas já possuem cobrança da próxima competência.",
     suggestions: getFinanceSuggestions(),
     executed: true,

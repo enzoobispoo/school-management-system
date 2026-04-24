@@ -93,7 +93,7 @@ export function TeacherModal({
       {!hideTrigger ? (
         <DialogTrigger asChild>
           {mode === "create" ? (
-            <Button className="gap-2 rounded-2xl">
+            <Button className="gap-2 rounded-2xl h-11 px-5 bg-black text-white dark:bg-white/10 dark:text-white dark:backdrop-blur-md dark:hover:bg-white/20 border border-black/10 dark:border-white/10 shadow-sm">
               <Plus className="h-4 w-4" />
               {defaultTriggerLabel}
             </Button>

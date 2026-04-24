@@ -28,11 +28,11 @@ export function CalendarToolbar({
   hasAdvancedFilters = false,
 }: CalendarToolbarProps) {
   return (
-    <div className="mb-6 rounded-[28px] border border-black/5 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+    <div className="mb-6 rounded-[28px] border border-border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
       <div className="flex flex-col gap-5 p-4 sm:p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
-            <h2 className="break-words text-[24px] font-semibold tracking-[-0.03em] text-black sm:text-[28px]">
+            <h2 className="break-words text-[24px] font-semibold tracking-[-0.03em] text-foreground sm:text-[28px]">
               {title}
             </h2>
           </div>
@@ -42,7 +42,7 @@ export function CalendarToolbar({
               <Button
                 variant="outline"
                 size="icon"
-                className="h-11 w-11 shrink-0 rounded-2xl border-black/10 bg-white shadow-none"
+                className="h-11 w-11 shrink-0 rounded-2xl border-border bg-background/60 shadow-none hover:bg-accent"
                 onClick={onPrev}
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -50,7 +50,7 @@ export function CalendarToolbar({
 
               <Button
                 variant="outline"
-                className="h-11 flex-1 rounded-2xl border-black/10 bg-white px-4 shadow-none sm:flex-none"
+                className="h-11 flex-1 rounded-2xl border-border bg-background/60 px-4 shadow-none hover:bg-accent sm:flex-none"
                 onClick={onToday}
               >
                 Esta semana
@@ -59,7 +59,7 @@ export function CalendarToolbar({
               <Button
                 variant="outline"
                 size="icon"
-                className="h-11 w-11 shrink-0 rounded-2xl border-black/10 bg-white shadow-none"
+                className="h-11 w-11 shrink-0 rounded-2xl border-border bg-background/60 shadow-none hover:bg-accent"
                 onClick={onNext}
               >
                 <ChevronRight className="h-4 w-4" />
@@ -69,8 +69,10 @@ export function CalendarToolbar({
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <Button
                 variant="outline"
-                className={`h-11 w-full rounded-2xl border-black/10 bg-white px-4 shadow-none sm:w-auto ${
-                  hasAdvancedFilters ? "border-black text-black" : ""
+                className={`h-11 w-full rounded-2xl border-border bg-background/60 px-4 shadow-none hover:bg-accent sm:w-auto ${
+                  hasAdvancedFilters
+                    ? "border-white/15 bg-white/5 text-foreground"
+                    : ""
                 }`}
                 onClick={onOpenFilters}
               >
@@ -79,7 +81,7 @@ export function CalendarToolbar({
               </Button>
 
               <Button
-                className="h-11 w-full rounded-2xl bg-black px-5 text-white hover:bg-black/90 sm:w-auto"
+                className="h-11 w-full rounded-2xl border border-white/10 bg-white/10 px-5 text-white backdrop-blur-md hover:bg-white/20 sm:w-auto"
                 onClick={onCreate}
               >
                 <Plus className="mr-2 h-4 w-4" />

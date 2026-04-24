@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Collapsible } from "@/components/ui/collapsible";
 import { Clock, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -59,7 +58,7 @@ export function CourseCard({
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
               <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-start gap-2">
                   <h3 className="text-lg font-semibold text-foreground">
                     {course.name}
                   </h3>
@@ -70,7 +69,6 @@ export function CourseCard({
                     </div>
                   ) : null}
 
-                  <CourseCategoryBadge category={course.category} />
                 </div>
 
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -86,8 +84,10 @@ export function CourseCard({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-semibold text-black">
+              <div className="flex flex-col items-end justify-start gap-2">
+                <CourseCategoryBadge category={course.category} />
+
+                <span className="mt-1 text-lg font-semibold text-foreground whitespace-nowrap">
                   R$ {course.price.toFixed(2).replace(".", ",")}
                 </span>
 

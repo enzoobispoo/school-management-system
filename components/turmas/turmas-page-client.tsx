@@ -31,6 +31,7 @@ export function TurmasPageClient() {
         page={turmasPage.page}
         setPage={turmasPage.setPage}
         meta={turmasPage.meta}
+        onTeacherChanged={turmasPage.refetchTurmas}
       />
     </DashboardLayout>
   );

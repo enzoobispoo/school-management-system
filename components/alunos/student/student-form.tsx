@@ -13,13 +13,25 @@ interface StudentFormProps {
     telefone: string;
     dataNascimento: string;
     endereco: string;
+    responsavelNome: string;
+    responsavelTelefone: string;
+    responsavelEmail: string;
   };
   error: string;
   loading?: boolean;
   mode?: "create" | "edit";
   submitLabel: string;
   updateField: (
-    field: "nome" | "email" | "cpf" | "telefone" | "dataNascimento" | "endereco",
+    field:
+      | "nome"
+      | "email"
+      | "cpf"
+      | "telefone"
+      | "dataNascimento"
+      | "endereco"
+      | "responsavelNome"
+      | "responsavelTelefone"
+      | "responsavelEmail",
     value: string
   ) => void;
   formatCpf: (value: string) => string;
@@ -105,6 +117,50 @@ export function StudentForm({
           value={form.endereco}
           onChange={(e) => updateField("endereco", e.target.value)}
         />
+      </div>
+
+      <div className="mt-2 grid gap-4 rounded-2xl border border-border/60 p-4">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Responsável</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Use esses dados para cobrança e contato, especialmente em caso de aluno menor de idade.
+          </p>
+        </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor="guardianName">Nome do responsável</Label>
+          <Input
+            id="guardianName"
+            placeholder="Ex: Ana Souza"
+            value={form.responsavelNome}
+            onChange={(e) => updateField("responsavelNome", e.target.value)}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="guardianPhone">Telefone do responsável</Label>
+            <Input
+              id="guardianPhone"
+              placeholder="(00) 00000-0000"
+              value={form.responsavelTelefone}
+              onChange={(e) =>
+                updateField("responsavelTelefone", formatPhone(e.target.value))
+              }
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="guardianEmail">E-mail do responsável</Label>
+            <Input
+              id="guardianEmail"
+              type="email"
+              placeholder="responsavel@exemplo.com"
+              value={form.responsavelEmail}
+              onChange={(e) => updateField("responsavelEmail", e.target.value)}
+            />
+          </div>
+        </div>
       </div>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}

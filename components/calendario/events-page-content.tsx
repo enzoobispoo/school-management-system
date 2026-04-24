@@ -26,7 +26,7 @@ export function EventsPageContent({
   filteredEvents,
 }: EventsPageContentProps) {
   return (
-    <div className="p-6">
+    <div className="p-6 space-y-6">
       <EventsBoardHeader
         search={search}
         setSearch={setSearch}
@@ -34,13 +34,15 @@ export function EventsPageContent({
         setEventFilter={setEventFilter}
       />
 
-      {error ? (
-        <ErrorState message={error} />
-      ) : loading ? (
-        <LoadingState message="Carregando eventos..." />
-      ) : (
-        <EventsBoardColumns events={filteredEvents} />
-      )}
+      <div className="min-h-[300px]">
+        {error ? (
+          <ErrorState message={error} />
+        ) : loading ? (
+          <LoadingState message="Carregando eventos..." />
+        ) : (
+          <EventsBoardColumns events={filteredEvents} />
+        )}
+      </div>
     </div>
   );
 }

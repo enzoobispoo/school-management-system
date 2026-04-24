@@ -22,14 +22,14 @@ function getComputedPaymentStatus(pagamento: {
 }
 
 interface RouteContext {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
-    const { id } = context.params
+    const { id } = await context.params
 
     const aluno = await prisma.aluno.findUnique({
       where: { id },
@@ -65,6 +65,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       nome: aluno.nome,
       email: aluno.email,
       telefone: aluno.telefone,
+      responsavelNome: aluno.responsavelNome,
+      responsavelTelefone: aluno.responsavelTelefone,
+      responsavelEmail: aluno.responsavelEmail,
       dataNascimento: aluno.dataNascimento,
       endereco: aluno.endereco,
       status: aluno.status,
@@ -154,7 +157,37 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     const aluno = await prisma.aluno.update({
       where: { id },
-      data: parsed.data,
+      data: {
+        ...(parsed.data.nome !== undefined ? { nome: parsed.data.nome } : {}),
+        ...(parsed.data.email !== undefined ? { email: parsed.data.email } : {}),
+        ...(parsed.data.cpf !== undefined
+          ? { cpf: parsed.data.cpf?.replace(/\D/g, "") || null }
+          : {}),
+        ...(parsed.data.telefone !== undefined
+          ? { telefone: parsed.data.telefone?.replace(/\D/g, "") || null }
+          : {}),
+        ...(parsed.data.dataNascimento !== undefined
+          ? { dataNascimento: parsed.data.dataNascimento }
+          : {}),
+        ...(parsed.data.endereco !== undefined
+          ? { endereco: parsed.data.endereco || null }
+          : {}),
+        ...(parsed.data.status !== undefined
+          ? { status: parsed.data.status }
+          : {}),
+        ...(parsed.data.responsavelNome !== undefined
+          ? { responsavelNome: parsed.data.responsavelNome || null }
+          : {}),
+        ...(parsed.data.responsavelTelefone !== undefined
+          ? {
+              responsavelTelefone:
+                parsed.data.responsavelTelefone?.replace(/\D/g, "") || null,
+            }
+          : {}),
+        ...(parsed.data.responsavelEmail !== undefined
+          ? { responsavelEmail: parsed.data.responsavelEmail || null }
+          : {}),
+      },
     })
 
     return NextResponse.json(aluno)

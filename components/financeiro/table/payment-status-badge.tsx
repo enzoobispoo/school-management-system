@@ -10,12 +10,12 @@ const statusConfig = {
   paid: {
     label: "Pago",
     icon: CheckCircle,
-    className: "border-black/10 bg-black/[0.04] text-black/75",
+    className: "border-emerald-500/20 bg-emerald-500/10 text-emerald-600",
   },
   pending: {
     label: "Pendente",
     icon: Clock,
-    className: "border-black/10 bg-black/[0.04] text-black/65",
+    className: "border-amber-500/20 bg-amber-500/10 text-amber-600",
   },
   overdue: {
     label: "Atrasado",

@@ -36,7 +36,7 @@ export function StudentsTable({
 
   if (loading) {
     return (
-      <div className="rounded-[24px] border border-border/50 bg-card p-8 text-sm text-muted-foreground">
+      <div className="rounded-[24px] border border-border/50 bg-card p-8 text-sm text-muted-foreground transition-all duration-200 data-[density=compact]:p-6">
         Carregando alunos...
       </div>
     );
@@ -44,7 +44,7 @@ export function StudentsTable({
 
   if (students.length === 0) {
     return (
-      <div className="rounded-[24px] border border-border/50 bg-card p-8 text-sm text-muted-foreground">
+      <div className="rounded-[24px] border border-border/50 bg-card p-8 text-sm text-muted-foreground transition-all duration-200 data-[density=compact]:p-6">
         Nenhum aluno encontrado.
       </div>
     );

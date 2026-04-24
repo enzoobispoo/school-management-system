@@ -1,24 +1,24 @@
-import { NextRequest, NextResponse } from "next/server"
-import { Prisma, StatusPagamento } from "@prisma/client"
-import { prisma } from "@/lib/prisma"
-import { createPagamentoSchema } from "@/lib/validations/pagamento"
+import { NextRequest, NextResponse } from "next/server";
+import { Prisma, StatusPagamento } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { createPagamentoSchema } from "@/lib/validations/pagamento";
 
 function getComputedPaymentStatus(pagamento: {
-  status: string
-  vencimento: Date
-  dataPagamento: Date | null
+  status: string;
+  vencimento: Date;
+  dataPagamento: Date | null;
 }) {
-  if (pagamento.status === "CANCELADO") return "CANCELADO"
-  if (pagamento.status === "PAGO" || pagamento.dataPagamento) return "PAGO"
+  if (pagamento.status === "CANCELADO") return "CANCELADO";
+  if (pagamento.status === "PAGO" || pagamento.dataPagamento) return "PAGO";
 
-  const hoje = new Date()
-  const vencimento = new Date(pagamento.vencimento)
+  const hoje = new Date();
+  const vencimento = new Date(pagamento.vencimento);
 
-  hoje.setHours(0, 0, 0, 0)
-  vencimento.setHours(0, 0, 0, 0)
+  hoje.setHours(0, 0, 0, 0);
+  vencimento.setHours(0, 0, 0, 0);
 
-  if (vencimento < hoje) return "ATRASADO"
-  return "PENDENTE"
+  if (vencimento < hoje) return "ATRASADO";
+  return "PENDENTE";
 }
 
 function resolveStatus(
@@ -26,36 +26,38 @@ function resolveStatus(
   vencimento: Date,
   dataPagamento?: Date | null
 ): StatusPagamento {
-  if (status === "CANCELADO") return "CANCELADO"
-  if (dataPagamento || status === "PAGO") return "PAGO"
+  if (status === "CANCELADO") return "CANCELADO";
+  if (dataPagamento || status === "PAGO") return "PAGO";
 
-  const hoje = new Date()
-  hoje.setHours(0, 0, 0, 0)
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
 
-  const venc = new Date(vencimento)
-  venc.setHours(0, 0, 0, 0)
+  const venc = new Date(vencimento);
+  venc.setHours(0, 0, 0, 0);
 
-  return venc < hoje ? "ATRASADO" : "PENDENTE"
+  return venc < hoje ? "ATRASADO" : "PENDENTE";
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
+    const { searchParams } = new URL(request.url);
 
-    const search = searchParams.get("search")?.trim() || ""
-    const matriculaId = searchParams.get("matriculaId")?.trim() || ""
-    const alunoId = searchParams.get("alunoId")?.trim() || ""
-    const cursoId = searchParams.get("cursoId")?.trim() || ""
-    const status = searchParams.get("status")?.trim() || ""
-    const competenciaMes = searchParams.get("competenciaMes")?.trim() || ""
-    const competenciaAno = searchParams.get("competenciaAno")?.trim() || ""
-    const page = Math.max(Number(searchParams.get("page") || "1"), 1)
+    const paymentId = searchParams.get("paymentId")?.trim() || "";
+    const search = searchParams.get("search")?.trim() || "";
+    const matriculaId = searchParams.get("matriculaId")?.trim() || "";
+    const alunoId = searchParams.get("alunoId")?.trim() || "";
+    const cursoId = searchParams.get("cursoId")?.trim() || "";
+    const status = searchParams.get("status")?.trim() || "";
+    const competenciaMes = searchParams.get("competenciaMes")?.trim() || "";
+    const competenciaAno = searchParams.get("competenciaAno")?.trim() || "";
+    const page = Math.max(Number(searchParams.get("page") || "1"), 1);
     const pageSize = Math.min(
       Math.max(Number(searchParams.get("pageSize") || "10"), 1),
       100
-    )
+    );
 
     const where: Prisma.PagamentoWhereInput = {
+      ...(paymentId ? { id: paymentId } : {}),
       ...(matriculaId ? { matriculaId } : {}),
       ...(alunoId ? { matricula: { alunoId } } : {}),
       ...(cursoId ? { matricula: { turma: { cursoId } } } : {}),
@@ -66,13 +68,32 @@ export async function GET(request: NextRequest) {
         ? {
             OR: [
               { descricao: { contains: search, mode: "insensitive" } },
-              { matricula: { aluno: { nome: { contains: search, mode: "insensitive" } } } },
-              { matricula: { turma: { curso: { nome: { contains: search, mode: "insensitive" } } } } },
-              { metodoPagamento: { contains: search, mode: "insensitive" } },
+              {
+                matricula: {
+                  aluno: {
+                    nome: { contains: search, mode: "insensitive" },
+                  },
+                },
+              },
+              {
+                matricula: {
+                  turma: {
+                    curso: {
+                      nome: { contains: search, mode: "insensitive" },
+                    },
+                  },
+                },
+              },
+              {
+                metodoPagamento: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
             ],
           }
         : {}),
-    }
+    };
 
     const [total, pagamentos] = await Promise.all([
       prisma.pagamento.count({ where }),
@@ -93,9 +114,15 @@ export async function GET(request: NextRequest) {
               },
             },
           },
+          envios: {
+            orderBy: {
+              createdAt: "desc",
+            },
+            take: 1,
+          },
         },
       }),
-    ])
+    ]);
 
     const data = pagamentos.map((pagamento) => ({
       id: pagamento.id,
@@ -110,6 +137,27 @@ export async function GET(request: NextRequest) {
       observacoes: pagamento.observacoes,
       createdAt: pagamento.createdAt,
       updatedAt: pagamento.updatedAt,
+      billingProvider: pagamento.billingProvider,
+      billingExternalId: pagamento.billingExternalId,
+      billingInvoiceUrl: pagamento.billingInvoiceUrl,
+      billingBankSlipUrl: pagamento.billingBankSlipUrl,
+      billingStatus: pagamento.billingStatus,
+      boletoGeradoEm: pagamento.boletoGeradoEm,
+      ultimoLembreteEnviadoEm: pagamento.ultimoLembreteEnviadoEm,
+      ultimoEnvio: pagamento.envios[0]
+        ? {
+            id: pagamento.envios[0].id,
+            canal: pagamento.envios[0].canal,
+            tipo: pagamento.envios[0].tipo,
+            destino: pagamento.envios[0].destino,
+            status: pagamento.envios[0].status,
+            provedor: pagamento.envios[0].provedor,
+            externalId: pagamento.envios[0].externalId,
+            mensagem: pagamento.envios[0].mensagem,
+            erro: pagamento.envios[0].erro,
+            createdAt: pagamento.envios[0].createdAt,
+          }
+        : null,
       matricula: {
         id: pagamento.matricula.id,
         status: pagamento.matricula.status,
@@ -135,7 +183,7 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-    }))
+    }));
 
     return NextResponse.json({
       data,
@@ -145,20 +193,20 @@ export async function GET(request: NextRequest) {
         pageSize,
         totalPages: Math.ceil(total / pageSize),
       },
-    })
+    });
   } catch (error) {
-    console.error("Erro ao buscar pagamentos:", error)
+    console.error("Erro ao buscar pagamentos:", error);
     return NextResponse.json(
       { error: "Erro ao buscar pagamentos" },
       { status: 500 }
-    )
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const parsed = createPagamentoSchema.safeParse(body)
+    const body = await request.json();
+    const parsed = createPagamentoSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
@@ -167,10 +215,10 @@ export async function POST(request: NextRequest) {
           details: parsed.error.flatten(),
         },
         { status: 400 }
-      )
+      );
     }
 
-    const data = parsed.data
+    const data = parsed.data;
 
     const matricula = await prisma.matricula.findUnique({
       where: { id: data.matriculaId },
@@ -182,27 +230,27 @@ export async function POST(request: NextRequest) {
           },
         },
       },
-    })
+    });
 
     if (!matricula) {
       return NextResponse.json(
         { error: "Matrícula não encontrada" },
         { status: 404 }
-      )
+      );
     }
 
     if (matricula.status === "CANCELADA") {
       return NextResponse.json(
         { error: "Não é possível criar pagamento para uma matrícula cancelada" },
         { status: 400 }
-      )
+      );
     }
 
     const statusFinal = resolveStatus(
       data.status,
       data.vencimento,
       data.dataPagamento
-    )
+    );
 
     const pagamento = await prisma.pagamento.create({
       data: {
@@ -212,7 +260,10 @@ export async function POST(request: NextRequest) {
         descricao: data.descricao,
         valor: data.valor,
         vencimento: data.vencimento,
-        dataPagamento: statusFinal === "PAGO" ? data.dataPagamento ?? new Date() : data.dataPagamento,
+        dataPagamento:
+          statusFinal === "PAGO"
+            ? data.dataPagamento ?? new Date()
+            : data.dataPagamento,
         status: statusFinal,
         metodoPagamento: data.metodoPagamento,
         observacoes: data.observacoes,
@@ -230,7 +281,7 @@ export async function POST(request: NextRequest) {
           },
         },
       },
-    })
+    });
 
     if (pagamento.status === "PAGO") {
       await prisma.notificacao.create({
@@ -241,7 +292,7 @@ export async function POST(request: NextRequest) {
           entidadeTipo: "PAGAMENTO",
           entidadeId: pagamento.id,
         },
-      })
+      });
     }
 
     if (pagamento.status === "ATRASADO") {
@@ -253,7 +304,7 @@ export async function POST(request: NextRequest) {
           entidadeTipo: "PAGAMENTO",
           entidadeId: pagamento.id,
         },
-      })
+      });
     }
 
     return NextResponse.json(
@@ -270,6 +321,12 @@ export async function POST(request: NextRequest) {
         observacoes: pagamento.observacoes,
         createdAt: pagamento.createdAt,
         updatedAt: pagamento.updatedAt,
+        billingProvider: pagamento.billingProvider,
+        billingExternalId: pagamento.billingExternalId,
+        billingInvoiceUrl: pagamento.billingInvoiceUrl,
+        billingBankSlipUrl: pagamento.billingBankSlipUrl,
+        billingStatus: pagamento.billingStatus,
+        boletoGeradoEm: pagamento.boletoGeradoEm,
         matricula: {
           id: pagamento.matricula.id,
           aluno: {
@@ -287,9 +344,9 @@ export async function POST(request: NextRequest) {
         },
       },
       { status: 201 }
-    )
+    );
   } catch (error) {
-    console.error("Erro ao criar pagamento:", error)
+    console.error("Erro ao criar pagamento:", error);
 
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -298,12 +355,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Já existe pagamento dessa matrícula para essa competência" },
         { status: 409 }
-      )
+      );
     }
 
     return NextResponse.json(
       { error: "Erro ao criar pagamento" },
       { status: 500 }
-    )
+    );
   }
 }

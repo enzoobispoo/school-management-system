@@ -1,8 +1,16 @@
+import dotenv from "dotenv";
+dotenv.config({ path: ".env.local" });
+
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
 
 const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  console.error("❌ DATABASE_URL não foi definida em .env.local");
+  process.exit(1);
+}
 
 const pool = new pg.Pool({
   connectionString,
@@ -35,33 +43,41 @@ async function main() {
 
   console.log("✅ Usuário preservado:", user.email);
 
-  // ORDEM IMPORTA (por causa de FK)
   await prisma.notificacao.deleteMany();
   await prisma.pagamento.deleteMany();
   await prisma.matricula.deleteMany();
   await prisma.turmaHorario.deleteMany();
   await prisma.evento.deleteMany();
+  await prisma.turmaProfessorHistorico.deleteMany();
   await prisma.turma.deleteMany();
+  await prisma.professorCurso.deleteMany();
   await prisma.professor.deleteMany();
   await prisma.curso.deleteMany();
   await prisma.aluno.deleteMany();
   await prisma.userInvite.deleteMany();
+  await prisma.cobrancaLote.deleteMany();
 
   console.log("🧹 Dados apagados");
 
-  // (opcional) resetar config da escola
-  await prisma.schoolSetting.upsert({
+  await prisma.escolaSettings.upsert({
     where: { id: "default" },
     update: {},
     create: {
       id: "default",
-      nome: "EduGestão",
+      nomeEscola: "EduGestão",
     },
   });
 
-  console.log("🏫 Escola resetada");
-
+  console.log("🏫 Configurações da escola preservadas/resetadas");
   console.log("🚀 Banco limpo com sucesso (usuário preservado)");
 }
 
-main().finally(() => prisma.$disconnect());
+main()
+  .catch((error) => {
+    console.error("❌ Erro ao resetar banco:", error);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+    await pool.end();
+  });
