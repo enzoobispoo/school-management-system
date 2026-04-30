@@ -5,6 +5,13 @@ import { Button } from "@/components/ui/button";
 import { SettingsFeedback } from "@/components/configuracoes/shared/settings-feedback";
 import { useSchoolSettings } from "@/hooks/configuracoes/use-school-settings";
 
+function maskPhone(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 10)
+    return digits.replace(/^(\d{2})(\d)/, "($1) $2").replace(/(\d{4})(\d)/, "$1-$2");
+  return digits.replace(/^(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2");
+}
+
 export function SchoolSettingsSection() {
   const { form, loading, saving, success, error, updateField, handleSave } =
     useSchoolSettings();
@@ -56,7 +63,8 @@ export function SchoolSettingsSection() {
             <label className="text-sm font-medium text-foreground">Telefone</label>
             <Input
               value={form.telefone}
-              onChange={(e) => updateField("telefone", e.target.value)}
+              onChange={(e) => updateField("telefone", maskPhone(e.target.value))}
+              placeholder="(00) 00000-0000"
               className="h-11 rounded-2xl"
               disabled={loading}
             />
@@ -66,7 +74,8 @@ export function SchoolSettingsSection() {
             <label className="text-sm font-medium text-foreground">WhatsApp</label>
             <Input
               value={form.whatsapp}
-              onChange={(e) => updateField("whatsapp", e.target.value)}
+              onChange={(e) => updateField("whatsapp", maskPhone(e.target.value))}
+              placeholder="(00) 00000-0000"
               className="h-11 rounded-2xl"
               disabled={loading}
             />
@@ -159,7 +168,7 @@ export function SchoolSettingsSection() {
         <Button
           onClick={handleSave}
           disabled={saving || loading}
-          className="h-11 rounded-2xl border border-white/10 bg-white/10 px-5 text-white backdrop-blur-md hover:bg-white/20"
+          className="h-11 rounded-2xl bg-black px-5 text-white hover:bg-black/90 dark:border dark:border-white/10 dark:bg-white/10 dark:backdrop-blur-md dark:hover:bg-white/20"
         >
           {saving ? "Salvando..." : "Salvar alterações"}
         </Button>

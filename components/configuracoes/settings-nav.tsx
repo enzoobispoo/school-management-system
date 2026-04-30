@@ -19,7 +19,6 @@ const baseItems = [
   { href: "/configuracoes/financeiro", label: "Financeiro" },
   { href: "/configuracoes/notificacoes", label: "Notificações" },
   { href: "/configuracoes/ia", label: "IA" },
-  { href: "/configuracoes/aparencia", label: "Aparência" },
 ];
 
 export function SettingsNav() {

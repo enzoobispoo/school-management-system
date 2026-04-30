@@ -70,9 +70,7 @@ export function CalendarToolbar({
               <Button
                 variant="outline"
                 className={`h-11 w-full rounded-2xl border-border bg-background/60 px-4 shadow-none hover:bg-accent sm:w-auto ${
-                  hasAdvancedFilters
-                    ? "border-white/15 bg-white/5 text-foreground"
-                    : ""
+                  hasAdvancedFilters ? "border-primary/30 bg-primary/5 text-primary" : ""
                 }`}
                 onClick={onOpenFilters}
               >
@@ -81,7 +79,7 @@ export function CalendarToolbar({
               </Button>
 
               <Button
-                className="h-11 w-full rounded-2xl border border-white/10 bg-white/10 px-5 text-white backdrop-blur-md hover:bg-white/20 sm:w-auto"
+                className="h-11 w-full rounded-2xl bg-black px-5 text-white hover:bg-black/90 dark:border dark:border-white/10 dark:bg-white/10 dark:backdrop-blur-md dark:hover:bg-white/20 sm:w-auto"
                 onClick={onCreate}
               >
                 <Plus className="mr-2 h-4 w-4" />

@@ -129,21 +129,11 @@ export function useFinancialSettings() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          nomeEscola: "default",
           diaVencimentoPadrao: Number(form.diaVencimentoPadrao || 10),
           metodoPagamentoPadrao: form.metodoPagamentoPadrao || null,
           multaAtrasoPercentual: form.multaAtrasoPercentual || null,
           jurosMensalPercentual: form.jurosMensalPercentual || null,
           gerarMensalidadeAuto: form.gerarMensalidadeAuto,
-
-          billingProvider: form.billingProvider,
-          billingEnabled: form.billingEnabled,
-          asaasApiKey: form.asaasApiKey || null,
-          asaasWalletId: form.asaasWalletId || null,
-          asaasEnvironment: form.asaasEnvironment,
-          defaultChargeMethod: form.defaultChargeMethod,
-          autoGenerateBoleto: form.autoGenerateBoleto,
-
           enviarLembreteAuto: form.enviarLembreteAuto,
           autoSendBoletoWhatsApp: form.autoSendBoletoWhatsApp,
         }),

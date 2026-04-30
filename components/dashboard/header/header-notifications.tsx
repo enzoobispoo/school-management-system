@@ -132,7 +132,7 @@ export function HeaderNotifications() {
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5 text-muted-foreground" />
           {unreadCount > 0 ? (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-black px-1 text-[10px] font-medium text-white">
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-medium text-background">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           ) : null}
@@ -176,7 +176,7 @@ export function HeaderNotifications() {
                   {notification.titulo}
                 </span>
                 {!notification.lida ? (
-                  <span className="mt-1 h-2 w-2 rounded-full bg-black" />
+                  <span className="mt-1 h-2 w-2 rounded-full bg-foreground" />
                 ) : null}
               </div>
 

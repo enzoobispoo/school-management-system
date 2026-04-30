@@ -70,20 +70,20 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#f7f7f7] px-4">
-      <div className="w-full max-w-md rounded-[32px] border border-black/5 bg-white p-8 shadow-[0_4px_30px_rgba(0,0,0,0.04)]">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="w-full max-w-md rounded-[32px] border border-border bg-card p-8 shadow-[0_4px_30px_rgba(0,0,0,0.04)]">
         <div className="mb-8">
-          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-black">
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground">
             Entrar
           </h1>
-          <p className="mt-2 text-sm text-black/55">
+          <p className="mt-2 text-sm text-muted-foreground">
             Acesse o sistema de gestão escolar de {schoolName}.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid gap-2">
-            <label className="text-sm font-medium text-black">
+            <label className="text-sm font-medium text-foreground">
               Usuário ou e-mail
             </label>
             <Input
@@ -97,7 +97,7 @@ export default function LoginPage() {
           </div>
 
           <div className="grid gap-2">
-            <label className="text-sm font-medium text-black">Senha</label>
+            <label className="text-sm font-medium text-foreground">Senha</label>
             <Input
               type="password"
               value={password}

@@ -2,35 +2,27 @@
 
 import { useEffect, useState } from "react";
 
-interface FinancialSettingsForm {
-  diaVencimentoPadrao: string;
-  metodoPagamentoPadrao: string;
-  multaAtrasoPercentual: string;
-  jurosMensalPercentual: string;
-  gerarMensalidadeAuto: boolean;
-  billingProvider: string;
-  billingEnabled: boolean;
-  asaasApiKey: string;
-  asaasWalletId: string;
-  asaasEnvironment: string;
-  defaultChargeMethod: string;
-  autoGenerateBoleto: boolean;
+interface SchoolSettingsForm {
+  nomeEscola: string;
+  cnpj: string;
+  email: string;
+  telefone: string;
+  whatsapp: string;
+  endereco: string;
+  logoUrl: string;
+  corPrimaria: string;
 }
 
-export function useSchoolSettings(){
-  const [form, setForm] = useState<FinancialSettingsForm>({
-    diaVencimentoPadrao: "10",
-    metodoPagamentoPadrao: "",
-    multaAtrasoPercentual: "",
-    jurosMensalPercentual: "",
-    gerarMensalidadeAuto: false,
-    billingProvider: "asaas",
-    billingEnabled: false,
-    asaasApiKey: "",
-    asaasWalletId: "",
-    asaasEnvironment: "sandbox",
-    defaultChargeMethod: "boleto",
-    autoGenerateBoleto: false,
+export function useSchoolSettings() {
+  const [form, setForm] = useState<SchoolSettingsForm>({
+    nomeEscola: "",
+    cnpj: "",
+    email: "",
+    telefone: "",
+    whatsapp: "",
+    endereco: "",
+    logoUrl: "",
+    corPrimaria: "#111111",
   });
 
   const [loading, setLoading] = useState(true);
@@ -38,14 +30,11 @@ export function useSchoolSettings(){
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
 
-  function updateField<K extends keyof FinancialSettingsForm>(
+  function updateField<K extends keyof SchoolSettingsForm>(
     field: K,
-    value: FinancialSettingsForm[K]
+    value: SchoolSettingsForm[K]
   ) {
-    setForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setForm((prev) => ({ ...prev, [field]: value }));
   }
 
   useEffect(() => {
@@ -61,41 +50,22 @@ export function useSchoolSettings(){
         const result = await response.json();
 
         if (!response.ok) {
-          throw new Error(
-            result?.error || "Não foi possível carregar as configurações."
-          );
+          throw new Error(result?.error || "Não foi possível carregar as configurações.");
         }
 
-        const school = result.school;
-
         setForm({
-          diaVencimentoPadrao: String(school?.diaVencimentoPadrao ?? "10"),
-          metodoPagamentoPadrao: school?.metodoPagamentoPadrao ?? "",
-          multaAtrasoPercentual:
-            school?.multaAtrasoPercentual !== null &&
-            school?.multaAtrasoPercentual !== undefined
-              ? String(school.multaAtrasoPercentual)
-              : "",
-          jurosMensalPercentual:
-            school?.jurosMensalPercentual !== null &&
-            school?.jurosMensalPercentual !== undefined
-              ? String(school.jurosMensalPercentual)
-              : "",
-          gerarMensalidadeAuto: Boolean(school?.gerarMensalidadeAuto),
-          billingProvider: school?.billingProvider ?? "asaas",
-          billingEnabled: Boolean(school?.billingEnabled),
-          asaasApiKey: school?.asaasApiKey ?? "",
-          asaasWalletId: school?.asaasWalletId ?? "",
-          asaasEnvironment: school?.asaasEnvironment ?? "sandbox",
-          defaultChargeMethod: school?.defaultChargeMethod ?? "boleto",
-          autoGenerateBoleto: Boolean(school?.autoGenerateBoleto),
+          nomeEscola: result.nomeEscola ?? "",
+          cnpj: result.cnpj ?? "",
+          email: result.email ?? "",
+          telefone: result.telefone ?? "",
+          whatsapp: result.whatsapp ?? "",
+          endereco: result.endereco ?? "",
+          logoUrl: result.logoUrl ?? "",
+          corPrimaria: result.corPrimaria ?? "#111111",
         });
       } catch (err) {
-        console.error(err);
         setError(
-          err instanceof Error
-            ? err.message
-            : "Não foi possível carregar as configurações."
+          err instanceof Error ? err.message : "Não foi possível carregar as configurações."
         );
       } finally {
         setLoading(false);
@@ -113,54 +83,34 @@ export function useSchoolSettings(){
 
       const response = await fetch("/api/settings/escola", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          nomeEscola: "default",
-          diaVencimentoPadrao: Number(form.diaVencimentoPadrao || 10),
-          metodoPagamentoPadrao: form.metodoPagamentoPadrao || null,
-          multaAtrasoPercentual: form.multaAtrasoPercentual || null,
-          jurosMensalPercentual: form.jurosMensalPercentual || null,
-          gerarMensalidadeAuto: form.gerarMensalidadeAuto,
-          billingProvider: form.billingProvider,
-          billingEnabled: form.billingEnabled,
-          asaasApiKey: form.asaasApiKey || null,
-          asaasWalletId: form.asaasWalletId || null,
-          asaasEnvironment: form.asaasEnvironment,
-          defaultChargeMethod: form.defaultChargeMethod,
-          autoGenerateBoleto: form.autoGenerateBoleto,
+          nomeEscola: form.nomeEscola,
+          cnpj: form.cnpj || null,
+          email: form.email || null,
+          telefone: form.telefone || null,
+          whatsapp: form.whatsapp || null,
+          endereco: form.endereco || null,
+          logoUrl: form.logoUrl || null,
+          corPrimaria: form.corPrimaria || "#111111",
         }),
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          result?.error || "Não foi possível salvar as configurações."
-        );
+        throw new Error(result?.error || "Não foi possível salvar as configurações.");
       }
 
-      setSuccess("Configurações financeiras salvas com sucesso.");
+      setSuccess("Configurações da escola salvas com sucesso.");
     } catch (err) {
-      console.error(err);
       setError(
-        err instanceof Error
-          ? err.message
-          : "Não foi possível salvar as configurações."
+        err instanceof Error ? err.message : "Não foi possível salvar as configurações."
       );
     } finally {
       setSaving(false);
     }
   }
 
-  return {
-    form,
-    loading,
-    saving,
-    success,
-    error,
-    updateField,
-    handleSave,
-  };
+  return { form, loading, saving, success, error, updateField, handleSave };
 }

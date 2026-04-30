@@ -17,21 +17,13 @@ export function AiSuggestionCard({
     return (
       <button
         onClick={() => onClick(prompt)}
-        className="
-          h-[110px] rounded-2xl border border-border bg-card p-4 text-left
-          flex flex-col justify-between
-          shadow-sm transition-all duration-200
-          hover:bg-primary hover:text-primary-foreground
-        "
+        className="h-[110px] rounded-2xl border border-border bg-transparent p-4 text-left flex flex-col justify-between transition-colors hover:bg-muted"
       >
-        <span className="text-sm font-medium leading-5 line-clamp-2 text-inherit">
+        <span className="text-sm font-medium leading-5 line-clamp-2 text-foreground">
           {prompt}
         </span>
-
         {label ? (
-          <span className="text-xs text-inherit opacity-60">
-            {label}
-          </span>
+          <span className="text-xs text-muted-foreground">{label}</span>
         ) : null}
       </button>
     );
@@ -40,12 +32,7 @@ export function AiSuggestionCard({
   return (
     <button
       onClick={() => onClick(prompt)}
-      className="
-        w-full rounded-full border border-border bg-card px-4 py-2.5 text-left
-        text-sm font-medium text-foreground
-        shadow-sm transition-all duration-200
-        hover:bg-primary hover:text-primary-foreground
-      "
+      className="w-full rounded-2xl border border-border bg-transparent px-4 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-muted"
     >
       {prompt}
     </button>

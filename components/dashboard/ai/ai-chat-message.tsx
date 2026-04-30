@@ -118,10 +118,10 @@ export function AiChatMessage({
       >
         <div
           className={cn(
-            "max-w-[90%] rounded-[24px] px-4 py-3 text-sm leading-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
+            "max-w-[90%] rounded-[24px] px-4 py-3 text-sm leading-6",
             isUser
               ? "bg-primary text-primary-foreground"
-              : "border border-border bg-card text-card-foreground"
+              : "border border-border bg-transparent text-foreground"
           )}
         >
           <div className="whitespace-pre-wrap break-words leading-6">

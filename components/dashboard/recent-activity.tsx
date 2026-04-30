@@ -25,26 +25,24 @@ export function RecentActivity({
   loading = false,
 }: RecentActivityProps) {
   return (
-    <div className="rounded-[24px] border border-black/5 bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)]
-                    dark:border-border dark:bg-card dark:text-card-foreground">
+    <div className="rounded-[24px] border border-border bg-card p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-card-foreground">
       
       <div className="mb-6">
-        <p className="text-sm text-black/45 dark:text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Movimentações
         </p>
 
-        <h3 className="text-[28px] font-semibold tracking-[-0.04em] text-black
-                       dark:text-foreground">
+        <h3 className="text-[28px] font-semibold tracking-[-0.04em] text-foreground">
           Atividades recentes
         </h3>
       </div>
 
       {loading ? (
-        <div className="text-sm text-black/45 dark:text-muted-foreground">
+        <div className="text-sm text-muted-foreground">
           Carregando atividades...
         </div>
       ) : activities.length === 0 ? (
-        <div className="text-sm text-black/45 dark:text-muted-foreground">
+        <div className="text-sm text-muted-foreground">
           Nenhuma atividade recente encontrada.
         </div>
       ) : (
@@ -52,33 +50,30 @@ export function RecentActivity({
           {activities.map((activity) => (
             <div
               key={activity.id}
-              className="flex items-start gap-4 rounded-[24px] border border-black/5 p-4
-                         dark:border-border"
+              className="flex items-start gap-4 rounded-[24px] border border-border p-4"
             >
-              {/* Avatar */}
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-black text-sm font-semibold text-white
-                              dark:bg-muted dark:text-foreground">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted text-sm font-semibold text-foreground">
                 {activity.initials}
               </div>
 
               <div className="min-w-0 flex-1">
                 <div className="mb-1 flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-black dark:text-foreground">
+                    <p className="text-sm font-semibold text-foreground">
                       {activity.name}
                     </p>
 
-                    <p className="text-xs font-medium text-black/45 dark:text-muted-foreground">
+                    <p className="text-xs font-medium text-muted-foreground">
                       {getTypeLabel(activity.type)}
                     </p>
                   </div>
 
-                  <span className="shrink-0 text-xs text-black/40 dark:text-muted-foreground">
+                  <span className="shrink-0 text-xs text-muted-foreground">
                     {activity.time}
                   </span>
                 </div>
 
-                <p className="text-sm leading-6 text-black/65 dark:text-muted-foreground">
+                <p className="text-sm leading-6 text-muted-foreground">
                   {activity.description}
                 </p>
               </div>

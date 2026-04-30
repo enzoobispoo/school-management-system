@@ -11,20 +11,20 @@ export function AiFloatingButton() {
       <div className="fixed bottom-4 right-4 z-50 lg:hidden">
         <button
           onClick={() => setOpen(true)}
-          className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white shadow-lg"
+          className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white shadow-lg dark:bg-white/10 dark:backdrop-blur-md"
         >
           IA
         </button>
       </div>
 
       {open ? (
-        <div className="fixed inset-0 z-50 bg-white lg:hidden">
+        <div className="fixed inset-0 z-50 bg-background lg:hidden">
           <div className="flex h-full flex-col">
-            <div className="flex items-center justify-between border-b px-4 py-4">
-              <span className="font-semibold text-black">Assistente IA</span>
+            <div className="flex items-center justify-between border-b border-border px-4 py-4">
+              <span className="font-semibold text-foreground">Assistente IA</span>
               <button
                 onClick={() => setOpen(false)}
-                className="text-sm text-black/70"
+                className="text-sm text-muted-foreground hover:text-foreground"
               >
                 Fechar
               </button>

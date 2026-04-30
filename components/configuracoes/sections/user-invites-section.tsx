@@ -70,7 +70,7 @@ export function UserInvitesSection() {
           <Button
             onClick={handleCreateInvite}
             disabled={loading}
-            className="h-11 rounded-2xl border border-white/10 bg-white/10 px-5 text-white backdrop-blur-md hover:bg-white/20"
+            className="h-11 rounded-2xl bg-black px-5 text-white hover:bg-black/90 dark:border dark:border-white/10 dark:bg-white/10 dark:backdrop-blur-md dark:hover:bg-white/20"
           >
             {loading ? "Criando..." : "Criar convite"}
           </Button>

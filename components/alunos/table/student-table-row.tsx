@@ -52,7 +52,7 @@ export function StudentTableRow({
         <TableCell className="py-3">
           <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-black/[0.04] text-xs font-medium text-black">
+              <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
                 {student.name
                   .split(" ")
                   .map((n) => n[0])

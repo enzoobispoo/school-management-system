@@ -7,11 +7,11 @@ interface StatusBadgeProps {
 }
 
 const toneClasses: Record<NonNullable<StatusBadgeProps["tone"]>, string> = {
-  default: "border-black/10 bg-white text-black",
-  success: "border-black/10 bg-black/[0.04] text-black/75",
-  warning: "border-amber-200 bg-amber-50 text-amber-700",
-  danger: "border-rose-200 bg-rose-50 text-rose-700",
-  muted: "border-zinc-200 bg-zinc-50 text-zinc-600",
+  default: "border-border bg-card text-foreground",
+  success: "border-border bg-muted/40 text-foreground/75",
+  warning: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400",
+  danger: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-400",
+  muted: "border-border bg-muted text-muted-foreground",
 };
 
 export function StatusBadge({

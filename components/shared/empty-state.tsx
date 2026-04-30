@@ -9,7 +9,7 @@ interface EmptyStateProps {
   }: EmptyStateProps) {
     return (
       <div
-        className={`rounded-[28px] border border-black/5 bg-white p-10 text-sm text-muted-foreground ${className}`}
+        className={`rounded-[28px] border border-border bg-card p-10 text-sm text-muted-foreground ${className}`}
       >
         {message}
       </div>

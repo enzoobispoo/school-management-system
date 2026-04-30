@@ -29,7 +29,7 @@ export function DashboardCustomizePanel({
   );
 
   return (
-    <div className="mb-6 rounded-2xl border border-border/60 bg-card p-4">
+    <div className="mb-6 rounded-2xl border border-border/60 bg-white/5 backdrop-blur-md p-4 dark:bg-white/[0.03]">
       <p className="text-sm font-medium text-foreground">Cards opcionais</p>
       <p className="mt-1 text-xs text-muted-foreground">
         Escolha quais cards adicionais deseja exibir e ajuste a ordem deles.
@@ -46,7 +46,7 @@ export function DashboardCustomizePanel({
           return (
             <div
               key={key}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-background px-4 py-3"
+              className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-white/5 backdrop-blur-sm px-4 py-3 dark:bg-white/[0.03]"
             >
               <label className="flex min-w-0 items-center gap-3">
                 <input

@@ -4,6 +4,7 @@ import { HeaderCalendarPopover } from "@/components/calendario/header-calendar-p
 import { HeaderNotifications } from "@/components/dashboard/header/header-notifications";
 import { HeaderProfileMenu } from "@/components/dashboard/header/header-profile-menu";
 import { HeaderSearch } from "@/components/dashboard/header/header-search";
+import { HeaderThemeToggle } from "@/components/dashboard/header/header-theme-toggle";
 import { HeaderTitleBlock } from "@/components/dashboard/header/header-title-block";
 
 interface HeaderProps {
@@ -22,6 +23,7 @@ export function Header({ title, description }: HeaderProps) {
         <div className="flex shrink-0 items-center gap-3 data-[density=compact]:gap-2">
           <HeaderSearch />
           <HeaderCalendarPopover />
+          <HeaderThemeToggle />
           <HeaderNotifications />
           <HeaderProfileMenu />
         </div>

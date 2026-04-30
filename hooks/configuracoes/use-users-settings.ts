@@ -10,13 +10,32 @@ export type UserItem = {
   ativo: boolean;
 };
 
-type CurrentUserResponse = {
-  user?: {
-    id: string;
-    nome: string;
-    email: string;
-    role: UserItem["role"];
-  };
+interface SystemSettings {
+  billingProvider: string;
+  billingEnabled: boolean;
+  asaasApiKey: string;
+  asaasWalletId: string;
+  asaasEnvironment: string;
+  defaultChargeMethod: string;
+  autoGenerateBoleto: boolean;
+  autoSendBoletoWhatsApp: boolean;
+  aiProviderMode: string;
+  openaiApiKey: string;
+  aiMonthlyLimit: string;
+}
+
+const defaultSystem: SystemSettings = {
+  billingProvider: "asaas",
+  billingEnabled: false,
+  asaasApiKey: "",
+  asaasWalletId: "",
+  asaasEnvironment: "sandbox",
+  defaultChargeMethod: "boleto",
+  autoGenerateBoleto: false,
+  autoSendBoletoWhatsApp: false,
+  aiProviderMode: "PLATFORM",
+  openaiApiKey: "",
+  aiMonthlyLimit: "1000",
 };
 
 export function useUsersSettings() {
@@ -28,54 +47,121 @@ export function useUsersSettings() {
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
 
-  async function checkAccess() {
-    try {
-      const res = await fetch("/api/auth/me", { cache: "no-store" });
-      const data: CurrentUserResponse = await res.json();
-
-      if (res.ok && data.user?.role === "SUPER_ADMIN") {
-        setHasAccess(true);
-      } else {
-        setHasAccess(false);
-      }
-    } catch {
-      setHasAccess(false);
-    } finally {
-      setCheckingAccess(false);
-    }
-  }
-
-  async function loadUsers() {
-    try {
-      setLoading(true);
-      setError("");
-
-      const res = await fetch("/api/users", { cache: "no-store" });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Erro ao carregar usuários.");
-      }
-
-      setUsers(data);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Erro ao carregar usuários."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [systemSettings, setSystemSettings] =
+    useState<SystemSettings>(defaultSystem);
+  const [savingSystem, setSavingSystem] = useState(false);
+  const [systemSuccess, setSystemSuccess] = useState("");
+  const [systemError, setSystemError] = useState("");
 
   useEffect(() => {
+    async function checkAccess() {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        const data = await res.json();
+        const isSuperAdmin = res.ok && data.user?.role === "SUPER_ADMIN";
+        setHasAccess(isSuperAdmin);
+      } catch {
+        setHasAccess(false);
+      } finally {
+        setCheckingAccess(false);
+      }
+    }
     checkAccess();
   }, []);
 
   useEffect(() => {
-    if (hasAccess) {
-      loadUsers();
+    if (!hasAccess) return;
+
+    async function loadAll() {
+      try {
+        setLoading(true);
+        const [usersRes, schoolRes, iaRes] = await Promise.all([
+          fetch("/api/users", { cache: "no-store" }),
+          fetch("/api/settings/escola", { cache: "no-store" }),
+          fetch("/api/settings/ia", { cache: "no-store" }),
+        ]);
+
+        const usersData = await usersRes.json();
+        const schoolData = await schoolRes.json();
+        const iaData = await iaRes.json();
+
+        if (usersRes.ok) setUsers(usersData);
+
+        setSystemSettings({
+          billingProvider: schoolData.billingProvider ?? "asaas",
+          billingEnabled: Boolean(schoolData.billingEnabled),
+          asaasApiKey: schoolData.asaasApiKey ?? "",
+          asaasWalletId: schoolData.asaasWalletId ?? "",
+          asaasEnvironment: schoolData.asaasEnvironment ?? "sandbox",
+          defaultChargeMethod: schoolData.defaultChargeMethod ?? "boleto",
+          autoGenerateBoleto: Boolean(schoolData.autoGenerateBoleto),
+          autoSendBoletoWhatsApp: Boolean(schoolData.autoSendBoletoWhatsApp),
+          aiProviderMode: iaData.aiProviderMode ?? "PLATFORM",
+          openaiApiKey: iaData.openaiApiKey ?? "",
+          aiMonthlyLimit: String(iaData.aiMonthlyLimit ?? 1000),
+        });
+      } catch {
+        setError("Erro ao carregar dados.");
+      } finally {
+        setLoading(false);
+      }
     }
+
+    loadAll();
   }, [hasAccess]);
+
+  function updateSystemField<K extends keyof SystemSettings>(
+    field: K,
+    value: SystemSettings[K]
+  ) {
+    setSystemSettings((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function saveSystemSettings(): Promise<void> {
+    try {
+      setSavingSystem(true);
+      setSystemError("");
+      setSystemSuccess("");
+
+      const [schoolRes, iaRes] = await Promise.all([
+        fetch("/api/settings/escola", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            billingProvider: systemSettings.billingProvider,
+            billingEnabled: systemSettings.billingEnabled,
+            asaasApiKey: systemSettings.asaasApiKey || null,
+            asaasWalletId: systemSettings.asaasWalletId || null,
+            asaasEnvironment: systemSettings.asaasEnvironment,
+            defaultChargeMethod: systemSettings.defaultChargeMethod,
+            autoGenerateBoleto: systemSettings.autoGenerateBoleto,
+            autoSendBoletoWhatsApp: systemSettings.autoSendBoletoWhatsApp,
+          }),
+        }),
+        fetch("/api/settings/ia", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            aiProviderMode: systemSettings.aiProviderMode,
+            openaiApiKey: systemSettings.openaiApiKey || null,
+            aiMonthlyLimit: Number(systemSettings.aiMonthlyLimit),
+          }),
+        }),
+      ]);
+
+      if (!schoolRes.ok || !iaRes.ok) {
+        throw new Error("Erro ao salvar configurações.");
+      }
+
+      setSystemSuccess("Configurações salvas com sucesso.");
+    } catch (err) {
+      setSystemError(
+        err instanceof Error ? err.message : "Erro ao salvar configurações."
+      );
+    } finally {
+      setSavingSystem(false);
+    }
+  }
 
   async function updateUser(
     id: string,
@@ -94,19 +180,14 @@ export function useUsersSettings() {
 
       const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data.error || "Erro ao atualizar usuário.");
-      }
+      if (!res.ok) throw new Error(data.error || "Erro ao atualizar usuário.");
 
       setUsers((prev) =>
-        prev.map((user) => (user.id === id ? { ...user, ...data } : user))
+        prev.map((u) => (u.id === id ? { ...u, ...data } : u))
       );
-
       setSuccess("Usuário atualizado com sucesso.");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Erro ao atualizar usuário."
-      );
+      setError(err instanceof Error ? err.message : "Erro ao atualizar usuário.");
     } finally {
       setSavingId("");
     }
@@ -121,5 +202,11 @@ export function useUsersSettings() {
     success,
     error,
     updateUser,
+    systemSettings,
+    savingSystem,
+    systemSuccess,
+    systemError,
+    updateSystemField,
+    saveSystemSettings,
   };
 }

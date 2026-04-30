@@ -128,7 +128,7 @@ export function AiAssistantPanel({
           )}
 
           {loading ? (
-            <div className="max-w-[90%] rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+            <div className="max-w-[90%] rounded-2xl border border-border px-4 py-3 text-sm text-muted-foreground">
               Pensando...
             </div>
           ) : null}

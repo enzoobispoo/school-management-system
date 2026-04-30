@@ -74,17 +74,17 @@ export function TeacherProfileContent({
       </div>
 
       <div className="space-y-6">
-        <div className="rounded-[28px] border border-black/[0.04] bg-[#fafafa] px-6 py-6 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+        <div className="rounded-[28px] border border-border bg-card px-6 py-6 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-black/[0.04] text-lg font-semibold text-black">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted text-lg font-semibold text-foreground">
               {getInitials(professor.nome)}
             </div>
 
             <div className="min-w-0 flex-1">
-              <h2 className="text-[30px] font-semibold tracking-[-0.04em] text-black">
+              <h2 className="text-[30px] font-semibold tracking-[-0.04em] text-foreground">
                 {professor.nome}
               </h2>
-              <p className="mt-1 text-sm text-black/55">
+              <p className="mt-1 text-sm text-muted-foreground">
                 {professor.email || "Sem e-mail"} •{" "}
                 {professor.telefone || "Sem telefone"}
               </p>
