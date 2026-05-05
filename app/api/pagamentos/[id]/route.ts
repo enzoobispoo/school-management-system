@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { Prisma, StatusPagamento } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { updatePagamentoSchema } from "@/lib/validations/pagamento"
+import { getCurrentUser, requireSchool } from "@/lib/auth"
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -26,10 +27,15 @@ function resolveStatus(
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
     const { id } = await context.params
 
-    const pagamento = await prisma.pagamento.findUnique({
-      where: { id },
+    const pagamento = await prisma.pagamento.findFirst({
+      where: { id, schoolId },
       include: {
         matricula: {
           include: {
@@ -109,6 +115,11 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
     const { id } = await context.params
     const body = await request.json()
 
@@ -124,8 +135,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       )
     }
 
-    const pagamentoExistente = await prisma.pagamento.findUnique({
-      where: { id },
+    const pagamentoExistente = await prisma.pagamento.findFirst({
+      where: { id, schoolId },
       include: {
         matricula: {
           include: {
@@ -200,6 +211,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     if (pagamentoExistente.status !== "PAGO" && pagamento.status === "PAGO") {
       await prisma.notificacao.create({
         data: {
+          schoolId: pagamentoExistente.schoolId,
           tipo: "PAGAMENTO_CONFIRMADO",
           titulo: "Pagamento confirmado",
           mensagem: `Pagamento de ${pagamento.matricula.aluno.nome} foi confirmado.`,
@@ -215,6 +227,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     ) {
       await prisma.notificacao.create({
         data: {
+          schoolId: pagamentoExistente.schoolId,
           tipo: "PAGAMENTO_ATRASADO",
           titulo: "Pagamento em atraso",
           mensagem: `Pagamento de ${pagamento.matricula.aluno.nome} entrou em atraso.`,
@@ -279,10 +292,15 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
     const { id } = await context.params
 
-    const pagamento = await prisma.pagamento.findUnique({
-      where: { id },
+    const pagamento = await prisma.pagamento.findFirst({
+      where: { id, schoolId },
       include: {
         matricula: {
           include: {
@@ -318,6 +336,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
 
       await tx.notificacao.create({
         data: {
+          schoolId: pagamento.schoolId,
           tipo: "SISTEMA",
           titulo: "Mensalidade excluída",
           mensagem: `A mensalidade ${pagamento.descricao} de ${pagamento.matricula.aluno.nome} foi excluída.`,

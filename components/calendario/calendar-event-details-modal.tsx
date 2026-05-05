@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { CalendarEvent } from "@/lib/calendario/calendar-types";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +18,7 @@ import {
   User,
   Users,
 } from "lucide-react";
+import { getEventColorVars, getEventTypeLabel } from "@/lib/calendario/calendar-utils";
 
 interface CalendarEventDetailsModalProps {
   open: boolean;
@@ -27,46 +29,6 @@ interface CalendarEventDetailsModalProps {
   deleting?: boolean;
 }
 
-function getEventTypeLabel(event: CalendarEvent) {
-  if (event.source === "automatic") return "Aula";
-
-  switch (event.type) {
-    case "REUNIAO":
-      return "Reunião";
-    case "PROVA":
-      return "Prova";
-    case "REPOSICAO":
-      return "Reposição";
-    case "FERIADO":
-      return "Feriado";
-    case "LEMBRETE":
-      return "Lembrete";
-    default:
-      return "Geral";
-  }
-}
-
-function getEventBadgeClasses(event: CalendarEvent) {
-  if (event.source === "automatic") {
-    return "border-[#cfd7ff]/30 bg-[#e9ecff]/10 text-white/85";
-  }
-
-  switch (event.type) {
-    case "REUNIAO":
-      return "border-[#d9c8ff]/30 bg-[#f1e9ff]/10 text-white/85";
-    case "PROVA":
-      return "border-[#d7dcff]/30 bg-[#e8ebff]/10 text-white/85";
-    case "FERIADO":
-      return "border-[#ffd5cd]/30 bg-[#ffe8e3]/10 text-white/85";
-    case "REPOSICAO":
-      return "border-[#cdeed7]/30 bg-[#e5f8ea]/10 text-white/85";
-    case "LEMBRETE":
-      return "border-border bg-muted/50 text-foreground";
-    default:
-      return "border-border bg-muted/50 text-foreground";
-  }
-}
-
 export function CalendarEventDetailsModal({
   open,
   onOpenChange,
@@ -75,6 +37,24 @@ export function CalendarEventDetailsModal({
   onDelete,
   deleting = false,
 }: CalendarEventDetailsModalProps) {
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const update = () => setIsDark(document.documentElement.classList.contains("dark"));
+    update();
+    const obs = new MutationObserver(update);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
+
+  function getBadgeStyle(ev: CalendarEvent) {
+    const vars = getEventColorVars(ev) as Record<string, string>;
+    return {
+      backgroundColor: isDark ? vars["--ev-bg-dark"] : vars["--ev-bg-light"],
+      borderColor: isDark ? vars["--ev-border-dark"] : vars["--ev-border-light"],
+      color: isDark ? vars["--ev-text-dark"] : vars["--ev-text-light"],
+    };
+  }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="overflow-hidden rounded-[28px] border border-border bg-card p-0 text-card-foreground shadow-[0_20px_60px_rgba(0,0,0,0.35)] sm:max-w-[640px]">
@@ -85,15 +65,14 @@ export function CalendarEventDetailsModal({
                 <div className="min-w-0">
                   <div className="mb-3 flex flex-wrap items-center gap-2">
                     <span
-                      className={`rounded-full border px-3 py-1 text-xs font-medium backdrop-blur-md ${getEventBadgeClasses(
-                        event
-                      )}`}
+                      className="rounded-full border px-3 py-1 text-xs font-medium"
+                      style={getBadgeStyle(event)}
                     >
                       {getEventTypeLabel(event)}
                     </span>
 
                     {event.source === "automatic" && (
-                      <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium text-white backdrop-blur-md">
+                      <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
                         Automático
                       </span>
                     )}
@@ -115,9 +94,7 @@ export function CalendarEventDetailsModal({
                 <div className="rounded-2xl bg-muted/40 p-4">
                   <div className="mb-2 flex items-center gap-2 text-muted-foreground">
                     <CalendarDays className="h-4 w-4" />
-                    <span className="text-xs font-medium uppercase tracking-wide">
-                      Data
-                    </span>
+                    <span className="text-xs font-medium uppercase tracking-wide">Data</span>
                   </div>
                   <p className="text-sm font-medium text-foreground">
                     {new Date(event.start).toLocaleDateString("pt-BR")}
@@ -127,32 +104,20 @@ export function CalendarEventDetailsModal({
                 <div className="rounded-2xl bg-muted/40 p-4">
                   <div className="mb-2 flex items-center gap-2 text-muted-foreground">
                     <Clock3 className="h-4 w-4" />
-                    <span className="text-xs font-medium uppercase tracking-wide">
-                      Horário
-                    </span>
+                    <span className="text-xs font-medium uppercase tracking-wide">Horário</span>
                   </div>
                   <p className="text-sm font-medium text-foreground">
-                    {new Date(event.start).toLocaleTimeString("pt-BR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}{" "}
-                    -{" "}
-                    {new Date(event.end).toLocaleTimeString("pt-BR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {new Date(event.start).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                    {" - "}
+                    {new Date(event.end).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                   </p>
                 </div>
               </div>
 
               {event.description && (
                 <div className="rounded-2xl border border-border p-5">
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Descrição
-                  </p>
-                  <p className="text-sm leading-6 text-foreground">
-                    {event.description}
-                  </p>
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Descrição</p>
+                  <p className="text-sm leading-6 text-foreground">{event.description}</p>
                 </div>
               )}
 
@@ -161,13 +126,9 @@ export function CalendarEventDetailsModal({
                   <div className="rounded-2xl border border-border p-5">
                     <div className="mb-2 flex items-center gap-2 text-muted-foreground">
                       <User className="h-4 w-4" />
-                      <span className="text-xs font-medium uppercase tracking-wide">
-                        Professor
-                      </span>
+                      <span className="text-xs font-medium uppercase tracking-wide">Professor</span>
                     </div>
-                    <p className="text-sm font-medium text-foreground">
-                      {event.professor.nome}
-                    </p>
+                    <p className="text-sm font-medium text-foreground">{event.professor.nome}</p>
                   </div>
                 )}
 
@@ -175,13 +136,9 @@ export function CalendarEventDetailsModal({
                   <div className="rounded-2xl border border-border p-5">
                     <div className="mb-2 flex items-center gap-2 text-muted-foreground">
                       <Users className="h-4 w-4" />
-                      <span className="text-xs font-medium uppercase tracking-wide">
-                        Turma
-                      </span>
+                      <span className="text-xs font-medium uppercase tracking-wide">Turma</span>
                     </div>
-                    <p className="text-sm font-medium text-foreground">
-                      {event.turma.nome}
-                    </p>
+                    <p className="text-sm font-medium text-foreground">{event.turma.nome}</p>
                   </div>
                 )}
 
@@ -189,13 +146,9 @@ export function CalendarEventDetailsModal({
                   <div className="rounded-2xl border border-border p-5">
                     <div className="mb-2 flex items-center gap-2 text-muted-foreground">
                       <GraduationCap className="h-4 w-4" />
-                      <span className="text-xs font-medium uppercase tracking-wide">
-                        Curso
-                      </span>
+                      <span className="text-xs font-medium uppercase tracking-wide">Curso</span>
                     </div>
-                    <p className="text-sm font-medium text-foreground">
-                      {event.curso.nome}
-                    </p>
+                    <p className="text-sm font-medium text-foreground">{event.curso.nome}</p>
                   </div>
                 )}
 
@@ -203,13 +156,9 @@ export function CalendarEventDetailsModal({
                   <div className="rounded-2xl border border-border p-5">
                     <div className="mb-2 flex items-center gap-2 text-muted-foreground">
                       <MapPin className="h-4 w-4" />
-                      <span className="text-xs font-medium uppercase tracking-wide">
-                        Local
-                      </span>
+                      <span className="text-xs font-medium uppercase tracking-wide">Local</span>
                     </div>
-                    <p className="text-sm font-medium text-foreground">
-                      {event.location}
-                    </p>
+                    <p className="text-sm font-medium text-foreground">{event.location}</p>
                   </div>
                 )}
               </div>
@@ -231,8 +180,14 @@ export function CalendarEventDetailsModal({
                 disabled={event.source === "automatic" || deleting}
                 onClick={onDelete}
               >
-                Excluir
+                {deleting ? "Excluindo..." : "Excluir"}
               </Button>
+
+              {event.source === "automatic" && (
+                <p className="w-full text-center text-xs text-muted-foreground">
+                  Eventos automáticos não podem ser editados ou excluídos.
+                </p>
+              )}
             </div>
           </>
         )}

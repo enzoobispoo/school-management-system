@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { createProfessorSchema } from "@/lib/validations/professor"
 import { Prisma } from "@prisma/client"
+import { getCurrentUser, requireSchool } from "@/lib/auth"
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
     const { searchParams } = new URL(request.url)
 
     const id = searchParams.get("id")?.trim() || ""
@@ -141,6 +147,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
+
     const body = await request.json()
     const parsed = createProfessorSchema.safeParse(body)
 
@@ -156,6 +168,7 @@ export async function POST(request: NextRequest) {
 
     const professor = await prisma.professor.create({
       data: {
+        schoolId,
         nome: parsed.data.nome,
         email: parsed.data.email,
         telefone: parsed.data.telefone,
@@ -165,6 +178,7 @@ export async function POST(request: NextRequest) {
 
     await prisma.notificacao.create({
       data: {
+        schoolId,
         tipo: "SISTEMA",
         titulo: "Novo professor cadastrado",
         mensagem: `${professor.nome} foi cadastrado no sistema.`,

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { buildPaymentReminderMessage } from "@/lib/templates/payment-reminder";
-import { getCurrentUserFromRequest } from "@/lib/auth/current-user";
+import { getCurrentUser, requireSchool } from "@/lib/auth";
 import {
   CanalCobranca,
   StatusEnvioCobranca,
@@ -20,7 +20,7 @@ function formatCompetence(month: number, year: number) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUserFromRequest(request);
+    const user = await getCurrentUser();
 
     if (!user) {
       return NextResponse.json(
@@ -28,6 +28,9 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
 
     const body = await request.json();
     const { paymentIds } = body as { paymentIds?: string[] };
@@ -44,6 +47,7 @@ export async function POST(request: NextRequest) {
         id: {
           in: paymentIds,
         },
+        schoolId,
       },
       include: {
         matricula: {
@@ -58,6 +62,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Nenhum pagamento encontrado." },
         { status: 404 }
+      );
+    }
+
+    if (pagamentos.length !== paymentIds.length) {
+      return NextResponse.json(
+        { error: "Alguns pagamentos não pertencem à sua escola ou não existem." },
+        { status: 400 }
       );
     }
 
@@ -115,6 +126,7 @@ export async function POST(request: NextRequest) {
         const result = await sendWhatsAppMessage({
           to: destinoTelefone,
           message,
+          schoolId,
         });
 
         await createCobrancaEnvioLog({

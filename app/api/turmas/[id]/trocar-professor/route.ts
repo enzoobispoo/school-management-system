@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, requireSchool } from "@/lib/auth";
 
 interface RouteContext {
   params: Promise<{
@@ -28,6 +29,8 @@ function hasTimeOverlap(
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     const { id: turmaId } = await params;
     const body = await request.json();
 
@@ -61,8 +64,12 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       );
     }
 
-    const turma = await prisma.turma.findUnique({
-      where: { id: turmaId },
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
+
+    const turma = await prisma.turma.findFirst({
+      where: { id: turmaId, schoolId },
       include: {
         horarios: true,
       },
@@ -89,8 +96,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       );
     }
 
-    const novoProfessor = await prisma.professor.findUnique({
-      where: { id: novoProfessorId },
+    const novoProfessor = await prisma.professor.findFirst({
+      where: { id: novoProfessorId, schoolId },
       select: {
         id: true,
         nome: true,
@@ -114,6 +121,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
     const outrasTurmasDoProfessor = await prisma.turma.findMany({
       where: {
+        schoolId,
         professorId: novoProfessorId,
         ativo: true,
         id: {
@@ -191,6 +199,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
       await tx.notificacao.create({
         data: {
+          schoolId: turma.schoolId,
           tipo: "SISTEMA",
           titulo: "Professor alterado na turma",
           mensagem: `A turma ${turma.nome} agora está vinculada ao professor ${novoProfessor.nome}.`,

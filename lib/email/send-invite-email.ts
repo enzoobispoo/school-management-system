@@ -24,10 +24,6 @@ export async function sendInviteEmail({
 }: SendInviteEmailParams) {
   const from = process.env.INVITE_FROM_EMAIL;
 
-  console.log("🔥 FUNÇÃO DE EMAIL CHAMADA");
-  console.log("ENVIANDO EMAIL PARA:", to);
-  console.log("FROM:", from);
-
   if (!process.env.RESEND_API_KEY) {
     throw new Error("RESEND_API_KEY não configurada.");
   }
@@ -93,10 +89,9 @@ export async function sendInviteEmail({
       `,
     });
 
-    console.log("✅ RESEND RESULT:", result);
     return result;
   } catch (error) {
-    console.error("❌ ERRO AO ENVIAR EMAIL:", error);
+    console.error("Erro ao enviar email de convite:", error);
     throw error;
   }
 }

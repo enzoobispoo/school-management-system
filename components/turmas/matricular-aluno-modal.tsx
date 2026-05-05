@@ -1,0 +1,140 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
+
+interface Aluno {
+  id: string;
+  nome: string;
+  email: string | null;
+  status: string;
+}
+
+interface MatricularAlunoModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  turmaId: string;
+  turmaNome: string;
+  onSuccess: () => void;
+}
+
+export function MatricularAlunoModal({
+  open,
+  onOpenChange,
+  turmaId,
+  turmaNome,
+  onSuccess,
+}: MatricularAlunoModalProps) {
+  const [search, setSearch] = useState("");
+  const [alunos, setAlunos] = useState<Aluno[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) { setSearch(""); setAlunos([]); return; }
+  }, [open]);
+
+  useEffect(() => {
+    if (search.trim().length < 2) { setAlunos([]); return; }
+    const t = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/alunos?search=${encodeURIComponent(search)}&pageSize=10`);
+        const data = await res.json();
+        setAlunos(data.data?.filter((a: Aluno) => a.status === "ATIVO") ?? []);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  async function handleMatricular(alunoId: string, alunoNome: string) {
+    setSubmitting(alunoId);
+    try {
+      const res = await fetch("/api/matriculas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alunoId, turmaId }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error || "Erro ao matricular aluno"); return; }
+      toast.success(`${alunoNome} matriculado com sucesso!`);
+      onSuccess();
+      onOpenChange(false);
+    } finally {
+      setSubmitting(null);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[440px] rounded-[28px]">
+        <DialogHeader>
+          <DialogTitle>Matricular aluno</DialogTitle>
+          <DialogDescription>
+            Busque um aluno ativo para matricular em <strong>{turmaNome}</strong>.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-11 rounded-2xl pl-9"
+              autoFocus
+            />
+          </div>
+
+          <div className="max-h-[280px] overflow-y-auto space-y-1.5">
+            {loading && (
+              <p className="py-4 text-center text-sm text-muted-foreground">Buscando...</p>
+            )}
+            {!loading && search.trim().length >= 2 && alunos.length === 0 && (
+              <p className="py-4 text-center text-sm text-muted-foreground">Nenhum aluno ativo encontrado.</p>
+            )}
+            {!loading && search.trim().length < 2 && (
+              <p className="py-4 text-center text-sm text-muted-foreground">Digite pelo menos 2 caracteres.</p>
+            )}
+            {alunos.map((aluno) => (
+              <div
+                key={aluno.id}
+                className="flex items-center justify-between rounded-xl border border-border/50 bg-muted/20 px-3 py-2.5"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{aluno.nome}</p>
+                  {aluno.email && (
+                    <p className="truncate text-xs text-muted-foreground">{aluno.email}</p>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  className="ml-3 shrink-0 rounded-xl h-8 px-3 text-xs"
+                  disabled={submitting === aluno.id}
+                  onClick={() => handleMatricular(aluno.id, aluno.nome)}
+                >
+                  {submitting === aluno.id ? "..." : "Matricular"}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" className="rounded-2xl" onClick={() => onOpenChange(false)}>
+            Fechar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

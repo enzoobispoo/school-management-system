@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +32,8 @@ export function StudentTableActions<T extends Student>({
   onDelete,
   onViewDetails,
 }: StudentTableActionsProps<T>) {
+  const router = useRouter();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -43,11 +46,10 @@ export function StudentTableActions<T extends Student>({
         <DropdownMenuItem
           onClick={(e) => {
             e.stopPropagation();
-            onToggleDetails();
-            onViewDetails?.(student);
+            router.push(`/alunos/${student.id}`);
           }}
         >
-          Ver detalhes
+          Ver perfil
         </DropdownMenuItem>
 
         <DropdownMenuItem

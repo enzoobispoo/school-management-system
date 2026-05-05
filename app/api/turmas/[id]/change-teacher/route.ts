@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, requireSchool } from "@/lib/auth";
 
 interface Params {
   params: Promise<{
@@ -9,6 +10,8 @@ interface Params {
 
 export async function POST(request: NextRequest, { params }: Params) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     const { id: turmaId } = await params;
     const body = await request.json();
 

@@ -35,7 +35,7 @@ export function EventsBoardHeader({
 
         <Button
           asChild
-          className="h-11 rounded-2xl bg-black px-5 text-white hover:bg-black/90 dark:bg-white/10 dark:text-white dark:backdrop-blur-md dark:hover:bg-white/20 dark:border dark:border-white/10"
+          className="h-11 rounded-md px-4"
         >
           <Link href="/calendario">
             <Plus className="mr-2 h-4 w-4" />

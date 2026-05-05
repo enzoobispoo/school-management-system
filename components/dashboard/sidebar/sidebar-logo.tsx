@@ -10,36 +10,18 @@ interface SidebarLogoProps {
 interface SchoolData {
   nomeEscola: string;
   logoUrl?: string | null;
-  corPrimaria?: string | null;
 }
 
 export function SidebarLogo({ collapsed = false }: SidebarLogoProps) {
-  const [school, setSchool] = useState<SchoolData>({
-    nomeEscola: "EduGestão",
-    logoUrl: null,
-    corPrimaria: "#111111",
-  });
+  const [school, setSchool] = useState<SchoolData>({ nomeEscola: "EduGestão", logoUrl: null });
 
   useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch("/api/settings/escola", {
-          cache: "no-store",
-        });
-
-        const data = await res.json();
-
-        if (res.ok) {
-          setSchool({
-            nomeEscola: data.nomeEscola || "EduGestão",
-            logoUrl: data.logoUrl,
-            corPrimaria: data.corPrimaria || "#111111",
-          });
-        }
-      } catch {}
-    }
-
-    load();
+    fetch("/api/settings/escola", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.nomeEscola) setSchool({ nomeEscola: d.nomeEscola, logoUrl: d.logoUrl });
+      })
+      .catch(() => {});
   }, []);
 
   const initials = school.nomeEscola
@@ -50,33 +32,29 @@ export function SidebarLogo({ collapsed = false }: SidebarLogoProps) {
     .toUpperCase();
 
   return (
-    <div
-      className={
-        collapsed ? "flex justify-center" : "flex items-center gap-3 px-3"
-      }
-    >
+    <div className={collapsed ? "flex justify-center" : "flex items-center gap-3"}>
+      {/* Avatar da escola */}
       <div
-        className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg"
+        className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg shadow-sm"
         style={{ backgroundColor: "var(--brand-primary)" }}
       >
         {school.logoUrl ? (
-          <img
-            src={school.logoUrl}
-            alt="Logo"
-            className="h-full w-full object-cover"
-          />
+          <img src={school.logoUrl} alt="Logo" className="h-full w-full object-cover" />
         ) : initials ? (
-          <span className="text-sm font-semibold text-white">{initials}</span>
+          <span className="text-[11px] font-bold text-white">{initials}</span>
         ) : (
-          <GraduationCap className="h-5 w-5 text-white" />
+          <GraduationCap className="h-4 w-4 text-white" />
         )}
       </div>
 
-      {!collapsed ? (
-        <span className="text-lg font-semibold tracking-tight text-sidebar-foreground">
-          {school.nomeEscola || "EduGestão"}
-        </span>
-      ) : null}
+      {!collapsed && (
+        <div className="min-w-0">
+          <p className="truncate text-[13px] font-semibold leading-tight text-sidebar-foreground">
+            {school.nomeEscola}
+          </p>
+          <p className="text-[10px] text-sidebar-foreground/40">Gestão escolar</p>
+        </div>
+      )}
     </div>
   );
 }

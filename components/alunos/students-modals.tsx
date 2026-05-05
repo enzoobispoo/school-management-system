@@ -13,6 +13,45 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+type EditingStudent = {
+  id: string;
+  nome: string;
+  email?: string;
+  cpf?: string;
+  telefone?: string;
+  dataNascimento?: string;
+  endereco?: string;
+  responsavelNome?: string;
+  responsavelTelefone?: string;
+  responsavelEmail?: string;
+  responsavelCpf?: string;
+  possuiLaudo?: boolean;
+  laudoTipo?: string;
+  laudoCid?: string;
+  laudoNivel?: string;
+  laudoProfissional?: string;
+  laudoData?: string;
+  laudoDescricao?: string;
+  adaptacaoNecessaria?: boolean;
+  adaptacaoDescricao?: string;
+  alergias?: string;
+  medicamentos?: string;
+  condicoesCronicas?: string;
+  planoSaude?: string;
+  contatoEmergenciaNome?: string;
+  contatoEmergenciaTelefone?: string;
+  observacoesMedicas?: string;
+  observacoesProf?: string;
+  tratamentos?: string;
+  observacoesGerais?: string;
+  indicacao?: string;
+  nivelInicial?: string;
+  idiomaNativo?: string;
+  status?: string;
+  motivoSaida?: string;
+  dataSaida?: string;
+};
+
 interface StudentsModalsProps {
   editOpen: boolean;
   setEditOpen: (open: boolean) => void;
@@ -21,43 +60,12 @@ interface StudentsModalsProps {
   enrollmentOpen: boolean;
   setEnrollmentOpen: (open: boolean) => void;
   submitting: boolean;
-  editingStudent: {
-    id: string;
-    nome: string;
-    email?: string;
-    cpf?: string;
-    telefone?: string;
-    dataNascimento?: string;
-    endereco?: string;
-  } | null;
-  setEditingStudent: (
-    value: {
-      id: string;
-      nome: string;
-      email?: string;
-      cpf?: string;
-      telefone?: string;
-      dataNascimento?: string;
-      endereco?: string;
-    } | null
-  ) => void;
-  studentToDelete: {
-    id: string;
-    name: string;
-  } | null;
-  selectedStudent: {
-    id: string;
-    nome: string;
-  } | null;
+  editingStudent: EditingStudent | null;
+  setEditingStudent: (value: EditingStudent | null) => void;
+  studentToDelete: { id: string; name: string } | null;
+  selectedStudent: { id: string; nome: string } | null;
   setSelectedStudent: (value: { id: string; nome: string } | null) => void;
-  onSubmitEdit: (payload: {
-    nome: string;
-    email?: string;
-    cpf?: string;
-    telefone?: string;
-    dataNascimento?: string;
-    endereco?: string;
-  }) => Promise<void>;
+  onSubmitEdit: (payload: Record<string, unknown>) => Promise<void>;
   onConfirmDelete: () => Promise<void>;
   onEnrollmentSuccess: () => Promise<void>;
 }
@@ -99,6 +107,35 @@ export function StudentsModals({
                 telefone: editingStudent.telefone,
                 dataNascimento: editingStudent.dataNascimento,
                 endereco: editingStudent.endereco,
+                responsavelNome: editingStudent.responsavelNome,
+                responsavelTelefone: editingStudent.responsavelTelefone,
+                responsavelEmail: editingStudent.responsavelEmail,
+                responsavelCpf: editingStudent.responsavelCpf,
+                possuiLaudo: editingStudent.possuiLaudo,
+                laudoTipo: editingStudent.laudoTipo,
+                laudoCid: editingStudent.laudoCid,
+                laudoNivel: editingStudent.laudoNivel,
+                laudoProfissional: editingStudent.laudoProfissional,
+                laudoData: editingStudent.laudoData,
+                laudoDescricao: editingStudent.laudoDescricao,
+                adaptacaoNecessaria: editingStudent.adaptacaoNecessaria,
+                adaptacaoDescricao: editingStudent.adaptacaoDescricao,
+                alergias: editingStudent.alergias,
+                medicamentos: editingStudent.medicamentos,
+                condicoesCronicas: editingStudent.condicoesCronicas,
+                planoSaude: editingStudent.planoSaude,
+                contatoEmergenciaNome: editingStudent.contatoEmergenciaNome,
+                contatoEmergenciaTelefone: editingStudent.contatoEmergenciaTelefone,
+                observacoesMedicas: editingStudent.observacoesMedicas,
+                observacoesProf: editingStudent.observacoesProf,
+                tratamentos: editingStudent.tratamentos,
+                observacoesGerais: editingStudent.observacoesGerais,
+                indicacao: editingStudent.indicacao,
+                nivelInicial: editingStudent.nivelInicial,
+                idiomaNativo: editingStudent.idiomaNativo,
+                status: editingStudent.status,
+                motivoSaida: editingStudent.motivoSaida,
+                dataSaida: editingStudent.dataSaida,
               }
             : null
         }
@@ -131,9 +168,7 @@ export function StudentsModals({
           </AlertDialogHeader>
 
           <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={() => setDeleteOpen(false)}
-            >
+            <AlertDialogCancel onClick={() => setDeleteOpen(false)}>
               Cancelar
             </AlertDialogCancel>
 

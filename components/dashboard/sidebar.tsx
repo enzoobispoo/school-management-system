@@ -34,24 +34,24 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300 ease-in-out lg:z-40 lg:translate-x-0",
-          collapsed ? "w-20" : "w-64",
+          "fixed inset-y-0 left-0 z-50 flex flex-col bg-sidebar transition-all duration-300 ease-in-out lg:z-40 lg:translate-x-0",
+          collapsed ? "w-[60px]" : "w-[220px]",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        <div className="flex items-center justify-between border-b border-sidebar-border px-3 py-3">
+        <div className="flex items-center justify-between px-4 py-4">
           <SidebarLogo collapsed={collapsed} />
 
           <Button
             variant="ghost"
             size="icon"
-            className="hidden lg:inline-flex"
+            className="hidden h-7 w-7 shrink-0 text-sidebar-foreground/30 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground lg:inline-flex"
             onClick={onToggleCollapse}
           >
             {collapsed ? (
-              <PanelLeftOpen className="h-4 w-4" />
+              <PanelLeftOpen className="h-3.5 w-3.5" />
             ) : (
-              <PanelLeftClose className="h-4 w-4" />
+              <PanelLeftClose className="h-3.5 w-3.5" />
             )}
           </Button>
         </div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma, TipoEvento } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, requireSchool } from "@/lib/auth";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -24,6 +25,8 @@ const updateEventoSchema = z.object({
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     const { id } = await context.params;
     const body = await request.json();
 
@@ -91,6 +94,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     const { id } = await context.params;
 
     const eventoExistente = await prisma.evento.findUnique({

@@ -27,74 +27,70 @@ function formatCurrency(value: number) {
 
 export function RevenueChart({ data, loading = false }: RevenueChartProps) {
   return (
-    <div className="rounded-[24px] border border-black/5 bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:border-white/10 dark:bg-[#1a1a1a] dark:text-white">
-      <div className="mb-6">
-        <p className="text-sm text-black/42 dark:text-white/50">Receita</p>
-
-        <h3 className="text-[28px] font-semibold tracking-[-0.04em] text-black dark:text-white">
+    <div className="rounded-xl border border-border/60 bg-card p-5">
+      <div className="mb-4">
+        <p className="text-[13px] text-muted-foreground">Receita</p>
+        <h3 className="mt-0.5 text-lg font-semibold tracking-tight text-foreground">
           Receita ao longo do tempo
         </h3>
       </div>
 
       {loading ? (
-        <div className="flex h-[320px] items-center justify-center text-sm text-black/45 dark:text-white/50">
-          Carregando gráfico...
+        <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
+          Carregando...
         </div>
       ) : (
-        <div className="h-[320px]">
+        <div className="h-[280px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data}>
               <defs>
                 <linearGradient id="receitaFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.22} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.03} />
+                  <stop offset="5%" stopColor="currentColor" stopOpacity={0.08} />
+                  <stop offset="95%" stopColor="currentColor" stopOpacity={0} />
                 </linearGradient>
               </defs>
 
               <CartesianGrid
-                stroke="rgba(255,255,255,0.08)"
+                stroke="var(--border)"
                 strokeDasharray="3 3"
+                strokeOpacity={0.5}
               />
 
               <XAxis
                 dataKey="month"
-                tick={{ fontSize: 12, fill: "rgba(255,255,255,0.45)" }}
-                tickMargin={10}
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tickMargin={8}
                 axisLine={false}
                 tickLine={false}
               />
 
               <YAxis
                 tickFormatter={(value) => `R$ ${value / 1000}k`}
-                tick={{ fontSize: 12, fill: "rgba(255,255,255,0.45)" }}
-                tickMargin={10}
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tickMargin={8}
                 axisLine={false}
                 tickLine={false}
               />
 
               <Tooltip
-                formatter={(value: number) => [
-                  formatCurrency(value),
-                  "Receita",
-                ]}
+                formatter={(value: number) => [formatCurrency(value), "Receita"]}
                 contentStyle={{
-                  borderRadius: 18,
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  background: "#111111",
-                  color: "#ffffff",
-                  boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+                  borderRadius: 10,
+                  border: "1px solid var(--border)",
+                  background: "var(--card)",
+                  color: "var(--foreground)",
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+                  fontSize: 13,
                 }}
-                labelStyle={{
-                  color: "rgba(255,255,255,0.55)",
-                }}
+                labelStyle={{ color: "var(--muted-foreground)" }}
               />
 
               <Area
                 type="monotone"
                 dataKey="receita"
-                stroke="#3b82f6"
+                stroke="var(--foreground)"
                 fill="url(#receitaFill)"
-                strokeWidth={2.5}
+                strokeWidth={1.5}
               />
             </AreaChart>
           </ResponsiveContainer>

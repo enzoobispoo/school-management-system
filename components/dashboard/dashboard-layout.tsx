@@ -19,8 +19,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       />
 
       <main
-        className={`transition-[padding] duration-300 ${
-          collapsed ? "lg:pl-20" : "lg:pl-64"
+        className={`pt-16 transition-[padding] duration-300 lg:pt-0 ${
+          collapsed ? "lg:pl-[60px]" : "lg:pl-[220px]"
         }`}
       >
         {children}

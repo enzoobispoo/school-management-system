@@ -4,8 +4,17 @@ function formatNumber(value: number) {
   return value.toLocaleString("pt-BR");
 }
 
-export async function listTopCourses() {
+export async function listTopCourses(schoolId?: string | null) {
+  const sid = schoolId?.trim();
+  if (!sid) {
+    return {
+      message:
+        "Não foi possível identificar a escola. Faça login com um usuário vinculado a uma escola.",
+    };
+  }
+
   const cursos = await prisma.curso.findMany({
+    where: { schoolId: sid },
     include: {
       turmas: {
         include: {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, requireSchool } from "@/lib/auth";
 
 const MONTH_LABELS = [
   "Jan",
@@ -170,6 +171,14 @@ function buildDashboardInsights(params: {
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    }
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
+
     const year = getYearFromSearchParams(request);
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
@@ -205,11 +214,13 @@ export async function GET(request: NextRequest) {
       prisma.aluno.count(),
 
       prisma.matricula.count({
-        where: { status: "ATIVA" },
+        where: {
+          schoolId, status: "ATIVA" },
       }),
 
       prisma.aluno.count({
         where: {
+          schoolId,
           createdAt: {
             gte: startOfCurrentMonth,
             lt: endOfCurrentMonth,
@@ -219,6 +230,7 @@ export async function GET(request: NextRequest) {
 
       prisma.aluno.count({
         where: {
+          schoolId,
           createdAt: {
             gte: startOfPreviousMonth,
             lt: endOfPreviousMonth,
@@ -228,6 +240,7 @@ export async function GET(request: NextRequest) {
 
       prisma.pagamento.findMany({
         where: {
+          schoolId,
           status: "PAGO",
           dataPagamento: {
             gte: startOfCurrentMonth,
@@ -241,6 +254,7 @@ export async function GET(request: NextRequest) {
 
       prisma.pagamento.findMany({
         where: {
+          schoolId,
           status: "PAGO",
           dataPagamento: {
             gte: startOfPreviousMonth,
@@ -254,6 +268,7 @@ export async function GET(request: NextRequest) {
 
       prisma.pagamento.findMany({
         where: {
+          schoolId,
           status: {
             in: ["PENDENTE", "ATRASADO"],
           },
@@ -268,6 +283,7 @@ export async function GET(request: NextRequest) {
 
       prisma.pagamento.findMany({
         where: {
+          schoolId,
           status: "PAGO",
           dataPagamento: {
             gte: startOfYear,
@@ -282,6 +298,7 @@ export async function GET(request: NextRequest) {
 
       prisma.pagamento.findMany({
         where: {
+          schoolId,
           vencimento: {
             gte: startOfCurrentMonth,
             lt: endOfCurrentMonth,
@@ -296,7 +313,8 @@ export async function GET(request: NextRequest) {
       }),
 
       prisma.curso.findMany({
-        where: { ativo: true },
+        where: {
+          schoolId, ativo: true },
         include: {
           turmas: {
             include: {
@@ -316,7 +334,8 @@ export async function GET(request: NextRequest) {
       }),
 
       prisma.notificacao.count({
-        where: { lida: false },
+        where: {
+          schoolId, lida: false },
       }),
 
       prisma.turmaProfessorHistorico.count({
@@ -346,11 +365,13 @@ export async function GET(request: NextRequest) {
       }),
 
       prisma.professor.count({
-        where: { ativo: false },
+        where: {
+          schoolId, ativo: false },
       }),
 
       prisma.turma.findMany({
-        where: { ativo: true },
+        where: {
+          schoolId, ativo: true },
         select: {
           id: true,
           capacidadeMaxima: true,

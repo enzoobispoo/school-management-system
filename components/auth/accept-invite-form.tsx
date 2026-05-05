@@ -211,7 +211,7 @@ export function AcceptInviteForm({ token }: AcceptInviteFormProps) {
           <Button
             type="submit"
             disabled={submitting}
-            className="mt-2 h-11 rounded-2xl bg-black text-white hover:bg-black/90"
+            className="mt-2 h-11 rounded-md"
           >
             {submitting ? "Ativando..." : "Ativar conta"}
           </Button>

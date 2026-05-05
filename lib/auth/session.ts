@@ -6,6 +6,7 @@ export interface AuthSessionPayload extends JWTPayload {
   userId: string;
   email: string;
   role: string;
+  schoolId: string | null;
 }
 
 function getAuthSecret() {

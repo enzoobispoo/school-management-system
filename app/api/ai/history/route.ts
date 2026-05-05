@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { ChatMessageRole } from "@prisma/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type PersistedMessage = {
-  role: "user" | "assistant";
+  role: ChatMessageRole;
   content: string;
   meta?: {
     intent?: string;
@@ -32,7 +33,7 @@ function normalizeMessages(input: unknown): PersistedMessage[] {
         };
       };
 
-      if (message.role !== "user" && message.role !== "assistant") {
+      if (message.role !== "USER" && message.role !== "ASSISTANT") {
         return null;
       }
 
@@ -41,7 +42,7 @@ function normalizeMessages(input: unknown): PersistedMessage[] {
       }
 
       return {
-        role: message.role,
+        role: message.role as ChatMessageRole,
         content: message.content.trim(),
         meta: {
           intent:
@@ -92,7 +93,7 @@ export async function GET() {
             title: session.title,
             messages: session.messages.map((message) => ({
               id: message.id,
-              role: message.role as "user" | "assistant",
+              role: message.role === "USER" ? "user" : "assistant" as "user" | "assistant",
               content: message.content,
               meta: {
                 intent: message.intent ?? undefined,

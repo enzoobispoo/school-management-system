@@ -22,10 +22,21 @@ function getDefaultDueDate(
 }
 
 export async function generateMonthlyPayments(
-  confirmed: boolean
+  confirmed: boolean,
+  schoolId?: string | null
 ): Promise<AiActionResult> {
+  const sid = schoolId?.trim() || null;
+  if (!sid) {
+    return {
+      message:
+        "Não foi possível identificar a escola do usuário. Faça login novamente ou contate o suporte.",
+      suggestions: [],
+      executed: false,
+    };
+  }
+
   const settings = await prisma.escolaSettings.findUnique({
-    where: { id: "default" },
+    where: { schoolId: sid },
     select: {
       diaVencimentoPadrao: true,
       gerarMensalidadeAuto: true,
@@ -47,7 +58,7 @@ export async function generateMonthlyPayments(
   }
 
   const matriculasAtivas = await prisma.matricula.findMany({
-    where: { status: "ATIVA" },
+    where: { status: "ATIVA", schoolId: sid },
     include: {
       turma: {
         include: {
@@ -95,6 +106,7 @@ export async function generateMonthlyPayments(
 
     await prisma.pagamento.create({
       data: {
+        schoolId: matricula.schoolId,
         matriculaId: matricula.id,
         competenciaMes,
         competenciaAno,

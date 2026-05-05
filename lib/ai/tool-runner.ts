@@ -22,24 +22,34 @@ type ToolName =
   | "register_payment"
   | "generate_monthly_payments";
 
-async function runTool(name: ToolName, rawArgs: string) {
-  const args = rawArgs ? JSON.parse(rawArgs) : {};
+async function runTool(
+  name: ToolName,
+  rawArgs: string,
+  schoolId?: string | null
+) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let args: any = {};
+  try {
+    args = rawArgs ? JSON.parse(rawArgs) : {};
+  } catch {
+    args = {};
+  }
 
   switch (name) {
     case "query_students":
-      return queryStudents(args);
+      return queryStudents(args, schoolId);
     case "query_courses":
-      return queryCourses(args);
+      return queryCourses(args, schoolId);
     case "query_teachers":
-      return queryTeachers(args);
+      return queryTeachers(args, schoolId);
     case "query_payments":
-      return queryPayments(args);
+      return queryPayments(args, schoolId);
     case "query_dashboard":
-      return queryDashboard();
+      return queryDashboard(schoolId);
     case "register_payment":
-      return registerPaymentTool(args);
+      return registerPaymentTool(args, schoolId);
     case "generate_monthly_payments":
-      return generateMonthlyPaymentsTool(args);
+      return generateMonthlyPaymentsTool(args, schoolId);
     default:
       throw new Error(`Tool não suportada: ${name}`);
   }
@@ -49,6 +59,7 @@ export async function runAiWithTools(params: {
   client: OpenAI;
   message: string;
   conversationMessages?: ConversationMessage[];
+  schoolId?: string | null;
 }) {
   const historyText =
     params.conversationMessages && params.conversationMessages.length > 0
@@ -104,7 +115,11 @@ ${params.message}`,
 
     const toolOutputs = await Promise.all(
       functionCalls.map(async (call) => {
-        const output = await runTool(call.name as ToolName, call.arguments || "{}");
+        const output = await runTool(
+          call.name as ToolName,
+          call.arguments || "{}",
+          params.schoolId
+        );
 
         return {
           type: "function_call_output" as const,

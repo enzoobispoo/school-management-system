@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       email: user.email,
       role: user.role,
+      schoolId: user.schoolId ?? null,
     });
 
     await prisma.user.update({

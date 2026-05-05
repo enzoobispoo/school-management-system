@@ -31,13 +31,14 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       );
     }
 
-    const school = await getOrCreateSchoolSetting();
+    const targetSchoolId = invite.schoolId ?? "default_school";
+    const school = await getOrCreateSchoolSetting(targetSchoolId);
 
     return NextResponse.json({
       invite: {
         email: invite.email,
         role: invite.role,
-        schoolName: school.nome,
+        schoolName: school.nomeEscola,
         expiresAt: invite.expiresAt,
       },
     });
@@ -129,22 +130,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
       where: { email: invite.email },
     });
 
-    const activeUsersCount = await prisma.user.count({
-      where: { ativo: true },
+    const targetSchoolId = invite.schoolId ?? "default_school";
+    await getOrCreateSchoolSetting(targetSchoolId);
+
+    await prisma.escolaSettings.upsert({
+      where: { schoolId: targetSchoolId },
+      update: { nomeEscola: schoolName },
+      create: {
+        id: targetSchoolId,
+        schoolId: targetSchoolId,
+        nomeEscola: schoolName,
+      },
     });
-
-    const school = await getOrCreateSchoolSetting();
-
-    if (activeUsersCount === 0 || school.nome === "EduGestão") {
-      await prisma.schoolSetting.upsert({
-        where: { id: "default" },
-        update: { nome: schoolName },
-        create: {
-          id: "default",
-          nome: schoolName,
-        },
-      });
-    }
 
     let user;
 
@@ -164,6 +161,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           passwordHash,
           role: invite.role,
           ativo: true,
+          schoolId: targetSchoolId,
         },
       });
     } else {
@@ -175,6 +173,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           passwordHash,
           role: invite.role,
           ativo: true,
+          schoolId: targetSchoolId,
         },
       });
     }

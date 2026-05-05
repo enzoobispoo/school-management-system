@@ -13,9 +13,20 @@ function formatDate(date: Date | string) {
   return new Date(date).toLocaleDateString("pt-BR");
 }
 
-export async function listOverdueStudents(): Promise<AiActionResult> {
+export async function listOverdueStudents(
+  schoolId?: string | null
+): Promise<AiActionResult> {
+  const sid = schoolId?.trim();
+  if (!sid) {
+    return {
+      message:
+        "Não foi possível identificar a escola. Faça login com um usuário vinculado a uma escola.",
+      suggestions: getFinanceSuggestions(),
+    };
+  }
+
   const pagamentosAtrasados = await prisma.pagamento.findMany({
-    where: { status: "ATRASADO" },
+    where: { schoolId: sid, status: "ATRASADO" },
     include: {
       matricula: {
         include: {

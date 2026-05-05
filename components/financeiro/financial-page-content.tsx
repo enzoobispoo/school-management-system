@@ -69,6 +69,7 @@ interface FinancialPageContentProps {
     description: string;
     amount: number;
   }) => void;
+  onPrintReceipt: (payment: PaymentTableItem) => void;
 }
 
 export function FinancialPageContent(props: FinancialPageContentProps) {
@@ -86,6 +87,7 @@ export function FinancialPageContent(props: FinancialPageContentProps) {
     onSendReminder,
     onViewDetails,
     onDeletePayment,
+    onPrintReceipt,
   } = props;
 
   return (
@@ -124,6 +126,7 @@ export function FinancialPageContent(props: FinancialPageContentProps) {
           onSendReminder={onSendReminder}
           onViewDetails={onViewDetails}
           onDeletePayment={onDeletePayment}
+          onPrintReceipt={onPrintReceipt}
           actionLoadingId={props.actionLoadingId}
           onGenerateBoleto={props.onGenerateBoleto}
         />

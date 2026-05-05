@@ -6,12 +6,15 @@ import {
   getOrCreateSystemSetting,
   maskApiKey,
 } from "@/lib/ia/system-settings";
+import { getCurrentUser } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     const settings = await ensureCurrentAiUsageWindow(
       await getOrCreateSystemSetting()
     );
@@ -37,6 +40,8 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     const body = await request.json();
 
     const aiProviderMode =

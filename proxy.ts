@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AUTH_COOKIE_NAME, verifyAuthToken } from "@/lib/auth/session";
 
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/redefinir-senha", "/cadastro"];
 const PUBLIC_API_PREFIXES = [
   "/api/auth/login",
   "/api/auth/logout",
+  "/api/auth/forgot-password",
+  "/api/auth/reset-password",
+  "/api/auth/register",
   "/api/configuracoes/escola/public",
   "/api/webhooks/asaas",
   "/api/cron/cobrancas-atrasadas",
@@ -19,7 +22,8 @@ type UserRole =
 
 function isPublicPath(pathname: string) {
   return (
-    PUBLIC_PATHS.includes(pathname) || pathname.startsWith("/ativar-conta/")
+    PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "?")) ||
+    pathname.startsWith("/ativar-conta/")
   );
 }
 
@@ -41,34 +45,97 @@ function isStaticAsset(pathname: string) {
   );
 }
 
+// Rotas exclusivas de SUPER_ADMIN
+const SUPER_ADMIN_ONLY = [
+  "/api/users",
+  "/api/settings/ia",
+  "/api/settings/financeiro",
+  "/api/configuracoes/ia",
+  "/configuracoes/usuarios",
+];
+
+// Rotas que FINANCEIRO pode acessar (além das compartilhadas)
+const FINANCEIRO_ROUTES = [
+  "/financeiro",
+  "/relatorios",
+  "/api/pagamentos",
+  "/api/relatorios",
+  "/api/cobrancas",
+];
+
+// Rotas que SECRETARIA pode acessar (além das compartilhadas)
+const SECRETARIA_ROUTES = [
+  "/alunos",
+  "/cursos",
+  "/turmas",
+  "/professores",
+  "/api/alunos",
+  "/api/cursos",
+  "/api/turmas",
+  "/api/professores",
+  "/api/matriculas",
+];
+
+// Rotas compartilhadas por todos os usuários autenticados
+const SHARED_ROUTES = [
+  "/api/dashboard",
+  "/api/notificacoes",
+  "/api/search",
+  "/api/settings/escola",
+  "/api/settings/aparencia",
+  "/api/settings/me",
+  "/api/settings/notificacoes",
+  "/api/settings/escola-ia",
+  "/api/ai",
+  "/api/calendario",
+  "/api/eventos",
+  "/calendario",
+  "/configuracoes/aparencia",
+  "/configuracoes/conta",
+  "/configuracoes/notificacoes",
+  "/configuracoes/ia",
+  "/admin",
+  "/api/admin",
+  "/",
+];
+
 function hasAccessByRole(pathname: string, role: UserRole) {
   if (role === "SUPER_ADMIN") return true;
 
-  if (pathname.startsWith("/configuracoes")) {
-    return false;
-  }
-
   if (
-    pathname.startsWith("/financeiro") ||
-    pathname.startsWith("/relatorios")
+    role === "ADMIN" &&
+    pathname.startsWith("/configuracoes/usuarios/convites")
   ) {
-    return role === "FINANCEIRO";
+    return true;
   }
 
-  if (pathname.startsWith("/calendario")) {
-    return role === "SECRETARIA" || role === "PROFESSOR";
+  if (SUPER_ADMIN_ONLY.some((p) => pathname.startsWith(p))) return false;
+
+  if (role === "ADMIN") return true;
+
+  if (SHARED_ROUTES.some((p) => pathname === p || pathname.startsWith(p))) {
+    return true;
   }
 
-  if (
-    pathname.startsWith("/alunos") ||
-    pathname.startsWith("/cursos") ||
-    pathname.startsWith("/turmas") ||
-    pathname.startsWith("/professores")
-  ) {
-    return role === "SECRETARIA";
+  if (role === "FINANCEIRO") {
+    return FINANCEIRO_ROUTES.some((p) => pathname.startsWith(p));
   }
 
-  return true;
+  if (role === "SECRETARIA") {
+    return (
+      SECRETARIA_ROUTES.some((p) => pathname.startsWith(p)) ||
+      FINANCEIRO_ROUTES.some((p) => pathname.startsWith(p))
+    );
+  }
+
+  if (role === "PROFESSOR") {
+    return (
+      pathname.startsWith("/api/professores") ||
+      pathname.startsWith("/professores")
+    );
+  }
+
+  return false;
 }
 
 export async function proxy(request: NextRequest) {
@@ -93,6 +160,18 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // Redirect SUPER_ADMIN away from school dashboard to /admin
+  if (pathname === "/" && token) {
+    try {
+      const session = await verifyAuthToken(token);
+      if (session.role === "SUPER_ADMIN") {
+        return NextResponse.redirect(new URL("/admin", request.url));
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   if (isPublicApi(pathname)) {
     return NextResponse.next();
   }
@@ -107,9 +186,6 @@ export async function proxy(request: NextRequest) {
 
   try {
     const session = await verifyAuthToken(token);
-    console.log("SESSION ROLE:", session.role);
-    console.log("PATH:", pathname);
-
     const role = session.role as UserRole;
 
     if (!hasAccessByRole(pathname, role)) {

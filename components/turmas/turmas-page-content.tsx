@@ -3,6 +3,8 @@
 import { TurmasFiltersBar } from "./turmas-filters-bar";
 import { TurmaCard } from "./card/turma-card";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/shared/empty-state";
+import { Users } from "lucide-react";
 import type { TurmaCardItem } from "@/hooks/turmas/use-turmas-page";
 
 interface Props {
@@ -16,11 +18,9 @@ interface Props {
   error: string;
   page: number;
   setPage: React.Dispatch<React.SetStateAction<number>>;
-  meta: {
-    total: number;
-    totalPages: number;
-  };
+  meta: { total: number; totalPages: number };
   onTeacherChanged?: () => Promise<void> | void;
+  onRefresh?: () => void;
 }
 
 export function TurmasPageContent(props: Props) {
@@ -32,6 +32,7 @@ export function TurmasPageContent(props: Props) {
     setPage,
     meta,
     onTeacherChanged,
+    onRefresh,
   } = props;
 
   return (
@@ -43,6 +44,8 @@ export function TurmasPageContent(props: Props) {
         statusFilter={props.statusFilter}
         setStatusFilter={props.setStatusFilter}
         setPage={(value) => setPage(value)}
+        turmas={turmas}
+        onRefresh={onRefresh}
       />
 
       <div className="px-6 pb-6">
@@ -51,13 +54,30 @@ export function TurmasPageContent(props: Props) {
             {error}
           </div>
         ) : loading ? (
-          <div className="rounded-3xl border border-border/60 bg-card p-10 text-sm text-muted-foreground">
-            Carregando turmas...
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="animate-pulse rounded-3xl border border-border/60 bg-card p-6">
+                <div className="mb-4 space-y-2">
+                  <div className="h-5 w-32 rounded bg-muted" />
+                  <div className="h-3 w-24 rounded bg-muted" />
+                </div>
+                <div className="mb-4 grid grid-cols-2 gap-3">
+                  <div className="h-16 rounded-2xl bg-muted" />
+                  <div className="h-16 rounded-2xl bg-muted" />
+                </div>
+                <div className="space-y-2 border-t border-border/50 pt-4">
+                  <div className="h-3 w-full rounded bg-muted" />
+                  <div className="h-3 w-3/4 rounded bg-muted" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : turmas.length === 0 ? (
-          <div className="rounded-3xl border border-border/60 bg-card p-10 text-sm text-muted-foreground">
-            Nenhuma turma encontrada.
-          </div>
+          <EmptyState
+            icon={Users}
+            message="Nenhuma turma encontrada"
+            description="Crie uma turma para começar a matricular alunos."
+          />
         ) : (
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {turmas.map((turma) => (

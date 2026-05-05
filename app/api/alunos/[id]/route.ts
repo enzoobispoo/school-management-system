@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { updateAlunoSchema } from "@/lib/validations/aluno"
 import { Prisma } from "@prisma/client"
+import { getCurrentUser, requireSchool } from "@/lib/auth"
 
 function getComputedPaymentStatus(pagamento: {
   status: string
@@ -29,10 +30,14 @@ interface RouteContext {
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
     const { id } = await context.params
-
-    const aluno = await prisma.aluno.findUnique({
-      where: { id },
+    const aluno = await prisma.aluno.findFirst({
+      where: { id, schoolId },
       include: {
         matriculas: {
           include: {
@@ -128,24 +133,36 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
     const { id } = await context.params
     const body = await request.json()
 
     const parsed = updateAlunoSchema.safeParse(body)
 
     if (!parsed.success) {
+      const fieldErrors = parsed.error.flatten().fieldErrors;
+      const firstField = Object.keys(fieldErrors)[0];
+      const firstMessage = firstField
+        ? (fieldErrors as Record<string, string[]>)[firstField]?.[0]
+        : undefined;
+
       return NextResponse.json(
         {
-          error: "Dados inválidos",
-          details: parsed.error.flatten(),
+          error: firstMessage || "Dados inválidos",
+          field: firstField,
+          details: fieldErrors,
         },
         { status: 400 }
       )
     }
 
-    const alunoExistente = await prisma.aluno.findUnique({
-      where: { id },
-      select: { id: true, nome: true },
+    const alunoExistente = await prisma.aluno.findFirst({
+      where: { id, schoolId },
+      select: { id: true, nome: true, status: true },
     })
 
     if (!alunoExistente) {
@@ -154,6 +171,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         { status: 404 }
       )
     }
+
+    const statusAnterior = alunoExistente.status;
 
     const aluno = await prisma.aluno.update({
       where: { id },
@@ -184,11 +203,45 @@ export async function PUT(request: NextRequest, context: RouteContext) {
                 parsed.data.responsavelTelefone?.replace(/\D/g, "") || null,
             }
           : {}),
-        ...(parsed.data.responsavelEmail !== undefined
-          ? { responsavelEmail: parsed.data.responsavelEmail || null }
-          : {}),
+        ...(parsed.data.responsavelEmail !== undefined ? { responsavelEmail: parsed.data.responsavelEmail || null } : {}),
+        ...(parsed.data.responsavelCpf !== undefined ? { responsavelCpf: parsed.data.responsavelCpf?.replace(/\D/g, "") || null } : {}),
+        ...(parsed.data.possuiLaudo !== undefined ? { possuiLaudo: parsed.data.possuiLaudo } : {}),
+        ...(parsed.data.laudoDescricao !== undefined ? { laudoDescricao: parsed.data.laudoDescricao || null } : {}),
+        ...(parsed.data.laudoCid !== undefined ? { laudoCid: parsed.data.laudoCid || null } : {}),
+        ...(parsed.data.laudoTipo !== undefined ? { laudoTipo: parsed.data.laudoTipo || null } : {}),
+        ...(parsed.data.laudoNivel !== undefined ? { laudoNivel: parsed.data.laudoNivel || null } : {}),
+        ...(parsed.data.laudoProfissional !== undefined ? { laudoProfissional: parsed.data.laudoProfissional || null } : {}),
+        ...(parsed.data.laudoData !== undefined ? { laudoData: parsed.data.laudoData ? new Date(parsed.data.laudoData) : null } : {}),
+        ...(parsed.data.alergias !== undefined ? { alergias: parsed.data.alergias || null } : {}),
+        ...(parsed.data.medicamentos !== undefined ? { medicamentos: parsed.data.medicamentos || null } : {}),
+        ...(parsed.data.condicoesCronicas !== undefined ? { condicoesCronicas: parsed.data.condicoesCronicas || null } : {}),
+        ...(parsed.data.planoSaude !== undefined ? { planoSaude: parsed.data.planoSaude || null } : {}),
+        ...(parsed.data.contatoEmergenciaNome !== undefined ? { contatoEmergenciaNome: parsed.data.contatoEmergenciaNome || null } : {}),
+        ...(parsed.data.contatoEmergenciaTelefone !== undefined ? { contatoEmergenciaTelefone: parsed.data.contatoEmergenciaTelefone || null } : {}),
+        ...(parsed.data.adaptacaoNecessaria !== undefined ? { adaptacaoNecessaria: parsed.data.adaptacaoNecessaria } : {}),
+        ...(parsed.data.adaptacaoDescricao !== undefined ? { adaptacaoDescricao: parsed.data.adaptacaoDescricao || null } : {}),
+        ...(parsed.data.observacoesMedicas !== undefined ? { observacoesMedicas: parsed.data.observacoesMedicas || null } : {}),
+        ...(parsed.data.observacoesProf !== undefined ? { observacoesProf: parsed.data.observacoesProf || null } : {}),
+        ...(parsed.data.tratamentos !== undefined ? { tratamentos: parsed.data.tratamentos || null } : {}),
+        ...((parsed.data.observacoesGerais !== undefined) ? { observacoesGerais: parsed.data.observacoesGerais || null } : {}),
+        ...((parsed.data.indicacao !== undefined) ? { indicacao: parsed.data.indicacao || null } : {}),
+        ...((parsed.data.nivelInicial !== undefined) ? { nivelInicial: parsed.data.nivelInicial || null } : {}),
+        ...((parsed.data.idiomaNativo !== undefined) ? { idiomaNativo: parsed.data.idiomaNativo || null } : {}),
+        ...((parsed.data.motivoSaida !== undefined) ? { motivoSaida: parsed.data.motivoSaida || null } : {}),
+        ...((parsed.data.dataSaida !== undefined) ? { dataSaida: parsed.data.dataSaida ? new Date(parsed.data.dataSaida) : null } : {}),
       },
     })
+
+    if (parsed.data.status && parsed.data.status !== statusAnterior) {
+      await prisma.alunoStatusHistorico.create({
+        data: {
+          alunoId: id,
+          statusDe: statusAnterior,
+          statusPara: parsed.data.status,
+          motivo: parsed.data.motivoSaida || null,
+        },
+      })
+    }
 
     return NextResponse.json(aluno)
   } catch (error) {
@@ -213,10 +266,14 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
     const { id } = await context.params
-
-    const aluno = await prisma.aluno.findUnique({
-      where: { id },
+    const aluno = await prisma.aluno.findFirst({
+      where: { id, schoolId },
       include: {
         matriculas: {
           where: {

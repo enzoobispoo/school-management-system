@@ -28,7 +28,10 @@ function detectPaymentMethod(method?: string, fallbackMethod?: string | null) {
   return normalizeStoredPaymentMethod(fallbackMethod);
 }
 
-async function findLatestOpenPaymentByStudentName(studentName: string) {
+async function findLatestOpenPaymentByStudentName(
+  studentName: string,
+  schoolId: string
+) {
   const sanitized = studentName.trim();
 
   if (!sanitized) {
@@ -37,6 +40,7 @@ async function findLatestOpenPaymentByStudentName(studentName: string) {
 
   const matches = await prisma.pagamento.findMany({
     where: {
+      schoolId,
       status: {
         in: ["PENDENTE", "ATRASADO"],
       },
@@ -90,11 +94,22 @@ export async function registerPayment(params: {
   studentName?: string;
   paymentMethod?: string;
   confirmed: boolean;
+  schoolId?: string | null;
 }): Promise<AiActionResult> {
   const studentName = params.studentName?.trim() || "";
+  const schoolId = params.schoolId?.trim() || null;
+
+  if (!schoolId) {
+    return {
+      message:
+        "Não foi possível identificar a escola do usuário. Faça login novamente ou contate o suporte.",
+      suggestions: [],
+      executed: false,
+    };
+  }
 
   const settings = await prisma.escolaSettings.findUnique({
-    where: { id: "default" },
+    where: { schoolId },
     select: {
       metodoPagamentoPadrao: true,
     },
@@ -122,7 +137,7 @@ export async function registerPayment(params: {
     };
   }
 
-  const match = await findLatestOpenPaymentByStudentName(studentName);
+  const match = await findLatestOpenPaymentByStudentName(studentName, schoolId);
 
   if (match.type === "missing_name") {
     return {
@@ -174,6 +189,7 @@ export async function registerPayment(params: {
 
   await prisma.notificacao.create({
     data: {
+      schoolId: updatedPayment.schoolId,
       tipo: "PAGAMENTO_CONFIRMADO",
       titulo: "Pagamento registrado pela EduIA",
       mensagem: `Pagamento de ${updatedPayment.matricula.aluno.nome} foi registrado com sucesso.`,

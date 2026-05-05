@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, requireSchool } from "@/lib/auth";
 
 interface RouteContext {
   params: Promise<{
@@ -9,10 +10,15 @@ interface RouteContext {
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
     const { id } = await context.params;
 
-    const pagamento = await prisma.pagamento.findUnique({
-      where: { id },
+    const pagamento = await prisma.pagamento.findFirst({
+      where: { id, schoolId },
       select: { id: true },
     });
 

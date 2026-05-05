@@ -17,9 +17,10 @@ function maskCpf(value: string) {
 
 interface StudentCpfFieldProps {
   cpf: string;
+  label?: string;
 }
 
-export function StudentCpfField({ cpf }: StudentCpfFieldProps) {
+export function StudentCpfField({ cpf, label = "CPF" }: StudentCpfFieldProps) {
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -28,7 +29,7 @@ export function StudentCpfField({ cpf }: StudentCpfFieldProps) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <span className="mr-2 font-medium text-foreground">CPF:</span>
+      <span className="mr-2 font-medium text-foreground">{label}:</span>
       <span className="tracking-wide">
         {hovered ? formatCpf(cpf) : maskCpf(cpf)}
       </span>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { Prisma, TipoEvento } from "@prisma/client"
 import { z } from "zod"
+import { getCurrentUser, requireSchool } from "@/lib/auth"
 
 const createEventoSchema = z.object({
   titulo: z.string().min(2, "Título é obrigatório"),
@@ -20,6 +21,12 @@ const createEventoSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
+
     const body = await request.json()
     const parsed = createEventoSchema.safeParse(body)
 
@@ -42,6 +49,7 @@ export async function POST(request: NextRequest) {
 
     const evento = await prisma.evento.create({
       data: {
+        schoolId,
         titulo: parsed.data.titulo,
         descricao: parsed.data.descricao,
         tipo: parsed.data.tipo,

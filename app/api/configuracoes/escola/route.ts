@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const school = await getOrCreateSchoolSetting();
+    const school = await getOrCreateSchoolSetting(user.schoolId!);
 
     return NextResponse.json({ school });
   } catch (error) {
@@ -67,28 +67,20 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    const schoolId = user.schoolId!;
+
     const school = await prisma.escolaSettings.upsert({
-      where: { id: "default" },
+      where: { schoolId },
       update: {
-        nomeEscola,
-        billingProvider,
-        billingEnabled,
-        asaasApiKey,
-        asaasWalletId,
-        asaasEnvironment,
-        defaultChargeMethod,
-        autoGenerateBoleto,
+        nomeEscola, billingProvider, billingEnabled,
+        asaasApiKey, asaasWalletId, asaasEnvironment,
+        defaultChargeMethod, autoGenerateBoleto,
       },
       create: {
-        id: "default",
-        nomeEscola,
-        billingProvider,
-        billingEnabled,
-        asaasApiKey,
-        asaasWalletId,
-        asaasEnvironment,
-        defaultChargeMethod,
-        autoGenerateBoleto,
+        id: schoolId, schoolId, nomeEscola,
+        billingProvider, billingEnabled,
+        asaasApiKey, asaasWalletId, asaasEnvironment,
+        defaultChargeMethod, autoGenerateBoleto,
       },
     });
 

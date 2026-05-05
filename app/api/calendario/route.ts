@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { DiaSemana, TipoEvento } from "@prisma/client"
+import { getCurrentUser, requireSchool } from "@/lib/auth"
 
 const DAY_INDEX_TO_ENUM: Record<number, DiaSemana> = {
   0: "DOMINGO",
@@ -52,6 +53,12 @@ function eachDayBetween(start: Date, end: Date) {
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
+
     const { searchParams } = new URL(request.url)
 
     const now = new Date()
@@ -69,6 +76,7 @@ export async function GET(request: NextRequest) {
     const [manualEvents, turmas] = await Promise.all([
       prisma.evento.findMany({
         where: {
+          schoolId,
           ativo: true,
           dataInicio: { lte: end },
           dataFim: { gte: start },
@@ -86,6 +94,7 @@ export async function GET(request: NextRequest) {
       }),
       prisma.turma.findMany({
         where: {
+          schoolId,
           ativo: true,
           ...(professorId ? { professorId } : {}),
           ...(turmaId ? { id: turmaId } : {}),

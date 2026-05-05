@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { Prisma, StatusMatricula } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { createMatriculaSchema } from "@/lib/validations/matricula"
+import { getCurrentUser, requireSchool } from "@/lib/auth"
 
 const QUANTIDADE_MENSALIDADES_INICIAIS = 3
 const DIA_VENCIMENTO_PADRAO = 10
@@ -28,6 +29,12 @@ function calcularPrimeiroVencimento(dataBaseMatricula: Date) {
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
+
     const { searchParams } = new URL(request.url)
 
     const search = searchParams.get("search")?.trim() || ""
@@ -148,6 +155,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
+
     const body = await request.json()
     const parsed = createMatriculaSchema.safeParse(body)
 
@@ -165,11 +178,13 @@ export async function POST(request: NextRequest) {
 
     const [aluno, turma] = await Promise.all([
       prisma.aluno.findUnique({
-        where: { id: alunoId },
+        where: {
+          schoolId, id: alunoId },
         select: { id: true, nome: true, status: true },
       }),
       prisma.turma.findUnique({
-        where: { id: turmaId },
+        where: {
+          schoolId, id: turmaId },
         include: {
           curso: true,
           professor: true,
@@ -229,6 +244,7 @@ export async function POST(request: NextRequest) {
     const result = await prisma.$transaction(async (tx) => {
       const matricula = await tx.matricula.create({
         data: {
+          schoolId,
           alunoId,
           turmaId,
           dataMatricula: dataBaseMatricula,
@@ -257,6 +273,7 @@ const pagamentos = await Promise.all(
 
     return tx.pagamento.create({
       data: {
+        schoolId,
         matriculaId: matricula.id,
         competenciaMes,
         competenciaAno,
@@ -271,6 +288,7 @@ const pagamentos = await Promise.all(
 
       await tx.notificacao.create({
         data: {
+          schoolId,
           tipo: "NOVA_MATRICULA",
           titulo: "Nova matrícula realizada",
           mensagem: `${matricula.aluno.nome} foi matriculado na turma ${matricula.turma.nome} (${matricula.turma.curso.nome}).`,

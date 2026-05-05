@@ -24,6 +24,10 @@ export default function DashboardPage() {
         const data = await res.json();
 
         if (res.ok) {
+          if (data.user?.role === "SUPER_ADMIN") {
+            window.location.href = "/admin";
+            return;
+          }
           setUserName(data.user?.nome || "");
         }
       } catch (error) {

@@ -27,10 +27,19 @@ function getComputedPaymentStatus(pagamento: {
   return "PENDENTE";
 }
 
-export async function queryPayments(args: QueryPaymentsArgs) {
+export async function queryPayments(
+  args: QueryPaymentsArgs,
+  schoolId?: string | null
+) {
+  const sid = schoolId?.trim();
+  if (!sid) {
+    return { total: 0, items: [] };
+  }
+
   const limit = Math.min(Math.max(Number(args.limit || 10), 1), 50);
 
   const where: Prisma.PagamentoWhereInput = {
+    schoolId: sid,
     ...(args.studentName
       ? {
           matricula: {

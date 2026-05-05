@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Download, Calendar } from "lucide-react";
 import { DashboardSectionCard } from "@/components/dashboard/ui/dashboard-section-card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ interface ReportsToolbarProps {
   setYear: (value: string) => void;
   category: string;
   setCategory: (value: string) => void;
+  onExport: () => void;
 }
 
 export function ReportsToolbar({
@@ -23,7 +25,24 @@ export function ReportsToolbar({
   setYear,
   category,
   setCategory,
+  onExport,
 }: ReportsToolbarProps) {
+  const [categorias, setCategorias] = useState<string[]>([]);
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 5 }, (_, i) => String(currentYear - i));
+
+  useEffect(() => {
+    fetch("/api/cursos?pageSize=100", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d.data)) {
+          const cats = [...new Set<string>(d.data.map((c: { categoria: string }) => c.categoria))];
+          setCategorias(cats);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <DashboardSectionCard className="mb-6 p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -38,38 +57,28 @@ export function ReportsToolbar({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="2026">2026</SelectItem>
-              <SelectItem value="2025">2025</SelectItem>
-              <SelectItem value="2024">2024</SelectItem>
-              <SelectItem value="2023">2023</SelectItem>
+              {years.map((y) => (
+                <SelectItem key={y} value={y}>{y}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
           <Select value={category} onValueChange={setCategory}>
             <SelectTrigger className="h-11 w-[170px] rounded-2xl">
-              <SelectValue placeholder="Curso" />
+              <SelectValue placeholder="Categoria" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos os cursos</SelectItem>
-              <SelectItem value="Idiomas">Idiomas</SelectItem>
-              <SelectItem value="Música">Música</SelectItem>
-              <SelectItem value="Tecnologia">Tecnologia</SelectItem>
-              <SelectItem value="Educação">Educação</SelectItem>
+              <SelectItem value="all">Todas as categorias</SelectItem>
+              {categorias.map((cat) => (
+                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
 
         <Button
-          className="
-    h-11 rounded-2xl px-5 gap-2
-
-    bg-white text-black border border-black/10 shadow-sm
-    hover:bg-black/[0.03]
-
-    dark:bg-white/10 dark:text-white
-    dark:border-white/10 dark:hover:bg-white/20
-    dark:backdrop-blur-md
-  "
+          onClick={onExport}
+          className="h-11 rounded-2xl px-5 gap-2 bg-white text-black border border-black/10 shadow-sm hover:bg-black/[0.03] dark:bg-white/10 dark:text-white dark:border-white/10 dark:hover:bg-white/20 dark:backdrop-blur-md"
         >
           <Download className="h-4 w-4" />
           Exportar Relatório

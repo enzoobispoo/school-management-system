@@ -14,30 +14,10 @@ import { StudentForm } from "@/components/alunos/student/student-form";
 import { useStudentModal } from "@/hooks/alunos/use-student-modal";
 
 interface StudentModalProps {
-  onSubmit: (payload: {
-    nome: string;
-    email?: string;
-    cpf?: string;
-    telefone?: string;
-    dataNascimento?: string;
-    endereco?: string;
-    responsavelNome?: string;
-    responsavelTelefone?: string;
-    responsavelEmail?: string;
-  }) => Promise<void>;
+  onSubmit: (payload: Record<string, unknown>) => Promise<void>;
   loading?: boolean;
   mode?: "create" | "edit";
-  initialData?: {
-    nome?: string;
-    email?: string;
-    cpf?: string;
-    telefone?: string;
-    dataNascimento?: string;
-    endereco?: string;
-    responsavelNome?: string;
-    responsavelTelefone?: string;
-    responsavelEmail?: string;
-  } | null;
+  initialData?: Partial<import("@/hooks/alunos/use-student-modal").StudentFormData> | null;
   triggerLabel?: string;
   title?: string;
   description?: string;
@@ -65,11 +45,15 @@ export function StudentModal({
     setCurrentOpen,
     form,
     error,
+    errorField,
+    errorTab,
     updateField,
+    updateBoolField,
     closeModal,
     handleSubmit,
     formatCpf,
     formatPhone,
+    guardClose,
   } = useStudentModal({
     open,
     onOpenChange,
@@ -96,8 +80,8 @@ export function StudentModal({
     <Dialog
       open={currentOpen}
       onOpenChange={(next) => {
-        setCurrentOpen(next);
         if (!next) closeModal();
+        else setCurrentOpen(true);
       }}
     >
       {!hideTrigger ? (
@@ -128,10 +112,13 @@ export function StudentModal({
           mode={mode}
           submitLabel={modalSubmitLabel}
           updateField={updateField}
+          updateBoolField={updateBoolField}
           formatCpf={formatCpf}
           formatPhone={formatPhone}
           onCancel={closeModal}
           onSubmit={handleSubmit}
+          errorField={errorField}
+          errorTab={errorTab}
         />
       </DialogContent>
     </Dialog>

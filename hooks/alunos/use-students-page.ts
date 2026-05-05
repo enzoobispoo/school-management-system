@@ -9,20 +9,10 @@ export function useStudentsPage() {
   const query = useStudentsQuery();
   const actions = useStudentsActions(query.fetchStudents);
   const modals = useStudentsModals();
-  const advancedFilters = useStudentsAdvancedFilters({
-    students: query.students,
-  });
+  const advancedFilters = useStudentsAdvancedFilters({ students: query.students });
 
-  async function submitEditStudent(payload: {
-    nome: string;
-    email?: string;
-    cpf?: string;
-    telefone?: string;
-    dataNascimento?: string;
-    endereco?: string;
-  }) {
+  async function submitEditStudent(payload: Record<string, unknown>) {
     if (!modals.editingStudent) return;
-
     try {
       actions.setSubmitting(true);
       await actions.handleUpdateStudent(modals.editingStudent.id, payload);
@@ -35,7 +25,6 @@ export function useStudentsPage() {
 
   async function confirmDeleteStudent() {
     if (!modals.studentToDelete) return;
-
     try {
       actions.setSubmitting(true);
       await actions.handleDeleteStudent(modals.studentToDelete.id);

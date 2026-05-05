@@ -1,6 +1,7 @@
 "use client";
 
-import { Search, Download } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Search, Download, CalendarRange } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { exportToCSV } from "@/lib/export/export-to-csv";
@@ -28,6 +29,10 @@ interface Props {
   setSearch: (value: string) => void;
   month: string;
   setMonth: (value: string) => void;
+  dateFrom?: string;
+  setDateFrom?: (value: string) => void;
+  dateTo?: string;
+  setDateTo?: (value: string) => void;
   setPage: (value: number | ((prev: number) => number)) => void;
   generateDialogOpen: boolean;
   setGenerateDialogOpen: (open: boolean) => void;
@@ -43,6 +48,10 @@ export function FinancialFiltersBar({
   setSearch,
   month,
   setMonth,
+  dateFrom,
+  setDateFrom,
+  dateTo,
+  setDateTo,
   setPage,
   generateDialogOpen,
   setGenerateDialogOpen,
@@ -50,6 +59,15 @@ export function FinancialFiltersBar({
   onGenerateMonthlyPayments,
   payments,
 }: Props) {
+  const [meses, setMeses] = useState<{ value: string; label: string }[]>([]);
+  const [showDateRange, setShowDateRange] = useState(!!(dateFrom || dateTo));
+
+  useEffect(() => {
+    fetch("/api/pagamentos/meses-disponiveis", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d)) setMeses(d); })
+      .catch(() => {});
+  }, []);
   return (
     <div className="flex flex-col gap-4">
       <Tabs
@@ -115,11 +133,29 @@ export function FinancialFiltersBar({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="03-2026">Março 2026</SelectItem>
-                <SelectItem value="02-2026">Fevereiro 2026</SelectItem>
-                <SelectItem value="01-2026">Janeiro 2026</SelectItem>
+                {meses.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
+
+            <Button
+              variant="outline"
+              size="icon"
+              className={`h-11 w-11 rounded-2xl shrink-0 ${
+                showDateRange ? "border-foreground/30 bg-muted" : ""
+              }`}
+              title="Filtrar por período"
+              onClick={() => {
+                setShowDateRange((v) => !v);
+                if (showDateRange) {
+                  setDateFrom?.("");
+                  setDateTo?.("");
+                }
+              }}
+            >
+              <CalendarRange className="h-4 w-4" />
+            </Button>
           </div>
 
           <div className="flex items-center gap-2">
@@ -150,6 +186,33 @@ export function FinancialFiltersBar({
             />
           </div>
         </div>
+
+        {/* Date range expandido */}
+        {showDateRange && (
+          <div className="flex flex-wrap items-center gap-3 border-t border-border/40 pt-4">
+            <span className="text-xs text-muted-foreground">Período:</span>
+            <input
+              type="date"
+              value={dateFrom ?? ""}
+              onChange={(e) => { setDateFrom?.(e.target.value); setPage(1); }}
+              className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-foreground/30"
+            />
+            <span className="text-xs text-muted-foreground">—</span>
+            <input
+              type="date"
+              value={dateTo ?? ""}
+              onChange={(e) => { setDateTo?.(e.target.value); setPage(1); }}
+              className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-foreground/30"
+            />
+            {(dateFrom || dateTo) && (
+              <Button variant="ghost" size="sm" className="h-9 rounded-xl text-xs text-muted-foreground"
+                onClick={() => { setDateFrom?.(""); setDateTo?.(""); setPage(1); }}
+              >
+                Limpar
+              </Button>
+            )}
+          </div>
+        )}
       </DashboardSectionCard>
     </div>
   );

@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createTurmaSchema } from "@/lib/validations/turma";
+import { getCurrentUser, requireSchool } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
     const { searchParams } = new URL(request.url);
 
     const search = searchParams.get("search")?.trim() || "";
@@ -117,6 +123,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
+
     const body = await request.json();
     const parsed = createTurmaSchema.safeParse(body);
 
@@ -132,7 +144,8 @@ export async function POST(request: NextRequest) {
 
     const [curso, professor] = await Promise.all([
       prisma.curso.findUnique({
-        where: { id: cursoId },
+        where: {
+          schoolId, id: cursoId },
         select: {
           id: true,
           nome: true,
@@ -143,7 +156,8 @@ export async function POST(request: NextRequest) {
         },
       }),
       prisma.professor.findUnique({
-        where: { id: professorId },
+        where: {
+          schoolId, id: professorId },
         select: {
           id: true,
           nome: true,
@@ -185,6 +199,7 @@ export async function POST(request: NextRequest) {
     const turma = await prisma.$transaction(async (tx) => {
       const novaTurma = await tx.turma.create({
         data: {
+          schoolId,
           cursoId,
           professorId,
           nome,
@@ -212,6 +227,7 @@ export async function POST(request: NextRequest) {
 
       await tx.notificacao.create({
         data: {
+          schoolId,
           tipo: "SISTEMA",
           titulo: "Nova turma criada",
           mensagem: `A turma ${novaTurma.nome} foi criada para o curso ${novaTurma.curso.nome}.`,

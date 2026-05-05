@@ -5,9 +5,15 @@ import {
   createNotificacaoSchema,
   markAllAsReadSchema,
 } from "@/lib/validations/notificacao"
+import { getCurrentUser, requireSchool } from "@/lib/auth"
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
     const { searchParams } = new URL(request.url)
 
     const lida = searchParams.get("lida")
@@ -19,6 +25,7 @@ export async function GET(request: NextRequest) {
     const page = Math.max(Number(searchParams.get("page") || "1"), 1)
 
     const where: Prisma.NotificacaoWhereInput = {
+      schoolId,
       ...(lida !== null ? { lida: lida === "true" } : {}),
       ...(tipo ? { tipo: tipo as never } : {}),
     }
@@ -26,7 +33,8 @@ export async function GET(request: NextRequest) {
     const [total, unreadCount, notificacoes] = await Promise.all([
       prisma.notificacao.count({ where }),
       prisma.notificacao.count({
-        where: { lida: false },
+        where: {
+          schoolId, lida: false },
       }),
       prisma.notificacao.findMany({
         where,
@@ -57,13 +65,19 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
+
     const body = await request.json()
 
     const markAllParsed = markAllAsReadSchema.safeParse(body)
 
     if (markAllParsed.success) {
       const result = await prisma.notificacao.updateMany({
-        where: { lida: false },
+        where: { lida: false, schoolId },
         data: { lida: true },
       })
 
@@ -86,7 +100,7 @@ export async function POST(request: NextRequest) {
     }
 
     const notificacao = await prisma.notificacao.create({
-      data: parsed.data,
+      data: { ...parsed.data, schoolId },
     })
 
     return NextResponse.json(notificacao, { status: 201 })

@@ -40,6 +40,7 @@ export function StudentsPageClient() {
         onEnroll={studentsPage.openEnrollmentStudent}
         onEdit={studentsPage.openEditStudent}
         onDelete={studentsPage.openDeleteStudent}
+        onRefresh={studentsPage.fetchStudents}
       />
 
       <StudentsModals

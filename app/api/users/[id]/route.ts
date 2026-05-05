@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 
 const allowedRoles = [
-  "SUPER_ADMIN",
   "ADMIN",
   "FINANCEIRO",
   "SECRETARIA",
@@ -26,6 +25,13 @@ export async function PUT(
     }
 
     const { id } = await context.params;
+
+    // Impede alterar o próprio SUPER_ADMIN ou outro SUPER_ADMIN
+    const target = await prisma.user.findUnique({ where: { id }, select: { role: true } });
+    if (target?.role === "SUPER_ADMIN") {
+      return NextResponse.json({ error: "Não é possível alterar um Super Admin." }, { status: 403 });
+    }
+
     const body = await request.json();
 
     const role =

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MetricCardProps {
@@ -29,70 +28,48 @@ export function MetricCard({
   const content = (
     <div
       className={cn(
-        "rounded-[24px] border border-black/5 bg-white px-5 py-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all dark:border-border dark:bg-card dark:text-card-foreground",
-        href &&
-          "group cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]"
+        "rounded-xl border border-border/60 bg-card px-5 py-4 transition-all duration-150",
+        href && "cursor-pointer hover:border-border hover:bg-card/80"
       )}
     >
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm text-black/42 dark:text-muted-foreground">
-            {title}
-          </p>
-
-          <p className="mt-1 text-[26px] font-semibold tracking-[-0.04em] text-black dark:text-foreground">
-            {value}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {href ? (
-            <ChevronRight className="h-4 w-4 text-black/25 transition-transform group-hover:translate-x-0.5 dark:text-muted-foreground" />
-          ) : null}
-
-          <div
-            className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#fafafa] text-black dark:bg-muted dark:text-foreground",
-              iconColor
-            )}
-          >
-            <Icon className="h-[18px] w-[18px] text-current" />
-          </div>
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <p className="text-[13px] text-muted-foreground">{title}</p>
+        <div
+          className={cn(
+            "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted/60",
+            iconColor
+          )}
+        >
+          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
         </div>
       </div>
 
-      <div className="space-y-1">
+      <p className="text-[22px] font-semibold tracking-tight text-foreground">
+        {value}
+      </p>
+
+      <div className="mt-2 space-y-0.5">
         {change ? (
           <p
             className={cn(
-              "text-xs font-medium",
-              changeType === "positive" &&
-                "text-emerald-600 dark:text-emerald-400",
-              changeType === "negative" &&
-                "text-amber-600 dark:text-amber-400",
-              changeType === "neutral" &&
-                "text-black/60 dark:text-muted-foreground"
+              "text-[12px] font-medium",
+              changeType === "positive" && "text-emerald-600 dark:text-emerald-400",
+              changeType === "negative" && "text-red-500 dark:text-red-400",
+              changeType === "neutral" && "text-muted-foreground"
             )}
           >
             {change}
           </p>
         ) : null}
-
         {secondaryInfo ? (
-          <p className="text-xs text-black/40 dark:text-muted-foreground">
-            {secondaryInfo}
-          </p>
+          <p className="text-[12px] text-muted-foreground">{secondaryInfo}</p>
         ) : null}
       </div>
     </div>
   );
 
   if (href) {
-    return (
-      <Link href={href} className="block">
-        {content}
-      </Link>
-    );
+    return <Link href={href} className="block">{content}</Link>;
   }
 
   return content;

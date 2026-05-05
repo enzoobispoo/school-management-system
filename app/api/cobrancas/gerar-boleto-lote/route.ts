@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createBoleto } from "@/lib/billing/provider";
-import { getCurrentUserFromRequest } from "@/lib/auth/current-user";
+import { getCurrentUser, requireSchool } from "@/lib/auth";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import {
   CanalCobranca,
@@ -32,11 +32,14 @@ function hasExistingBoleto(payment: {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUserFromRequest(request);
+    const user = await getCurrentUser();
 
     if (!user) {
       return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     }
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
 
     const { paymentIds } = await request.json();
 
@@ -50,6 +53,7 @@ export async function POST(request: NextRequest) {
     const pagamentos = await prisma.pagamento.findMany({
       where: {
         id: { in: paymentIds },
+        schoolId,
       },
       include: {
         matricula: {
@@ -67,6 +71,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Pagamentos não encontrados." },
         { status: 404 }
+      );
+    }
+
+    if (pagamentos.length !== paymentIds.length) {
+      return NextResponse.json(
+        { error: "Alguns pagamentos não pertencem à sua escola ou não existem." },
+        { status: 400 }
       );
     }
 
@@ -143,7 +154,7 @@ export async function POST(request: NextRequest) {
     const dueDate = formatDateToYMD(pagamentos[0].vencimento);
 
     const school = await prisma.escolaSettings.findUnique({
-      where: { id: "default" },
+      where: { schoolId },
       select: {
         multaAtrasoPercentual: true,
         jurosMensalPercentual: true,
@@ -180,6 +191,7 @@ export async function POST(request: NextRequest) {
     await prisma.pagamento.updateMany({
       where: {
         id: { in: paymentIds },
+        schoolId,
       },
       data: {
         billingProvider: "asaas",
@@ -212,6 +224,7 @@ Se o pagamento já foi realizado, desconsidere esta mensagem. Caso precise de ap
           const result = await sendWhatsAppMessage({
             to: destinoTelefone,
             message,
+            schoolId,
           });
 
           for (const pagamento of pagamentos) {

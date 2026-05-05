@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Filter } from "lucide-react";
+import { Search, Filter, Download } from "lucide-react";
 import { StudentsTable } from "@/components/alunos/students-table";
 import { StudentModal } from "@/components/alunos/student-modal";
 import { StudentsAdvancedFilters } from "@/components/alunos/students-advanced-filters";
@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { exportToCSV } from "@/lib/export/export-to-csv";
 import type { StudentTableItem } from "@/hooks/alunos/use-students-query";
 import type { StudentsAdvancedFiltersState } from "@/hooks/alunos/use-students-advanced-filters";
 
@@ -42,17 +43,11 @@ interface StudentsPageContentProps {
   hasAdvancedFilters: boolean;
   applyAdvancedFilters: () => void;
   clearAdvancedFilters: () => void;
-  onCreateStudent: (payload: {
-    nome: string;
-    email?: string;
-    cpf?: string;
-    telefone?: string;
-    dataNascimento?: string;
-    endereco?: string;
-  }) => Promise<void>;
+  onCreateStudent: (payload: Record<string, unknown>) => Promise<void>;
   onEnroll: (student: { id: string; nome: string }) => void;
   onEdit: (student: StudentTableItem) => void;
   onDelete: (student: StudentTableItem) => void;
+  onRefresh?: () => void;
 }
 
 export function StudentsPageContent({
@@ -79,7 +74,31 @@ export function StudentsPageContent({
   onEnroll,
   onEdit,
   onDelete,
+  onRefresh,
 }: StudentsPageContentProps) {
+  function handleExport() {
+    const rows = students.map((s) => ({
+      Nome: s.name,
+      Email: s.email,
+      Telefone: s.phone,
+      CPF: s.cpf ?? "",
+      "Data Nascimento": s.birthDate ?? "",
+      Endereço: s.address ?? "",
+      Cursos: s.courses.join(" | "),
+      "Status Financeiro": s.paymentStatus === "paid" ? "Em dia" : s.paymentStatus === "pending" ? "Pendente" : "Atrasado",
+      "Status Aluno": s.alunoStatus ?? "",
+      "Responsável": s.guardianName ?? "",
+      "Tel. Responsável": s.guardianPhone ?? "",
+      "Possui Laudo": s.health?.possuiLaudo ? "Sim" : "Não",
+      "Tipo Laudo": s.health?.laudoTipo ?? "",
+      "Adaptação": s.health?.adaptacaoNecessaria ? "Sim" : "Não",
+      "Nível Inicial": s.nivelInicial ?? "",
+      "Idioma Nativo": s.idiomaNativo ?? "",
+      Indicação: s.indicacao ?? "",
+      "Data Matrícula": s.enrollmentDate,
+    }));
+    exportToCSV(rows, `alunos-${new Date().toISOString().slice(0, 10)}.csv`);
+  }
   return (
     <div className="p-6">
   <DashboardSectionCard className="mb-6 p-4 sm:p-5">
@@ -135,7 +154,10 @@ export function StudentsPageContent({
         </div>
       </div>
 
-      <div className="w-full sm:w-auto">
+      <div className="w-full sm:w-auto flex gap-2">
+        <Button variant="outline" size="icon" className="h-11 w-11 rounded-2xl" onClick={handleExport} title="Exportar CSV">
+          <Download className="h-4 w-4" />
+        </Button>
         <StudentModal onSubmit={onCreateStudent} loading={submitting} />
       </div>
     </div>
@@ -152,8 +174,9 @@ export function StudentsPageContent({
       onEnroll={onEnroll}
       onEdit={onEdit}
       onDelete={onDelete}
+      onRefresh={onRefresh}
       onViewDetails={(student) => {
-        console.log("Ver detalhes:", student);
+        // navegação futura para /alunos/[id]
       }}
     />
   )}

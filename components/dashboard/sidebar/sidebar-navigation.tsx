@@ -13,14 +13,29 @@ import {
   Wallet,
 } from "lucide-react";
 
-const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Alunos", href: "/alunos", icon: Users },
-  { name: "Cursos", href: "/cursos", icon: BookOpen },
-  { name: "Professores", href: "/professores", icon: GraduationCap },
-  { name: "Calendário", href: "/calendario/eventos", icon: CalendarDays },
-  { name: "Financeiro", href: "/financeiro", icon: Wallet },
-  { name: "Relatórios", href: "/relatorios", icon: BarChart3 },
+const groups = [
+  {
+    label: "Principal",
+    items: [
+      { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "Gestão",
+    items: [
+      { name: "Alunos", href: "/alunos", icon: Users },
+      { name: "Cursos", href: "/cursos", icon: BookOpen },
+      { name: "Professores", href: "/professores", icon: GraduationCap },
+      { name: "Calendário", href: "/calendario/eventos", icon: CalendarDays },
+    ],
+  },
+  {
+    label: "Financeiro",
+    items: [
+      { name: "Financeiro", href: "/financeiro", icon: Wallet },
+      { name: "Relatórios", href: "/relatorios", icon: BarChart3 },
+    ],
+  },
 ];
 
 interface SidebarNavigationProps {
@@ -28,47 +43,66 @@ interface SidebarNavigationProps {
   onNavigate?: () => void;
 }
 
-export function SidebarNavigation({
-  collapsed = false,
-  onNavigate,
-}: SidebarNavigationProps) {
+export function SidebarNavigation({ collapsed = false, onNavigate }: SidebarNavigationProps) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex-1 px-3 py-4">
-      <ul className="flex flex-col gap-1">
-        {navigation.map((item) => {
-          const isActive =
-            pathname === item.href || pathname.startsWith(`${item.href}/`);
+    <nav className="flex-1 overflow-y-auto px-2 py-2">
+      <div className={cn("flex flex-col", collapsed ? "gap-1" : "gap-5")}>
+        {groups.map((group) => (
+          <div key={group.label}>
+            {/* Label do grupo — só aparece expandido */}
+            {!collapsed && (
+              <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-sidebar-foreground/35">
+                {group.label}
+              </p>
+            )}
 
-          return (
-            <li key={item.name}>
-              <Link
-                href={item.href}
-                onClick={onNavigate}
-                className={cn(
-                  "flex items-center rounded-lg py-2.5 text-sm font-medium transition-all duration-200",
-                  collapsed ? "justify-center px-2" : "gap-3 px-3",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                )}
-                title={collapsed ? item.name : undefined}
-              >
-                <item.icon
-                  className={cn(
-                    "h-5 w-5 transition-colors",
-                    isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                  )}
-                />
-                {!collapsed ? item.name : null}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+            <ul className="flex flex-col gap-0.5">
+              {group.items.map((item) => {
+                const isActive =
+                  pathname === item.href ||
+                  (item.href !== "/" && pathname.startsWith(`${item.href}/`));
+
+                return (
+                  <li key={item.name}>
+                    <Link
+                      href={item.href}
+                      onClick={onNavigate}
+                      title={collapsed ? item.name : undefined}
+                      className={cn(
+                        "group flex items-center rounded-xl py-2.5 text-[12px] font-medium transition-all duration-150",
+                        collapsed ? "justify-center px-3" : "gap-3 px-3",
+                        isActive
+                          ? "bg-sidebar-accent text-sidebar-foreground shadow-sm"
+                          : "text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                      )}
+                    >
+                      {/* Indicador ativo */}
+                      {!collapsed && isActive && (
+                        <span className="absolute left-0 h-5 w-[3px] rounded-r-full bg-sidebar-foreground opacity-60" />
+                      )}
+
+                      <item.icon
+                        className={cn(
+                          "shrink-0 transition-all duration-150",
+                          collapsed ? "h-[18px] w-[18px]" : "h-[12px] w-[12px]",
+                          isActive
+                            ? "opacity-100"
+                            : "opacity-50 group-hover:opacity-80"
+                        )}
+                      />
+                      {!collapsed && (
+                        <span className="truncate">{item.name}</span>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
     </nav>
   );
 }

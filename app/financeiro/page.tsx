@@ -44,6 +44,7 @@ export default function FinanceiroPage() {
   onViewDetails={financialPage.openPaymentDetails}
   onDeletePayment={financialPage.openDeletePayment}
   onGenerateBoleto={financialPage.generateBoleto}
+  onPrintReceipt={financialPage.openReceipt}
 />
 
       <FinancialModals
@@ -59,6 +60,9 @@ export default function FinanceiroPage() {
         actionLoadingId={financialPage.actionLoadingId}
         onConfirmPayment={financialPage.submitRegisterPayment}
         onConfirmDelete={financialPage.submitDeletePayment}
+        receiptOpen={financialPage.receiptOpen}
+        onCloseReceipt={financialPage.closeReceipt}
+        selectedPaymentForReceipt={financialPage.selectedPaymentForReceipt}
       />
 
       <GenerateBoletoModal

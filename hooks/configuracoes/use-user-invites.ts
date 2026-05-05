@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type UserRole = "ADMIN" | "FINANCEIRO" | "SECRETARIA" | "PROFESSOR";
+
+type SchoolOption = { id: string; nome: string; slug: string };
 
 export function useUserInvites() {
   const [email, setEmail] = useState("");
@@ -11,6 +13,30 @@ export function useUserInvites() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [schools, setSchools] = useState<SchoolOption[]>([]);
+  const [schoolId, setSchoolId] = useState("");
+  const [loadingSchools, setLoadingSchools] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/schools", { cache: "no-store" });
+        if (!res.ok) {
+          return;
+        }
+        const data = (await res.json()) as { schools?: SchoolOption[] };
+        if (cancelled || !data.schools?.length) return;
+        setSchools(data.schools);
+        setSchoolId((prev) => (prev ? prev : data.schools![0].id));
+      } finally {
+        if (!cancelled) setLoadingSchools(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleCreateInvite() {
     try {
@@ -18,6 +44,11 @@ export function useUserInvites() {
       setError("");
       setSuccess("");
       setInviteLink("");
+
+      if (!schoolId) {
+        setError("Selecione a escola do convite.");
+        return;
+      }
 
       const response = await fetch("/api/auth/invites", {
         method: "POST",
@@ -27,6 +58,7 @@ export function useUserInvites() {
         body: JSON.stringify({
           email,
           role,
+          schoolId,
         }),
       });
 
@@ -64,6 +96,10 @@ export function useUserInvites() {
     loading,
     error,
     success,
+    schools,
+    schoolId,
+    setSchoolId,
+    loadingSchools,
     handleCreateInvite,
     handleCopy,
   };

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, requireSchool } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,6 +15,9 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
 
     const query = request.nextUrl.searchParams.get("q")?.trim() || "";
 
@@ -25,6 +28,7 @@ export async function GET(request: NextRequest) {
     const [alunos, cursos, professores, pagamentos] = await Promise.all([
       prisma.aluno.findMany({
         where: {
+          schoolId,
           OR: [
             { nome: { contains: query, mode: "insensitive" } },
             { email: { contains: query, mode: "insensitive" } },
@@ -43,6 +47,7 @@ export async function GET(request: NextRequest) {
 
       prisma.curso.findMany({
         where: {
+          schoolId,
           OR: [
             { nome: { contains: query, mode: "insensitive" } },
             { categoria: { contains: query, mode: "insensitive" } },
@@ -60,6 +65,7 @@ export async function GET(request: NextRequest) {
 
       prisma.professor.findMany({
         where: {
+          schoolId,
           OR: [
             { nome: { contains: query, mode: "insensitive" } },
             { email: { contains: query, mode: "insensitive" } },
@@ -77,6 +83,7 @@ export async function GET(request: NextRequest) {
 
       prisma.pagamento.findMany({
         where: {
+          schoolId,
           OR: [
             { descricao: { contains: query, mode: "insensitive" } },
             {

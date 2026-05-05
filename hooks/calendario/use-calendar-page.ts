@@ -58,6 +58,16 @@ export function useCalendarPage() {
     state.setNewEventOpen(true);
   }
 
+  function handleDayClick(day: Date) {
+    const start = new Date(day);
+    start.setHours(9, 0, 0, 0);
+    const end = new Date(day);
+    end.setHours(10, 0, 0, 0);
+    state.setInitialStart(formatDateTimeLocal(start));
+    state.setInitialEnd(formatDateTimeLocal(end));
+    state.setNewEventOpen(true);
+  }
+
   function openEventDetails(event: (typeof events)[number]) {
     state.setSelectedEvent(event);
     state.setDetailsOpen(true);
@@ -202,6 +212,7 @@ export function useCalendarPage() {
     clearAdvancedFilters,
     closeEditModal,
     handleCalendarClick,
+    handleDayClick,
 
     setNewEventOpen: state.setNewEventOpen,
     setDeleteConfirmOpen: state.setDeleteConfirmOpen,

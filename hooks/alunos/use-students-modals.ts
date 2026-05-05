@@ -14,6 +14,34 @@ type EditingStudent = {
   responsavelNome?: string;
   responsavelTelefone?: string;
   responsavelEmail?: string;
+  responsavelCpf?: string;
+  // saúde
+  possuiLaudo?: boolean;
+  laudoTipo?: string;
+  laudoCid?: string;
+  laudoNivel?: string;
+  laudoProfissional?: string;
+  laudoData?: string;
+  laudoDescricao?: string;
+  adaptacaoNecessaria?: boolean;
+  adaptacaoDescricao?: string;
+  alergias?: string;
+  medicamentos?: string;
+  condicoesCronicas?: string;
+  planoSaude?: string;
+  contatoEmergenciaNome?: string;
+  contatoEmergenciaTelefone?: string;
+  observacoesMedicas?: string;
+  observacoesProf?: string;
+  tratamentos?: string;
+  // extras
+  observacoesGerais?: string;
+  indicacao?: string;
+  nivelInicial?: string;
+  idiomaNativo?: string;
+  status?: string;
+  motivoSaida?: string;
+  dataSaida?: string;
 };
 
 export function useStudentsModals() {
@@ -57,6 +85,32 @@ export function useStudentsModals() {
         student.guardianEmail && student.guardianEmail !== "-"
           ? student.guardianEmail
           : undefined,
+      responsavelCpf: student.guardianCpf ?? undefined,
+      possuiLaudo: student.health?.possuiLaudo,
+      laudoTipo: student.health?.laudoTipo,
+      laudoCid: student.health?.laudoCid,
+      laudoNivel: student.health?.laudoNivel,
+      laudoProfissional: student.health?.laudoProfissional,
+      laudoData: student.health?.laudoDataRaw,
+      laudoDescricao: student.health?.laudoDescricao,
+      adaptacaoNecessaria: student.health?.adaptacaoNecessaria,
+      adaptacaoDescricao: student.health?.adaptacaoDescricao,
+      alergias: student.health?.alergias,
+      medicamentos: student.health?.medicamentos,
+      condicoesCronicas: student.health?.condicoesCronicas,
+      planoSaude: student.health?.planoSaude,
+      contatoEmergenciaNome: student.health?.contatoEmergenciaNome,
+      contatoEmergenciaTelefone: student.health?.contatoEmergenciaTelefone,
+      observacoesMedicas: student.health?.observacoesMedicas,
+      observacoesProf: student.health?.observacoesProf,
+      tratamentos: student.health?.tratamentos,
+      observacoesGerais: student.observacoesGerais,
+      indicacao: student.indicacao,
+      nivelInicial: student.nivelInicial,
+      idiomaNativo: student.idiomaNativo,
+      status: student.alunoStatus,
+      motivoSaida: student.motivoSaida,
+      dataSaida: student.dataSaida,
     });
     setEditOpen(true);
   }

@@ -16,9 +16,9 @@ function formatDateToYMD(date: Date) {
   return date.toISOString().slice(0, 10)
 }
 
-export async function generateNextMonthlyPayments() {
+export async function generateNextMonthlyPayments(schoolId: string) {
   const schoolSettings = await prisma.escolaSettings.findUnique({
-    where: { id: "default" },
+    where: { schoolId },
     select: {
       diaVencimentoPadrao: true,
       billingEnabled: true,
@@ -37,6 +37,7 @@ export async function generateNextMonthlyPayments() {
 
   const matriculas = await prisma.matricula.findMany({
     where: {
+      schoolId,
       status: StatusMatricula.ATIVA,
     },
     include: {
@@ -108,6 +109,7 @@ export async function generateNextMonthlyPayments() {
 
     const pagamento = await prisma.pagamento.create({
       data: {
+        schoolId,
         matriculaId: matricula.id,
         competenciaMes: proximoMes,
         competenciaAno: proximoAno,

@@ -74,61 +74,56 @@ export function getEventStyle(start: Date, end: Date) {
   };
 }
 
-export function getEventClasses(event: CalendarEvent) {
-  if (event.source === "automatic") {
-    return "border-[#cfd7ff] bg-[#e9ecff] text-[#2d3553]";
-  }
+// Paleta: [bgLight, borderLight, textLight, bgDark, borderDark, textDark]
+const EVENT_COLORS: Record<string, [string, string, string, string, string, string]> = {
+  automatic: ["#e9ecff", "#cfd7ff", "#2d3553", "rgba(59,91,219,0.15)", "rgba(99,120,255,0.3)", "#a5b4fc"],
+  REUNIAO:   ["#f1e9ff", "#d9c8ff", "#4b3f66", "rgba(124,58,237,0.15)", "rgba(167,139,250,0.3)", "#c4b5fd"],
+  PROVA:     ["#e8ebff", "#d7dcff", "#404b6b", "rgba(79,70,229,0.15)", "rgba(129,140,248,0.3)", "#a5b4fc"],
+  FERIADO:   ["#ffe8e3", "#ffd5cd", "#6b4c46", "rgba(220,38,38,0.15)", "rgba(252,165,165,0.3)", "#fca5a5"],
+  REPOSICAO: ["#e5f8ea", "#cdeed7", "#3d5e48", "rgba(16,185,129,0.15)", "rgba(110,231,183,0.3)", "#6ee7b7"],
+  default:   ["#f5f5f5", "#e5e7eb", "#3f3f46", "rgba(100,100,100,0.15)", "rgba(150,150,150,0.3)", "#d4d4d8"],
+};
 
-  switch (event.type) {
-    case "REUNIAO":
-      return "border-[#d9c8ff] bg-[#f1e9ff] text-[#4b3f66]";
-    case "PROVA":
-      return "border-[#d7dcff] bg-[#e8ebff] text-[#404b6b]";
-    case "FERIADO":
-      return "border-[#ffd5cd] bg-[#ffe8e3] text-[#6b4c46]";
-    case "REPOSICAO":
-      return "border-[#cdeed7] bg-[#e5f8ea] text-[#3d5e48]";
-    default:
-      return "border-[#e5e7eb] bg-[#f5f5f5] text-[#3f3f46]";
-  }
+function getEventKey(event: CalendarEvent): string {
+  if (event.source === "automatic") return "automatic";
+  return event.type ?? "default";
+}
+
+export function getEventColorVars(event: CalendarEvent): React.CSSProperties {
+  const key = getEventKey(event);
+  const [bgL, borderL, textL, bgD, borderD, textD] = EVENT_COLORS[key] ?? EVENT_COLORS.default;
+  return {
+    "--ev-bg-light": bgL,
+    "--ev-border-light": borderL,
+    "--ev-text-light": textL,
+    "--ev-bg-dark": bgD,
+    "--ev-border-dark": borderD,
+    "--ev-text-dark": textD,
+  } as React.CSSProperties;
+}
+
+// Classe estática que lê as CSS vars — Tailwind não precisa escanear
+export const EVENT_CARD_CLASS =
+  "border-[var(--ev-border-light)] bg-[var(--ev-bg-light)] text-[var(--ev-text-light)] dark:border-[var(--ev-border-dark)] dark:bg-[var(--ev-bg-dark)] dark:text-[var(--ev-text-dark)]";
+
+/** @deprecated use getEventColorVars + EVENT_CARD_CLASS */
+export function getEventClasses(event: CalendarEvent) {
+  return EVENT_CARD_CLASS;
 }
 
 export function getEventTypeLabel(event: CalendarEvent) {
   if (event.source === "automatic") return "Aula";
 
   switch (event.type) {
-    case "REUNIAO":
-      return "Reunião";
-    case "PROVA":
-      return "Prova";
-    case "REPOSICAO":
-      return "Reposição";
-    case "FERIADO":
-      return "Feriado";
-    case "LEMBRETE":
-      return "Lembrete";
-    default:
-      return "Geral";
+    case "REUNIAO":   return "Reunião";
+    case "PROVA":     return "Prova";
+    case "REPOSICAO": return "Reposição";
+    case "FERIADO":   return "Feriado";
+    case "LEMBRETE":  return "Lembrete";
+    default:          return "Geral";
   }
 }
 
 export function getEventBadgeClasses(event: CalendarEvent) {
-  if (event.source === "automatic") {
-    return "border-[#cfd7ff] bg-[#e9ecff] text-[#2d3553]";
-  }
-
-  switch (event.type) {
-    case "REUNIAO":
-      return "border-[#d9c8ff] bg-[#f1e9ff] text-[#4b3f66]";
-    case "PROVA":
-      return "border-[#d7dcff] bg-[#e8ebff] text-[#404b6b]";
-    case "FERIADO":
-      return "border-[#ffd5cd] bg-[#ffe8e3] text-[#6b4c46]";
-    case "REPOSICAO":
-      return "border-[#cdeed7] bg-[#e5f8ea] text-[#3d5e48]";
-    case "LEMBRETE":
-      return "border-[#e5e7eb] bg-[#f5f5f5] text-[#3f3f46]";
-    default:
-      return "border-[#e5e7eb] bg-[#f5f5f5] text-[#3f3f46]";
-  }
+  return EVENT_CARD_CLASS;
 }

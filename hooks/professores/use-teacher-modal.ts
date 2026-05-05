@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useUnsavedChanges } from "@/hooks/shared/use-unsaved-changes";
 
 interface TeacherFormData {
   nome: string;
@@ -49,11 +50,11 @@ export function useTeacherModal({
 
   const [internalOpen, setInternalOpen] = useState(false);
   const [error, setError] = useState("");
-  const [form, setForm] = useState<TeacherFormData>({
-    nome: "",
-    email: "",
-    telefone: "",
-  });
+  const [form, setForm] = useState<TeacherFormData>({ nome: "", email: "", telefone: "" });
+  const [initialForm, setInitialForm] = useState<TeacherFormData>({ nome: "", email: "", telefone: "" });
+
+  const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm);
+  const { guardClose } = useUnsavedChanges(isDirty);
 
   const currentOpen = isControlled ? open : internalOpen;
 
@@ -67,13 +68,13 @@ export function useTeacherModal({
 
   useEffect(() => {
     if (currentOpen) {
-      setForm({
+      const filled = {
         nome: initialData?.nome ?? "",
         email: initialData?.email ?? "",
-        telefone: initialData?.telefone
-          ? formatPhone(initialData.telefone)
-          : "",
-      });
+        telefone: initialData?.telefone ? formatPhone(initialData.telefone) : "",
+      };
+      setForm(filled);
+      setInitialForm(filled);
       setError("");
     }
   }, [currentOpen, initialData]);
@@ -92,8 +93,11 @@ export function useTeacherModal({
   }
 
   function closeModal() {
-    setCurrentOpen(false);
-    resetForm();
+    guardClose(() => {
+      setCurrentOpen(false);
+      resetForm();
+      setInitialForm({ nome: "", email: "", telefone: "" });
+    });
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -114,6 +118,7 @@ export function useTeacherModal({
       });
 
       resetForm();
+      setInitialForm({ nome: "", email: "", telefone: "" });
       setCurrentOpen(false);
     } catch (err) {
       const message =
@@ -133,5 +138,7 @@ export function useTeacherModal({
     closeModal,
     handleSubmit,
     formatPhone,
+    isDirty,
+    guardClose,
   };
 }

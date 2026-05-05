@@ -17,19 +17,16 @@ const RETRY_DELAY_MS = 60 * 60 * 1000; // 1 hora
 const MAX_RETRY_ATTEMPTS = 3;
 const MAX_ITEMS_PER_RUN = 50;
 
-export async function retryFailedCobrancas() {
+export async function retryFailedCobrancas(schoolId: string) {
   const limiteRetry = new Date(Date.now() - RETRY_DELAY_MS);
 
   const falhas = await prisma.cobrancaEnvio.findMany({
     where: {
       status: StatusEnvioCobranca.FALHO,
       canal: CanalCobranca.WHATSAPP,
-      pagamentoId: {
-        not: null,
-      },
-      createdAt: {
-        lte: limiteRetry,
-      },
+      pagamentoId: { not: null },
+      createdAt: { lte: limiteRetry },
+      pagamento: { schoolId },
     },
     orderBy: {
       createdAt: "asc",
@@ -122,6 +119,7 @@ export async function retryFailedCobrancas() {
       const result = await sendWhatsAppMessage({
         to: destinoTelefone,
         message,
+        schoolId,
       });
 
       await createCobrancaEnvioLog({

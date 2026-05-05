@@ -372,7 +372,7 @@ export function TurmaModal({
             <Button
               type="submit"
               disabled={submitting}
-              className="rounded-2xl bg-black text-white hover:bg-black/90"
+              className="rounded-md"
             >
               {submitting ? "Criando..." : "Criar Turma"}
             </Button>

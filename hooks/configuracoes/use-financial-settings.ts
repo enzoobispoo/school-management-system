@@ -7,6 +7,7 @@ interface FinancialSettingsForm {
   metodoPagamentoPadrao: string;
   multaAtrasoPercentual: string;
   jurosMensalPercentual: string;
+  metaMensal: string;
   gerarMensalidadeAuto: boolean;
 
   billingProvider: string;
@@ -27,6 +28,7 @@ export function useFinancialSettings() {
     metodoPagamentoPadrao: "",
     multaAtrasoPercentual: "",
     jurosMensalPercentual: "",
+    metaMensal: "",
     gerarMensalidadeAuto: false,
 
     billingProvider: "asaas",
@@ -89,6 +91,7 @@ export function useFinancialSettings() {
             school?.jurosMensalPercentual !== undefined
               ? String(school.jurosMensalPercentual)
               : "",
+          metaMensal: school?.metaMensal ? String(school.metaMensal) : "",
           gerarMensalidadeAuto: Boolean(school?.gerarMensalidadeAuto),
 
           billingProvider: school?.billingProvider ?? "asaas",
@@ -133,6 +136,7 @@ export function useFinancialSettings() {
           metodoPagamentoPadrao: form.metodoPagamentoPadrao || null,
           multaAtrasoPercentual: form.multaAtrasoPercentual || null,
           jurosMensalPercentual: form.jurosMensalPercentual || null,
+          metaMensal: form.metaMensal ? Number(form.metaMensal) : null,
           gerarMensalidadeAuto: form.gerarMensalidadeAuto,
           enviarLembreteAuto: form.enviarLembreteAuto,
           autoSendBoletoWhatsApp: form.autoSendBoletoWhatsApp,

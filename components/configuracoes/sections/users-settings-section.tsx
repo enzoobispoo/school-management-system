@@ -8,7 +8,6 @@ import { SettingsFeedback } from "@/components/configuracoes/shared/settings-fee
 import { useUsersSettings } from "@/hooks/configuracoes/use-users-settings";
 
 const roleOptions = [
-  { value: "SUPER_ADMIN", label: "Super Admin" },
   { value: "ADMIN", label: "Administrador" },
   { value: "FINANCEIRO", label: "Financeiro" },
   { value: "SECRETARIA", label: "Secretaria" },
@@ -179,44 +178,52 @@ export function UsersSettingsSection() {
                         {user.nome}
                       </p>
 
-                      {/* Role */}
+                      {/* Role — não permite alterar SUPER_ADMIN */}
                       <div className="mb-2 grid gap-1">
                         <label className="text-xs font-medium text-muted-foreground">
                           Perfil
                         </label>
-                        <select
-                          value={user.role}
-                          onChange={(e) =>
-                            updateUser(user.id, {
-                              role: e.target.value as typeof user.role,
-                            })
-                          }
-                          disabled={savingId === user.id}
-                          className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none"
-                        >
-                          {roleOptions.map((r) => (
-                            <option key={r.value} value={r.value}>
-                              {r.label}
-                            </option>
-                          ))}
-                        </select>
+                        {user.role === "SUPER_ADMIN" ? (
+                          <p className="text-sm text-muted-foreground px-3 py-2 rounded-xl border border-border bg-muted/30">
+                            Super Admin — não editável
+                          </p>
+                        ) : (
+                          <select
+                            value={user.role}
+                            onChange={(e) =>
+                              updateUser(user.id, {
+                                role: e.target.value as typeof user.role,
+                              })
+                            }
+                            disabled={savingId === user.id}
+                            className="h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none"
+                          >
+                            {roleOptions.map((r) => (
+                              <option key={r.value} value={r.value}>
+                                {r.label}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </div>
 
-                      {/* Ativar/Desativar */}
-                      <Button
-                        variant={user.ativo ? "outline" : "default"}
-                        onClick={() =>
-                          updateUser(user.id, { ativo: !user.ativo })
-                        }
-                        disabled={savingId === user.id}
-                        className="mb-4 h-9 w-full rounded-xl text-sm"
-                      >
-                        {savingId === user.id
-                          ? "Salvando..."
-                          : user.ativo
-                          ? "Desativar usuário"
-                          : "Ativar usuário"}
-                      </Button>
+                      {/* Ativar/Desativar — não permite desativar SUPER_ADMIN */}
+                      {user.role !== "SUPER_ADMIN" && (
+                        <Button
+                          variant={user.ativo ? "outline" : "default"}
+                          onClick={() =>
+                            updateUser(user.id, { ativo: !user.ativo })
+                          }
+                          disabled={savingId === user.id}
+                          className="mb-4 h-9 w-full rounded-xl text-sm"
+                        >
+                          {savingId === user.id
+                            ? "Salvando..."
+                            : user.ativo
+                            ? "Desativar usuário"
+                            : "Ativar usuário"}
+                        </Button>
+                      )}
 
                       <div className="mb-3 border-t border-border pt-3">
                         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">

@@ -27,7 +27,18 @@ function getComputedPaymentStatus(pagamento: {
   return "PENDENTE";
 }
 
-export async function getMonthlyFinancialSummary(): Promise<AiActionResult> {
+export async function getMonthlyFinancialSummary(
+  schoolId?: string | null
+): Promise<AiActionResult> {
+  const sid = schoolId?.trim();
+  if (!sid) {
+    return {
+      message:
+        "Não foi possível identificar a escola. Faça login com um usuário vinculado a uma escola.",
+      suggestions: getFinanceSuggestions(),
+    };
+  }
+
   const now = new Date();
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
@@ -38,6 +49,7 @@ export async function getMonthlyFinancialSummary(): Promise<AiActionResult> {
   const [pagamentosRecebidosNoMes, pagamentosEmAberto] = await Promise.all([
     prisma.pagamento.findMany({
       where: {
+        schoolId: sid,
         status: "PAGO",
         dataPagamento: {
           gte: startOfCurrentMonth,
@@ -50,6 +62,7 @@ export async function getMonthlyFinancialSummary(): Promise<AiActionResult> {
     }),
     prisma.pagamento.findMany({
       where: {
+        schoolId: sid,
         status: {
           in: ["PENDENTE", "ATRASADO"],
         },

@@ -1,6 +1,20 @@
 import { prisma } from "@/lib/prisma";
 
-export async function queryDashboard() {
+export async function queryDashboard(schoolId?: string | null) {
+  const sid = schoolId?.trim();
+  if (!sid) {
+    return {
+      totalAlunos: 0,
+      matriculasAtivas: 0,
+      receitaMes: 0,
+      totalPendentes: 0,
+      totalAtrasados: 0,
+      quantidadePendentes: 0,
+      quantidadeAtrasados: 0,
+      topCursos: [],
+    };
+  }
+
   const now = new Date();
   const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -13,10 +27,11 @@ export async function queryDashboard() {
     pagamentosAtrasados,
     topCursos,
   ] = await Promise.all([
-    prisma.aluno.count(),
-    prisma.matricula.count({ where: { status: "ATIVA" } }),
+    prisma.aluno.count({ where: { schoolId: sid } }),
+    prisma.matricula.count({ where: { status: "ATIVA", schoolId: sid } }),
     prisma.pagamento.findMany({
       where: {
+        schoolId: sid,
         status: "PAGO",
         dataPagamento: {
           gte: startOfCurrentMonth,
@@ -26,14 +41,15 @@ export async function queryDashboard() {
       select: { valor: true },
     }),
     prisma.pagamento.findMany({
-      where: { status: "PENDENTE" },
+      where: { schoolId: sid, status: "PENDENTE" },
       select: { valor: true },
     }),
     prisma.pagamento.findMany({
-      where: { status: "ATRASADO" },
+      where: { schoolId: sid, status: "ATRASADO" },
       select: { valor: true },
     }),
     prisma.curso.findMany({
+      where: { schoolId: sid },
       include: {
         turmas: {
           include: {

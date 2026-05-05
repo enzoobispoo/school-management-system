@@ -20,6 +20,10 @@ export function useFinancialModals() {
   const [selectedPaymentForBoleto, setSelectedPaymentForBoleto] =
     useState<BoletoSelectionPayment | null>(null);
 
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [selectedPaymentForReceipt, setSelectedPaymentForReceipt] =
+    useState<PaymentTableItem | null>(null);
+
   const [selectedPayment, setSelectedPayment] = useState<{
     id: string;
     student: string;
@@ -87,6 +91,16 @@ export function useFinancialModals() {
     setSelectedPaymentForBoleto(null);
   }
 
+  function openReceipt(payment: PaymentTableItem) {
+    setSelectedPaymentForReceipt(payment);
+    setReceiptOpen(true);
+  }
+
+  function closeReceipt() {
+    setReceiptOpen(false);
+    setSelectedPaymentForReceipt(null);
+  }
+
   return {
     detailsOpen,
     setDetailsOpen,
@@ -98,6 +112,8 @@ export function useFinancialModals() {
     setDeleteOpen,
     generateBoletoOpen,
     setGenerateBoletoOpen,
+    receiptOpen,
+    setReceiptOpen,
     selectedPayment,
     setSelectedPayment,
     selectedPaymentDetails,
@@ -106,6 +122,8 @@ export function useFinancialModals() {
     setSelectedPaymentToDelete,
     selectedPaymentForBoleto,
     setSelectedPaymentForBoleto,
+    selectedPaymentForReceipt,
+    setSelectedPaymentForReceipt,
     openRegisterPayment,
     closeRegisterPayment,
     openPaymentDetails,
@@ -114,5 +132,7 @@ export function useFinancialModals() {
     closeDeletePayment,
     openGenerateBoleto,
     closeGenerateBoleto,
+    openReceipt,
+    closeReceipt,
   };
 }

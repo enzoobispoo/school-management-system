@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { createCursoSchema } from "@/lib/validations/curso"
 import { Prisma } from "@prisma/client"
+import { getCurrentUser, requireSchool } from "@/lib/auth"
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
     const { searchParams } = new URL(request.url)
 
     const id = searchParams.get("id")?.trim() || ""
@@ -113,6 +119,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
+
     const body = await request.json()
     const parsed = createCursoSchema.safeParse(body)
 
@@ -128,6 +140,7 @@ export async function POST(request: NextRequest) {
 
     const curso = await prisma.curso.create({
       data: {
+        schoolId,
         nome: parsed.data.nome,
         categoria: parsed.data.categoria,
         descricao: parsed.data.descricao,
@@ -139,6 +152,7 @@ export async function POST(request: NextRequest) {
 
     await prisma.notificacao.create({
       data: {
+        schoolId,
         tipo: "SISTEMA",
         titulo: "Novo curso criado",
         mensagem: `O curso ${curso.nome} foi criado no sistema.`,

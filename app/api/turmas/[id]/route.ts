@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { updateTurmaSchema } from "@/lib/validations/turma"
+import { getCurrentUser, requireSchool } from "@/lib/auth"
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -9,10 +10,15 @@ interface RouteContext {
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
     const { id } = await context.params
 
-    const turma = await prisma.turma.findUnique({
-      where: { id },
+    const turma = await prisma.turma.findFirst({
+      where: { id, schoolId },
       include: {
         curso: true,
         professor: true,
@@ -97,6 +103,11 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
     const { id } = await context.params
     const body = await request.json()
 
@@ -109,8 +120,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       )
     }
 
-    const turmaExistente = await prisma.turma.findUnique({
-      where: { id },
+    const turmaExistente = await prisma.turma.findFirst({
+      where: { id, schoolId },
       include: {
         matriculas: {
           where: {
@@ -126,8 +137,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     }
 
     if (parsed.data.cursoId) {
-      const curso = await prisma.curso.findUnique({
-        where: { id: parsed.data.cursoId },
+      const curso = await prisma.curso.findFirst({
+        where: { id: parsed.data.cursoId, schoolId },
         select: { id: true, ativo: true },
       })
 
@@ -144,8 +155,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     }
 
     if (parsed.data.professorId) {
-      const professor = await prisma.professor.findUnique({
-        where: { id: parsed.data.professorId },
+      const professor = await prisma.professor.findFirst({
+        where: { id: parsed.data.professorId, schoolId },
         select: { id: true, ativo: true },
       })
 
@@ -241,10 +252,14 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
     const { id } = await context.params
-
-    const turma = await prisma.turma.findUnique({
-      where: { id },
+    const turma = await prisma.turma.findFirst({
+      where: { id, schoolId },
       include: {
         matriculas: {
           where: {

@@ -1,7 +1,8 @@
 "use client";
 
 import { Fragment } from "react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import Link from "next/link";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { ChevronDown, ChevronRight } from "lucide-react";
@@ -19,6 +20,7 @@ interface StudentTableRowProps {
   onEdit?: (student: StudentTableItem) => void;
   onDelete?: (student: StudentTableItem) => void;
   onViewDetails?: (student: StudentTableItem) => void;
+  onRefresh?: () => void;
 }
 
 export function StudentTableRow({
@@ -29,6 +31,7 @@ export function StudentTableRow({
   onEdit,
   onDelete,
   onViewDetails,
+  onRefresh,
 }: StudentTableRowProps) {
   return (
     <Fragment>
@@ -52,15 +55,18 @@ export function StudentTableRow({
         <TableCell className="py-3">
           <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8">
+              {student.fotoUrl && <AvatarImage src={student.fotoUrl} alt={student.name} />}
               <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
-                {student.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .slice(0, 2)
-                  .join("")}
+                {student.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
               </AvatarFallback>
             </Avatar>
-            <span className="font-medium text-foreground">{student.name}</span>
+            <Link
+              href={`/alunos/${student.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="font-medium text-foreground hover:underline"
+            >
+              {student.name}
+            </Link>
           </div>
         </TableCell>
 
@@ -76,9 +82,9 @@ export function StudentTableRow({
         <TableCell className="py-3">
           <div className="flex flex-wrap gap-1">
             {student.courses.length > 0 ? (
-              student.courses.map((course) => (
+              student.courses.map((course, idx) => (
                 <span
-                  key={course}
+                  key={`${course}-${idx}`}
                   className="inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground"
                 >
                   {course}
@@ -112,7 +118,7 @@ export function StudentTableRow({
         </TableCell>
       </TableRow>
 
-      {expanded ? <StudentExpandedRow student={student} /> : null}
+      {expanded ? <StudentExpandedRow onRefresh={onRefresh} student={{ id: student.id, email: student.email, phone: student.phone, cpf: student.cpf, birthDate: student.birthDate, address: student.address, courses: student.courses, guardianName: student.guardianName, guardianPhone: student.guardianPhone, guardianEmail: student.guardianEmail, guardianCpf: student.guardianCpf, health: student.health, financialHistory: student.financialHistory, fotoUrl: student.fotoUrl, observacoesGerais: student.observacoesGerais, indicacao: student.indicacao, nivelInicial: student.nivelInicial, idiomaNativo: student.idiomaNativo }} /> : null}
     </Fragment>
   );
 }

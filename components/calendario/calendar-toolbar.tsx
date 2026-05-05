@@ -79,7 +79,7 @@ export function CalendarToolbar({
               </Button>
 
               <Button
-                className="h-11 w-full rounded-2xl bg-black px-5 text-white hover:bg-black/90 dark:border dark:border-white/10 dark:bg-white/10 dark:backdrop-blur-md dark:hover:bg-white/20 sm:w-auto"
+                className="h-11 w-full rounded-2xl px-4 sm:w-auto"
                 onClick={onCreate}
               >
                 <Plus className="mr-2 h-4 w-4" />

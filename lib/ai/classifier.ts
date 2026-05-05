@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { AI_INTENTS } from "@/lib/ai/intents";
 import { AiClassificationResult } from "@/lib/ai/types";
 
-function classifyIntentLocally(message: string): AiClassificationResult {
+export function classifyIntentLocally(message: string): AiClassificationResult {
   const msg = message.toLowerCase().trim();
 
   if (

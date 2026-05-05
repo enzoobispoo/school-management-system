@@ -1,12 +1,13 @@
 import { prisma } from "@/lib/prisma";
 
-export async function getOrCreateSchoolSetting() {
-  return prisma.schoolSetting.upsert({
-    where: { id: "default" },
+export async function getOrCreateSchoolSetting(schoolId: string) {
+  return prisma.escolaSettings.upsert({
+    where: { schoolId },
     update: {},
     create: {
-      id: "default",
-      nome: "EduGestão",
+      id: schoolId,
+      schoolId,
+      nomeEscola: "Minha Escola",
     },
   });
 }

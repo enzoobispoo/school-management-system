@@ -27,7 +27,16 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const valid = await bcrypt.compare(senhaAtual, user.passwordHash);
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { passwordHash: true },
+    });
+
+    if (!dbUser) {
+      return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
+    }
+
+    const valid = await bcrypt.compare(senhaAtual, dbUser.passwordHash);
 
     if (!valid) {
       return NextResponse.json(

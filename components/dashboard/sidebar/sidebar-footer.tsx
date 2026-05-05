@@ -14,25 +14,28 @@ export function SidebarFooter({ collapsed = false }: SidebarFooterProps) {
   const isActive = pathname.startsWith("/configuracoes");
 
   return (
-    <div className="border-t border-sidebar-border p-3">
+    <div className="px-3 pb-4 pt-2">
+      {/* Divisor */}
+      <div className="mb-3 h-px bg-sidebar-border/50" />
+
       <Link
         href="/configuracoes"
+        title={collapsed ? "Configurações" : undefined}
         className={cn(
-          "flex items-center rounded-lg py-2.5 text-sm font-medium transition-all duration-200",
+          "group flex items-center rounded-xl py-2 text-[13px] font-medium transition-all duration-150",
           collapsed ? "justify-center px-2" : "gap-3 px-3",
           isActive
-            ? "bg-sidebar-accent text-sidebar-accent-foreground"
-            : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            ? "bg-sidebar-accent text-sidebar-foreground shadow-sm"
+            : "text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
         )}
-        title={collapsed ? "Configurações" : undefined}
       >
         <Settings
           className={cn(
-            "h-5 w-5 transition-colors",
-            isActive ? "text-sidebar-primary" : "text-current"
+            "h-[12px] w-[12px] shrink-0 transition-all duration-150",
+            isActive ? "opacity-100" : "opacity-50 group-hover:opacity-80"
           )}
         />
-        {!collapsed ? "Configurações" : null}
+        {!collapsed && <span className="truncate">Configurações</span>}
       </Link>
     </div>
   );

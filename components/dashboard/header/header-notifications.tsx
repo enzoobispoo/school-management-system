@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { Bell } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useEffect } from "react";
+import { Bell } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,187 +10,105 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-
-interface NotificationsResponse {
-  data: Array<{
-    id: string
-    tipo: string
-    titulo: string
-    mensagem: string
-    lida: boolean
-    createdAt: string
-  }>
-  meta: {
-    total: number
-    unreadCount: number
-    page: number
-    pageSize: number
-    totalPages: number
-  }
-}
+} from "@/components/ui/dropdown-menu";
+import { useNotificationsPolling } from "@/hooks/dashboard/use-notifications-polling";
+import { cn } from "@/lib/utils";
 
 function formatRelativeTime(dateString: string) {
-  const now = new Date()
-  const date = new Date(dateString)
-  const diffMs = now.getTime() - date.getTime()
-
-  const minutes = Math.floor(diffMs / 1000 / 60)
-  const hours = Math.floor(diffMs / 1000 / 60 / 60)
-  const days = Math.floor(diffMs / 1000 / 60 / 60 / 24)
-
-  if (minutes < 1) return "agora"
-  if (minutes < 60) return `há ${minutes} min`
-  if (hours < 24) return `há ${hours} hora${hours > 1 ? "s" : ""}`
-  return `há ${days} dia${days > 1 ? "s" : ""}`
+  const diffMs = Date.now() - new Date(dateString).getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  const hours = Math.floor(diffMs / 3600000);
+  const days = Math.floor(diffMs / 86400000);
+  if (minutes < 1) return "agora";
+  if (minutes < 60) return `há ${minutes} min`;
+  if (hours < 24) return `há ${hours} hora${hours > 1 ? "s" : ""}`;
+  return `há ${days} dia${days > 1 ? "s" : ""}`;
 }
 
 export function HeaderNotifications() {
-  const [notifications, setNotifications] = useState<NotificationsResponse["data"]>([])
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [loadingNotifications, setLoadingNotifications] = useState(false)
+  const {
+    notifications,
+    unreadCount,
+    hasNew,
+    loading,
+    fetch: refetch,
+    markAsRead,
+    markAllAsRead,
+    clearAll,
+    clearHasNew,
+  } = useNotificationsPolling();
 
-  async function fetchNotifications() {
-    try {
-      setLoadingNotifications(true)
-
-      const response = await fetch("/api/notificacoes?limit=8", {
-        cache: "no-store",
-      })
-
-      if (!response.ok) {
-        throw new Error("Erro ao buscar notificações")
-      }
-
-      const result: NotificationsResponse = await response.json()
-      setNotifications(result.data)
-      setUnreadCount(result.meta.unreadCount)
-    } catch (error) {
-      console.error("Erro ao carregar notificações:", error)
-    } finally {
-      setLoadingNotifications(false)
+  // limpa o flash quando o dropdown abre
+  function handleOpenChange(open: boolean) {
+    if (open) {
+      clearHasNew();
+      refetch();
     }
   }
-
-  async function markAsRead(notificationId: string, alreadyRead: boolean) {
-    if (alreadyRead) return
-
-    try {
-      const response = await fetch(`/api/notificacoes/${notificationId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ lida: true }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Erro ao marcar notificação como lida")
-      }
-
-      setNotifications((prev) =>
-        prev.map((item) =>
-          item.id === notificationId ? { ...item, lida: true } : item
-        )
-      )
-      setUnreadCount((prev) => Math.max(prev - 1, 0))
-    } catch (error) {
-      console.error(error)
-    }
-  }
-
-  async function markAllAsRead() {
-    try {
-      const response = await fetch("/api/notificacoes", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          marcarTodasComoLidas: true,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Erro ao marcar todas como lidas")
-      }
-
-      setNotifications((prev) => prev.map((item) => ({ ...item, lida: true })))
-      setUnreadCount(0)
-    } catch (error) {
-      console.error(error)
-    }
-  }
-
-  useEffect(() => {
-    fetchNotifications()
-  }, [])
 
   return (
-    <DropdownMenu onOpenChange={(open) => open && fetchNotifications()}>
+    <DropdownMenu onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5 text-muted-foreground" />
-          {unreadCount > 0 ? (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-medium text-background">
+          <Bell
+            className={cn(
+              "h-5 w-5 transition-colors",
+              hasNew ? "text-foreground" : "text-muted-foreground"
+            )}
+          />
+          {unreadCount > 0 && (
+            <span
+              className={cn(
+                "absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-medium text-background transition-all",
+                hasNew ? "animate-bounce bg-red-500" : "bg-foreground"
+              )}
+            >
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
-          ) : null}
+          )}
         </Button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent className="w-96" align="end">
         <div className="flex items-center justify-between px-2 py-1.5">
           <DropdownMenuLabel className="p-0">Notificações</DropdownMenuLabel>
-          {unreadCount > 0 ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-auto px-2 py-1 text-xs"
-              onClick={markAllAsRead}
-            >
-              Marcar todas como lidas
-            </Button>
-          ) : null}
+          <div className="flex items-center gap-1">
+            {unreadCount > 0 && (
+              <Button variant="ghost" size="sm" className="h-auto px-2 py-1 text-xs" onClick={markAllAsRead}>
+                Marcar lidas
+              </Button>
+            )}
+            {notifications.length > 0 && (
+              <Button variant="ghost" size="sm" className="h-auto px-2 py-1 text-xs text-muted-foreground hover:text-destructive" onClick={clearAll}>
+                Limpar
+              </Button>
+            )}
+          </div>
         </div>
 
         <DropdownMenuSeparator />
 
-        {loadingNotifications ? (
-          <div className="px-2 py-4 text-sm text-muted-foreground">
-            Carregando notificações...
-          </div>
+        {loading && notifications.length === 0 ? (
+          <div className="px-2 py-4 text-sm text-muted-foreground">Carregando...</div>
         ) : notifications.length === 0 ? (
-          <div className="px-2 py-4 text-sm text-muted-foreground">
-            Nenhuma notificação encontrada.
-          </div>
+          <div className="px-2 py-4 text-sm text-muted-foreground">Nenhuma notificação.</div>
         ) : (
-          notifications.map((notification) => (
+          notifications.map((n) => (
             <DropdownMenuItem
-              key={notification.id}
+              key={n.id}
               className="flex cursor-pointer flex-col items-start gap-1 p-3"
-              onClick={() => markAsRead(notification.id, notification.lida)}
+              onClick={() => markAsRead(n.id)}
             >
               <div className="flex w-full items-start justify-between gap-2">
-                <span className="text-sm font-medium text-foreground">
-                  {notification.titulo}
-                </span>
-                {!notification.lida ? (
-                  <span className="mt-1 h-2 w-2 rounded-full bg-foreground" />
-                ) : null}
+                <span className="text-sm font-medium text-foreground">{n.titulo}</span>
+                {!n.lida && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-foreground" />}
               </div>
-
-              <p className="line-clamp-2 text-xs text-muted-foreground">
-                {notification.mensagem}
-              </p>
-
-              <span className="text-[11px] text-muted-foreground">
-                {formatRelativeTime(notification.createdAt)}
-              </span>
+              <p className="line-clamp-2 text-xs text-muted-foreground">{n.mensagem}</p>
+              <span className="text-[11px] text-muted-foreground">{formatRelativeTime(n.createdAt)}</span>
             </DropdownMenuItem>
           ))
         )}
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }

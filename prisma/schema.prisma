@@ -6,30 +6,139 @@ datasource db {
   provider = "postgresql"
 }
 
+model School {
+  id        String   @id @default(cuid())
+  nome      String
+  slug      String   @unique
+  email     String?
+  plano     String   @default("starter")
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users          User[]
+  alunos         Aluno[]
+  cursos         Curso[]
+  professores    Professor[]
+  turmas         Turma[]
+  matriculas     Matricula[]
+  pagamentos     Pagamento[]
+  eventos        Evento[]
+  notificacoes   Notificacao[]
+  userInvites    UserInvite[]
+  escolaSettings EscolaSettings?
+  subscriptions  SchoolSubscription[]
+
+  @@index([slug])
+  @@index([ativo])
+}
+
+model Plan {
+  id             String   @id @default(cuid())
+  nome           String   @unique
+  slug           String   @unique
+  preco          Decimal  @db.Decimal(10, 2)
+  descricao      String?
+  limiteAlunos   Int?
+  limiteTurmas   Int?
+  limiteUsuarios Int?
+  ativo          Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  subscriptions SchoolSubscription[]
+
+  @@index([slug])
+  @@index([ativo])
+}
+
+model SchoolSubscription {
+  id          String             @id @default(cuid())
+  schoolId    String
+  planId      String
+  status      SubscriptionStatus @default(ATIVA)
+  valorPago   Decimal            @db.Decimal(10, 2)
+  dataInicio  DateTime           @default(now())
+  dataFim     DateTime?
+  observacoes String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  @@index([schoolId])
+  @@index([planId])
+  @@index([status])
+  @@index([dataInicio])
+}
+
+enum SubscriptionStatus {
+  ATIVA
+  CANCELADA
+  SUSPENSA
+  TRIAL
+}
+
 model Aluno {
   id                  String      @id @default(cuid())
+  schoolId            String
   nome                String
-  email               String?     @unique
+  email               String?
   telefone            String?
   dataNascimento      DateTime?
   endereco            String?
   status              StatusAluno @default(ATIVO)
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
-  cpf                 String?     @unique
+  cpf                 String?
   responsavelNome     String?
   responsavelTelefone String?
   responsavelEmail    String?
-  matriculas          Matricula[]
-  asaasCustomerId String?
+  responsavelCpf      String?
+  possuiLaudo         Boolean     @default(false)
+  laudoDescricao      String?
+  laudoCid            String?
+  laudoTipo           String?
+  laudoNivel          String?
+  laudoProfissional   String?
+  laudoData           DateTime?
+  alergias            String?
+  medicamentos        String?
+  condicoesCronicas   String?
+  planoSaude          String?
+  contatoEmergenciaNome     String?
+  contatoEmergenciaTelefone String?
+  adaptacaoNecessaria Boolean     @default(false)
+  adaptacaoDescricao  String?
+  observacoesMedicas  String?
+  observacoesProf     String?
+  tratamentos         String?
+  fotoUrl             String?
+  observacoesGerais   String?
+  indicacao           String?
+  dataSaida           DateTime?
+  motivoSaida         String?
+  nivelInicial        String?
+  idiomaNativo        String?
+  asaasCustomerId     String?
 
+  school          School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  documentos      AlunoDocumento[]
+  statusHistorico AlunoStatusHistorico[]
+  matriculas      Matricula[]
+
+  @@unique([schoolId, email])
+  @@unique([schoolId, cpf])
+  @@index([schoolId])
   @@index([nome])
   @@index([status])
 }
 
 model Curso {
   id           String           @id @default(cuid())
-  nome         String           @unique
+  schoolId     String
+  nome         String
   categoria    String
   descricao    String?
   duracaoTexto String?
@@ -37,48 +146,61 @@ model Curso {
   ativo        Boolean          @default(true)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
-  eventos      Evento[]
-  turmas       Turma[]
-  professores  ProfessorCurso[]
 
+  school      School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  eventos     Evento[]
+  turmas      Turma[]
+  professores ProfessorCurso[]
+
+  @@unique([schoolId, nome])
+  @@index([schoolId])
   @@index([categoria])
   @@index([ativo])
 }
 
 model Professor {
-  id              String                    @id @default(cuid())
-  nome            String
-  email           String?                   @unique
-  telefone        String?
-  ativo           Boolean                   @default(true)
-  createdAt       DateTime                  @default(now())
-  updatedAt       DateTime                  @updatedAt
+  id       String  @id @default(cuid())
+  schoolId String
+  nome     String
+  email    String?
+  telefone String?
+  ativo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school          School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   eventos         Evento[]
   turmas          Turma[]
   cursos          ProfessorCurso[]
   historicoTurmas TurmaProfessorHistorico[]
 
+  @@unique([schoolId, email])
+  @@index([schoolId])
   @@index([nome])
   @@index([ativo])
 }
 
 model Turma {
-  id                   String                    @id @default(cuid())
-  cursoId              String
-  professorId          String
-  nome                 String
-  capacidadeMaxima     Int
-  ativo                Boolean                   @default(true)
-  createdAt            DateTime                  @default(now())
-  updatedAt            DateTime                  @updatedAt
-  eventos              Evento[]
-  matriculas           Matricula[]
+  id               String   @id @default(cuid())
+  schoolId         String
+  cursoId          String
+  professorId      String
+  nome             String
+  capacidadeMaxima Int
+  ativo            Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  school               School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   curso                Curso                     @relation(fields: [cursoId], references: [id], onDelete: Cascade)
   professor            Professor                 @relation(fields: [professorId], references: [id])
+  eventos              Evento[]
+  matriculas           Matricula[]
   horarios             TurmaHorario[]
   historicoProfessores TurmaProfessorHistorico[]
 
-  @@unique([cursoId, nome])
+  @@unique([schoolId, cursoId, nome])
+  @@index([schoolId])
   @@index([cursoId])
   @@index([professorId])
   @@index([ativo])
@@ -100,6 +222,7 @@ model TurmaHorario {
 
 model Matricula {
   id                 String          @id @default(cuid())
+  schoolId           String
   alunoId            String
   turmaId            String
   dataMatricula      DateTime        @default(now())
@@ -109,10 +232,13 @@ model Matricula {
   status             StatusMatricula @default(ATIVA)
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
-  aluno              Aluno           @relation(fields: [alunoId], references: [id], onDelete: Cascade)
-  turma              Turma           @relation(fields: [turmaId], references: [id])
-  pagamentos         Pagamento[]
 
+  school     School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  aluno      Aluno      @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  turma      Turma      @relation(fields: [turmaId], references: [id])
+  pagamentos Pagamento[]
+
+  @@index([schoolId])
   @@index([alunoId])
   @@index([turmaId])
   @@index([status])
@@ -121,6 +247,7 @@ model Matricula {
 
 model Pagamento {
   id              String          @id @default(cuid())
+  schoolId        String
   matriculaId     String
   competenciaMes  Int
   competenciaAno  Int
@@ -133,18 +260,21 @@ model Pagamento {
   observacoes     String?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
-  matricula       Matricula       @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
   billingProvider     String?
   billingExternalId   String?
   billingInvoiceUrl   String?
   billingBankSlipUrl  String?
   billingStatus       String?
   boletoGeradoEm      DateTime?
-  cobrancaLoteId String?
+  cobrancaLoteId      String?
   ultimoLembreteEnviadoEm DateTime?
-  envios CobrancaEnvio[]
+
+  school    School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  matricula Matricula     @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+  envios    CobrancaEnvio[]
 
   @@unique([matriculaId, competenciaMes, competenciaAno])
+  @@index([schoolId])
   @@index([matriculaId])
   @@index([status])
   @@index([vencimento])
@@ -152,34 +282,34 @@ model Pagamento {
 }
 
 model CobrancaLote {
-  id                String   @id @default(cuid())
-  alunoId           String
-  provider          String?
-  externalId        String?
-  invoiceUrl        String?
-  bankSlipUrl       String?
-  status            String?
-  valorTotal        Decimal  @db.Decimal(10,2)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id          String   @id @default(cuid())
+  alunoId     String
+  provider    String?
+  externalId  String?
+  invoiceUrl  String?
+  bankSlipUrl String?
+  status      String?
+  valorTotal  Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model CobrancaEnvio {
-  id            String              @id @default(cuid())
+  id             String              @id @default(cuid())
   pagamentoId    String?
   cobrancaLoteId String?
-  canal         CanalCobranca
-  tipo          TipoEnvioCobranca
-  destino       String
-  status        StatusEnvioCobranca @default(PENDENTE)
-  provedor      String?
-  externalId    String?
-  mensagem      String?
-  erro          String?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  canal          CanalCobranca
+  tipo           TipoEnvioCobranca
+  destino        String
+  status         StatusEnvioCobranca @default(PENDENTE)
+  provedor       String?
+  externalId     String?
+  mensagem       String?
+  erro           String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
-  pagamento     Pagamento?          @relation(fields: [pagamentoId], references: [id], onDelete: SetNull)
+  pagamento Pagamento? @relation(fields: [pagamentoId], references: [id], onDelete: SetNull)
 
   @@index([pagamentoId])
   @@index([cobrancaLoteId])
@@ -210,6 +340,7 @@ enum StatusEnvioCobranca {
 
 model Evento {
   id          String       @id @default(cuid())
+  schoolId    String
   titulo      String
   descricao   String?
   tipo        TipoEvento   @default(GERAL)
@@ -224,11 +355,14 @@ model Evento {
   ativo       Boolean      @default(true)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
-  curso       Curso?       @relation(fields: [cursoId], references: [id])
-  professor   Professor?   @relation(fields: [professorId], references: [id])
-  turma       Turma?       @relation(fields: [turmaId], references: [id])
   origem      OrigemEvento @default(MANUAL)
 
+  school    School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  curso     Curso?     @relation(fields: [cursoId], references: [id])
+  professor Professor? @relation(fields: [professorId], references: [id])
+  turma     Turma?     @relation(fields: [turmaId], references: [id])
+
+  @@index([schoolId])
   @@index([tipo])
   @@index([origem])
   @@index([ativo])
@@ -241,6 +375,7 @@ model Evento {
 
 model Notificacao {
   id           String              @id @default(cuid())
+  schoolId     String
   tipo         TipoNotificacao
   titulo       String
   mensagem     String
@@ -250,6 +385,9 @@ model Notificacao {
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
   @@index([tipo])
   @@index([lida])
   @@index([createdAt])
@@ -258,6 +396,7 @@ model Notificacao {
 
 model User {
   id                         String    @id @default(cuid())
+  schoolId                   String?
   email                      String    @unique
   openaiApiKey               String?
   plan                       String    @default("starter")
@@ -280,9 +419,11 @@ model User {
   dashboardInsightsEnabled   Boolean   @default(true)
   dashboardInsightsLimit     Int       @default(3)
 
+  school         School?         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   aiAuditLogs    AiAuditLog[]
   aiChatSessions AiChatSession[]
 
+  @@index([schoolId])
   @@index([email])
   @@index([username])
   @@index([role])
@@ -336,6 +477,7 @@ model SystemSetting {
 
 model UserInvite {
   id        String    @id @default(cuid())
+  schoolId  String?
   email     String
   role      UserRole  @default(SECRETARIA)
   tokenHash String    @unique
@@ -344,6 +486,9 @@ model UserInvite {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
+  school School? @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
   @@index([email])
   @@index([expiresAt])
   @@index([usedAt])
@@ -393,7 +538,8 @@ model AiChatMessage {
 }
 
 model EscolaSettings {
-  id                    String   @id @default("default")
+  id                    String   @id
+  schoolId              String   @unique
   nomeEscola            String
   cnpj                  String?
   email                 String?
@@ -415,14 +561,24 @@ model EscolaSettings {
   densidade             String?  @default("comfortable")
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
-  billingProvider     String? @default("asaas") 
-  asaasApiKey         String?
-  asaasWalletId       String?
-  asaasEnvironment    String? @default("sandbox")
-  defaultChargeMethod String? @default("boleto")
-  billingEnabled      Boolean @default(false)
-  autoGenerateBoleto  Boolean @default(false)
+  metaMensal            Decimal? @db.Decimal(10, 2)
+  billingProvider       String?  @default("asaas")
+  asaasApiKey           String?
+  asaasWalletId         String?
+  asaasEnvironment      String?  @default("sandbox")
+  defaultChargeMethod   String?  @default("boleto")
+  billingEnabled        Boolean  @default(false)
+  autoGenerateBoleto    Boolean  @default(false)
   autoSendBoletoWhatsApp Boolean @default(false)
+  openaiApiKey              String?
+  aiMonthlyLimitOverride    Int?
+  aiUsageCount              Int      @default(0)
+  aiUsageResetAt           DateTime @default(now())
+  twilioAccountSid         String?
+  twilioAuthToken          String?
+  twilioWhatsAppFrom       String?
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 }
 
 enum StatusAluno {
@@ -507,4 +663,45 @@ enum UserRole {
 enum AiProviderMode {
   PLATFORM
   CUSTOM
+}
+
+
+model AlunoDocumento {
+  id        String   @id @default(cuid())
+  alunoId   String
+  nome      String
+  tipo      String
+  url       String
+  tamanho   Int?
+  createdAt DateTime @default(now())
+  aluno     Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+
+  @@index([alunoId])
+  @@index([tipo])
+}
+
+model AlunoStatusHistorico {
+  id         String   @id @default(cuid())
+  alunoId    String
+  statusDe   String
+  statusPara String
+  motivo     String?
+  criadoPor  String?
+  createdAt  DateTime @default(now())
+  aluno      Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+
+  @@index([alunoId])
+  @@index([createdAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  email     String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([token])
+  @@index([email])
 }

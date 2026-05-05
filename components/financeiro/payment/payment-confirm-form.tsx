@@ -110,7 +110,7 @@ export function PaymentConfirmForm({
             await onConfirm();
           }}
           disabled={loading}
-          className="rounded-2xl bg-black text-white hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90"
+          className="rounded-md dark:bg-white dark:text-black dark:hover:bg-white/90"
         >
           {loading ? "Confirmando..." : "Confirmar pagamento"}
         </Button>

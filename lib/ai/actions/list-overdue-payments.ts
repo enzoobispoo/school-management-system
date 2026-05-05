@@ -13,7 +13,9 @@ function formatDate(date: Date | string) {
   return new Date(date).toLocaleDateString("pt-BR");
 }
 
-export async function listOverduePayments(): Promise<
+export async function listOverduePayments(
+  schoolId?: string | null
+): Promise<
   AiActionResult & {
     conversationContext?: {
       scope: "overdue_payments";
@@ -27,8 +29,17 @@ export async function listOverduePayments(): Promise<
     };
   }
 > {
+  const sid = schoolId?.trim();
+  if (!sid) {
+    return {
+      message:
+        "Não foi possível identificar a escola. Faça login com um usuário vinculado a uma escola.",
+      suggestions: getFinanceSuggestions(),
+    };
+  }
+
   const pagamentos = await prisma.pagamento.findMany({
-    where: { status: "ATRASADO" },
+    where: { schoolId: sid, status: "ATRASADO" },
     include: {
       matricula: {
         include: {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, requireSchool } from "@/lib/auth";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -12,12 +13,17 @@ function normalizeStoredPaymentMethod(method?: string | null) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
     const { id } = await context.params;
     const body = await request.json().catch(() => ({}));
 
     const [pagamento, settings] = await Promise.all([
-      prisma.pagamento.findUnique({
-        where: { id },
+      prisma.pagamento.findFirst({
+        where: { id, schoolId },
         include: {
           matricula: {
             include: {
@@ -32,7 +38,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         },
       }),
       prisma.escolaSettings.findUnique({
-        where: { id: "default" },
+        where: { schoolId },
         select: {
           metodoPagamentoPadrao: true,
         },
@@ -68,6 +74,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     await prisma.notificacao.create({
       data: {
+        schoolId: pagamento.schoolId,
         tipo: "PAGAMENTO",
         titulo: "Pagamento recebido",
         mensagem: `${pagamento.matricula.aluno.nome} pagou ${pagamento.matricula.turma.curso.nome}.`,

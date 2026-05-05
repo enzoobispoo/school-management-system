@@ -159,6 +159,7 @@ export async function POST(request: NextRequest) {
     if (mappedStatus === StatusPagamento.PAGO) {
       await prisma.notificacao.create({
         data: {
+          schoolId: pagamento.schoolId,
           tipo: TipoNotificacao.PAGAMENTO_CONFIRMADO,
           titulo: "Pagamento confirmado",
           mensagem: `${pagamento.matricula.aluno.nome} teve um pagamento confirmado automaticamente via Asaas.`,

@@ -27,6 +27,7 @@ export default function CalendarioPage() {
         openAdvancedFilters={calendar.openAdvancedFilters}
         hasAdvancedFilters={calendar.hasAdvancedFilters}
         handleCalendarClick={calendar.handleCalendarClick}
+        handleDayClick={calendar.handleDayClick}
         openEventDetails={calendar.openEventDetails}
       />
 

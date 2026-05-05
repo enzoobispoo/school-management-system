@@ -146,7 +146,7 @@ export function CalendarAdvancedFilters({
             <Button
               type="button"
               onClick={onApply}
-              className="rounded-2xl bg-black text-white hover:bg-black/90"
+              className="rounded-md"
             >
               Aplicar filtros
             </Button>

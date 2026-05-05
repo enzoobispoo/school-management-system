@@ -20,13 +20,13 @@ export function SettingsShell({
     <DashboardLayout>
       <Header title={title} description={description} />
 
-      <div className="p-6">
-        <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-          <aside className="rounded-[28px] border border-border bg-card p-4 text-card-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <div className="p-5">
+        <div className="grid gap-5 lg:grid-cols-[200px_minmax(0,1fr)]">
+          <aside className="rounded-xl border border-border/60 bg-card p-3 text-card-foreground">
             <SettingsNav />
           </aside>
 
-          <section className="rounded-[28px] border border-border bg-card p-6 text-card-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <section className="rounded-xl border border-border/60 bg-card p-6 text-card-foreground">
             {children}
           </section>
         </div>

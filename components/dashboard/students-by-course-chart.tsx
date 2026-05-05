@@ -23,13 +23,10 @@ export function StudentsByCourseChart({
   loading = false,
 }: StudentsByCourseChartProps) {
   return (
-    <div className="rounded-[24px] border border-border bg-card p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-card-foreground">
-      <div className="mb-6">
-        <p className="text-sm text-muted-foreground">
-          Distribuição
-        </p>
-
-        <h3 className="text-[28px] font-semibold tracking-[-0.04em] text-foreground">
+    <div className="rounded-xl border border-border/60 bg-card p-5 text-card-foreground">
+      <div className="mb-4">
+        <p className="text-[13px] text-muted-foreground">Distribuição</p>
+        <h3 className="mt-0.5 text-[15px] font-semibold tracking-tight text-foreground">
           Alunos por curso
         </h3>
       </div>

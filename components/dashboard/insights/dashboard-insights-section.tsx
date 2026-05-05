@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, Info, TrendingDown, TrendingUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -52,6 +53,7 @@ export function DashboardInsightsSection({
   loading,
   onDismiss,
 }: DashboardInsightsSectionProps) {
+  const router = useRouter();
   if (loading) {
     return (
       <div className="mb-6 grid gap-4 lg:grid-cols-2">
@@ -114,14 +116,10 @@ export function DashboardInsightsSection({
                       size="sm"
                       className="rounded-xl border border-black/10 bg-black text-white hover:bg-black/90 dark:border-white/10 dark:bg-white dark:text-black dark:hover:bg-white/90"
                       onClick={() => {
-                        if (
-                          insight.action?.href === "/financeiro?tab=overdue"
-                        ) {
-                          window.dispatchEvent(
-                            new CustomEvent("openChargeStudentsModal")
-                          );
+                        if (insight.action?.href === "/financeiro?tab=overdue") {
+                          window.dispatchEvent(new CustomEvent("openChargeStudentsModal"));
                         } else {
-                          window.location.href = insight.action?.href || "/";
+                          router.push(insight.action?.href || "/");
                         }
                       }}
                     >

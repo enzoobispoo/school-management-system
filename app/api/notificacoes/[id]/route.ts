@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { updateNotificacaoSchema } from "@/lib/validations/notificacao"
+import { getCurrentUser, requireSchool } from "@/lib/auth";
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -8,10 +9,15 @@ interface RouteContext {
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
     const { id } = await context.params
 
-    const notificacao = await prisma.notificacao.findUnique({
-      where: { id },
+    const notificacao = await prisma.notificacao.findFirst({
+      where: { id, schoolId },
     })
 
     if (!notificacao) {
@@ -33,6 +39,11 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
     const { id } = await context.params
     const body = await request.json()
 
@@ -48,8 +59,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       )
     }
 
-    const notificacaoExistente = await prisma.notificacao.findUnique({
-      where: { id },
+    const notificacaoExistente = await prisma.notificacao.findFirst({
+      where: { id, schoolId },
       select: { id: true },
     })
 
@@ -77,10 +88,15 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
     const { id } = await context.params
 
-    const notificacao = await prisma.notificacao.findUnique({
-      where: { id },
+    const notificacao = await prisma.notificacao.findFirst({
+      where: { id, schoolId },
       select: { id: true },
     })
 

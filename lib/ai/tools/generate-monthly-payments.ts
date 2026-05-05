@@ -5,7 +5,8 @@ type GenerateMonthlyPaymentsToolArgs = {
 };
 
 export async function generateMonthlyPaymentsTool(
-  args: GenerateMonthlyPaymentsToolArgs
+  args: GenerateMonthlyPaymentsToolArgs,
+  schoolIdFromContext?: string | null
 ) {
-  return generateMonthlyPayments(!!args.confirmed);
+  return generateMonthlyPayments(!!args.confirmed, schoolIdFromContext);
 }

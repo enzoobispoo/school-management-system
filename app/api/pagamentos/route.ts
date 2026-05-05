@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma, StatusPagamento } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createPagamentoSchema } from "@/lib/validations/pagamento";
+import { getCurrentUser, requireSchool } from "@/lib/auth";
 
 function getComputedPaymentStatus(pagamento: {
   status: string;
@@ -40,6 +41,12 @@ function resolveStatus(
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
+
     const { searchParams } = new URL(request.url);
 
     const paymentId = searchParams.get("paymentId")?.trim() || "";
@@ -205,6 +212,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
+
     const body = await request.json();
     const parsed = createPagamentoSchema.safeParse(body);
 
@@ -221,7 +234,8 @@ export async function POST(request: NextRequest) {
     const data = parsed.data;
 
     const matricula = await prisma.matricula.findUnique({
-      where: { id: data.matriculaId },
+      where: {
+          schoolId, id: data.matriculaId },
       include: {
         aluno: true,
         turma: {
@@ -254,6 +268,7 @@ export async function POST(request: NextRequest) {
 
     const pagamento = await prisma.pagamento.create({
       data: {
+        schoolId,
         matriculaId: data.matriculaId,
         competenciaMes: data.competenciaMes,
         competenciaAno: data.competenciaAno,
@@ -286,6 +301,7 @@ export async function POST(request: NextRequest) {
     if (pagamento.status === "PAGO") {
       await prisma.notificacao.create({
         data: {
+        schoolId,
           tipo: "PAGAMENTO_CONFIRMADO",
           titulo: "Pagamento registrado",
           mensagem: `Pagamento de ${pagamento.matricula.aluno.nome} foi registrado com sucesso.`,
@@ -298,6 +314,7 @@ export async function POST(request: NextRequest) {
     if (pagamento.status === "ATRASADO") {
       await prisma.notificacao.create({
         data: {
+        schoolId,
           tipo: "PAGAMENTO_ATRASADO",
           titulo: "Pagamento em atraso",
           mensagem: `Pagamento de ${pagamento.matricula.aluno.nome} está em atraso.`,

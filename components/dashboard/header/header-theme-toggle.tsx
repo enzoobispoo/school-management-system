@@ -32,7 +32,7 @@ export function HeaderThemeToggle() {
     <button
       onClick={toggle}
       title={theme === "light" ? "Ativar modo escuro" : "Ativar modo claro"}
-      className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition hover:bg-muted"
+      className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
     >
       {theme === "light" ? (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

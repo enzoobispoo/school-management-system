@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Calendar, UserCircle } from "lucide-react";
 import { ChangeTeacherButton } from "../change-teacher/change-teacher-button";
 import { ChangeTeacherHistoryModal } from "../history/change-teacher-history-modal";
@@ -20,9 +21,9 @@ export function TurmaCard({ turma, onTeacherChanged }: Props) {
         <div className="mb-6 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <h3 className="truncate text-lg font-semibold text-foreground">
+              <Link href={`/turmas/${turma.id}`} className="truncate text-lg font-semibold text-foreground hover:underline">
                 {turma.name}
-              </h3>
+              </Link>
 
               <span
                 className={

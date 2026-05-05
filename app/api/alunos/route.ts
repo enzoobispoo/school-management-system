@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createAlunoSchema } from "@/lib/validations/aluno";
-import { Prisma } from "@prisma/client";
+import { Prisma, StatusMatricula } from "@prisma/client";
+import { getCurrentUser, requireSchool } from "@/lib/auth";
 
 function getComputedPaymentStatus(pagamento: {
   status: string;
@@ -23,12 +24,19 @@ function getComputedPaymentStatus(pagamento: {
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
+
     const { searchParams } = new URL(request.url);
 
     const id = searchParams.get("id")?.trim() || "";
     const search = searchParams.get("search")?.trim() || "";
     const status = searchParams.get("status")?.trim();
     const courseId = searchParams.get("courseId")?.trim() || "";
+    const turmaId = searchParams.get("turmaId")?.trim() || "";
     const matriculaStatus = searchParams.get("matriculaStatus")?.trim() || "";
     const recent = searchParams.get("recent") === "true";
     const page = Math.max(Number(searchParams.get("page") || "1"), 1);
@@ -55,22 +63,13 @@ export async function GET(request: NextRequest) {
             },
           }
         : {}),
-      ...(courseId || matriculaStatus
+      ...(courseId || turmaId || matriculaStatus
         ? {
             matriculas: {
               some: {
-                ...(courseId
-                  ? {
-                      turma: {
-                        cursoId: courseId,
-                      },
-                    }
-                  : {}),
-                ...(matriculaStatus
-                  ? {
-                      status: matriculaStatus as any,
-                    }
-                  : {}),
+                ...(courseId ? { turma: { cursoId: courseId } } : {}),
+                ...(turmaId ? { turmaId } : {}),
+                ...(matriculaStatus ? { status: matriculaStatus as StatusMatricula } : {}),
               },
             },
           }
@@ -158,11 +157,37 @@ export async function GET(request: NextRequest) {
         responsavelNome: aluno.responsavelNome,
         responsavelTelefone: aluno.responsavelTelefone,
         responsavelEmail: aluno.responsavelEmail,
+        responsavelCpf: aluno.responsavelCpf,
         dataNascimento: aluno.dataNascimento,
         endereco: aluno.endereco,
         status: aluno.status,
         createdAt: aluno.createdAt,
         updatedAt: aluno.updatedAt,
+        possuiLaudo: aluno.possuiLaudo,
+        laudoTipo: aluno.laudoTipo,
+        laudoCid: aluno.laudoCid,
+        laudoNivel: aluno.laudoNivel,
+        laudoProfissional: aluno.laudoProfissional,
+        laudoData: aluno.laudoData,
+        laudoDescricao: aluno.laudoDescricao,
+        adaptacaoNecessaria: aluno.adaptacaoNecessaria,
+        adaptacaoDescricao: aluno.adaptacaoDescricao,
+        alergias: aluno.alergias,
+        medicamentos: aluno.medicamentos,
+        condicoesCronicas: aluno.condicoesCronicas,
+        planoSaude: aluno.planoSaude,
+        contatoEmergenciaNome: aluno.contatoEmergenciaNome,
+        contatoEmergenciaTelefone: aluno.contatoEmergenciaTelefone,
+        observacoesMedicas: aluno.observacoesMedicas,
+        observacoesProf: aluno.observacoesProf,
+        tratamentos: aluno.tratamentos,
+        fotoUrl: aluno.fotoUrl,
+        observacoesGerais: aluno.observacoesGerais,
+        indicacao: aluno.indicacao,
+        nivelInicial: aluno.nivelInicial,
+        idiomaNativo: aluno.idiomaNativo,
+        motivoSaida: aluno.motivoSaida,
+        dataSaida: aluno.dataSaida,
         cursos,
         matriculas: aluno.matriculas.map((matricula) => ({
           id: matricula.id,
@@ -220,14 +245,27 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
+
     const body = await request.json();
     const parsed = createAlunoSchema.safeParse(body);
 
     if (!parsed.success) {
+      const fieldErrors = parsed.error.flatten().fieldErrors;
+      const firstField = Object.keys(fieldErrors)[0];
+      const firstMessage = firstField
+        ? (fieldErrors as Record<string, string[]>)[firstField]?.[0]
+        : undefined;
+
       return NextResponse.json(
         {
-          error: "Dados inválidos",
-          details: parsed.error.flatten(),
+          error: firstMessage || "Dados inválidos",
+          field: firstField,
+          details: fieldErrors,
         },
         { status: 400 }
       );
@@ -235,6 +273,7 @@ export async function POST(request: NextRequest) {
 
     const aluno = await prisma.aluno.create({
       data: {
+        schoolId,
         nome: parsed.data.nome,
         email: parsed.data.email || null,
         cpf: parsed.data.cpf?.replace(/\D/g, "") || null,
@@ -243,14 +282,33 @@ export async function POST(request: NextRequest) {
         endereco: parsed.data.endereco || null,
         status: parsed.data.status,
         responsavelNome: parsed.data.responsavelNome || null,
-        responsavelTelefone:
-          parsed.data.responsavelTelefone?.replace(/\D/g, "") || null,
+        responsavelTelefone: parsed.data.responsavelTelefone?.replace(/\D/g, "") || null,
         responsavelEmail: parsed.data.responsavelEmail || null,
+        responsavelCpf: parsed.data.responsavelCpf?.replace(/\D/g, "") || null,
+        possuiLaudo: parsed.data.possuiLaudo ?? false,
+        laudoDescricao: parsed.data.laudoDescricao || null,
+        laudoCid: parsed.data.laudoCid || null,
+        laudoTipo: parsed.data.laudoTipo || null,
+        laudoNivel: parsed.data.laudoNivel || null,
+        laudoProfissional: parsed.data.laudoProfissional || null,
+        laudoData: parsed.data.laudoData ? new Date(parsed.data.laudoData) : null,
+        alergias: parsed.data.alergias || null,
+        medicamentos: parsed.data.medicamentos || null,
+        condicoesCronicas: parsed.data.condicoesCronicas || null,
+        planoSaude: parsed.data.planoSaude || null,
+        contatoEmergenciaNome: parsed.data.contatoEmergenciaNome || null,
+        contatoEmergenciaTelefone: parsed.data.contatoEmergenciaTelefone || null,
+        adaptacaoNecessaria: parsed.data.adaptacaoNecessaria ?? false,
+        adaptacaoDescricao: parsed.data.adaptacaoDescricao || null,
+        observacoesMedicas: parsed.data.observacoesMedicas || null,
+        observacoesProf: parsed.data.observacoesProf || null,
+        tratamentos: parsed.data.tratamentos || null,
       },
     });
 
     await prisma.notificacao.create({
       data: {
+        schoolId,
         tipo: "NOVO_ALUNO",
         titulo: "Novo aluno cadastrado",
         mensagem: `${aluno.nome} foi cadastrado no sistema.`,

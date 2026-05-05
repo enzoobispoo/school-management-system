@@ -88,8 +88,8 @@ export function CourseModal({
     <Dialog
       open={currentOpen}
       onOpenChange={(next) => {
-        setCurrentOpen(next);
         if (!next) closeModal();
+        else setCurrentOpen(true);
       }}
     >
       {!hideTrigger ? (

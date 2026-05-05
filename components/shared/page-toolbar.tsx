@@ -17,14 +17,14 @@ export function PageToolbar({
 }: PageToolbarProps) {
   return (
     <div
-      className={`mb-6 rounded-[28px] border border-border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${className}`}
+      className={`mb-5 rounded-xl border border-border/60 bg-card ${className}`}
     >
       <div className="flex flex-col gap-5 p-6">
         {(title || description || actions) && (
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div>
               {title ? (
-                <h2 className="text-[28px] font-semibold tracking-[-0.03em] text-foreground">
+                <h2 className="text-[15px] font-semibold tracking-tight text-foreground">
                   {title}
                 </h2>
               ) : null}

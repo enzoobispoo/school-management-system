@@ -8,6 +8,7 @@ import {
   TipoEnvioCobranca,
 } from "@prisma/client";
 import { createCobrancaEnvioLog } from "@/lib/services/cobranca-envio-log";
+import { getCurrentUser, requireSchool } from "@/lib/auth";
 
 function formatCompetence(month: number, year: number) {
   return `${String(month).padStart(2, "0")}/${year}`;
@@ -32,6 +33,9 @@ function canSendReminder(
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+
     const { paymentId } = await request.json();
 
     if (!paymentId) {
@@ -110,6 +114,7 @@ export async function POST(request: NextRequest) {
       const result = await sendWhatsAppMessage({
         to: destinoTelefone,
         message,
+        schoolId: pagamento.matricula.schoolId,
       });
 
       await createCobrancaEnvioLog({

@@ -9,7 +9,18 @@ function formatCurrency(value: number) {
   })}`;
 }
 
-export async function getMonthlyRevenue(): Promise<AiActionResult> {
+export async function getMonthlyRevenue(
+  schoolId?: string | null
+): Promise<AiActionResult> {
+  const sid = schoolId?.trim();
+  if (!sid) {
+    return {
+      message:
+        "Não foi possível identificar a escola. Faça login com um usuário vinculado a uma escola.",
+      suggestions: getFinanceSuggestions(),
+    };
+  }
+
   const hoje = new Date();
   const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
   const fimMes = new Date(
@@ -24,6 +35,7 @@ export async function getMonthlyRevenue(): Promise<AiActionResult> {
   const receitaRecebidaNoMes = await prisma.pagamento.aggregate({
     _sum: { valor: true },
     where: {
+      schoolId: sid,
       status: "PAGO",
       dataPagamento: {
         gte: inicioMes,

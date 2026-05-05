@@ -8,6 +8,7 @@ interface Props {
   weekDays: Date[];
   events: CalendarEvent[];
   onSlotClick: (day: Date, hour: number) => void;
+  onDayClick?: (day: Date) => void;
   onEventClick: (event: CalendarEvent) => void;
 }
 
@@ -15,6 +16,7 @@ export function CalendarGrid({
   weekDays,
   events,
   onSlotClick,
+  onDayClick,
   onEventClick,
 }: Props) {
   return (
@@ -28,7 +30,9 @@ export function CalendarGrid({
           return (
             <div
               key={day.toISOString()}
-              className="border-r border-border px-4 py-3 last:border-r-0"
+              className="cursor-pointer border-r border-border px-4 py-3 last:border-r-0 hover:bg-muted/30 transition-colors"
+              onClick={() => onDayClick?.(day)}
+              title="Criar evento neste dia"
             >
               <div className="text-xs font-medium text-muted-foreground">
                 {day.getDate()} - {WEEK_DAYS[day.getDay()]}
@@ -72,7 +76,7 @@ export function CalendarGrid({
                 <div
                   key={hour}
                   onClick={() => onSlotClick(day, hour)}
-                  className="h-20 cursor-pointer border-b border-border transition hover:bg-white/[0.03]"
+                  className="h-20 cursor-pointer border-b border-border transition hover:bg-muted/30"
                 />
               ))}
 

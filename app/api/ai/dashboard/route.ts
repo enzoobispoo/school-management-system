@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { registerAiAudit } from "@/lib/ai/audit";
-import { classifyIntent } from "@/lib/ai/classifier";
+import { classifyIntent, classifyIntentLocally } from "@/lib/ai/classifier";
+import { incrementSchoolAiUsage } from "@/lib/ai/school-ai-settings";
+import { resolveSchoolAiForUser, type ResolvedSchoolAi } from "@/lib/ai/resolve-school-ai";
 import { normalizeConversationContext } from "@/lib/ai/conversation-context";
 import { listTopCourses } from "@/lib/ai/actions/list-top-courses";
 import { resolveLocalFollowUp } from "@/lib/ai/follow-up";
@@ -62,38 +63,17 @@ function normalizeConversationMessages(input: unknown): ConversationMessage[] {
     .slice(-10);
 }
 
-async function resolveOpenAiConfig(user: {
-  openaiApiKey?: string | null;
-}) {
-  const systemSetting = await prisma.systemSetting.findUnique({
-    where: { id: "default" },
-    select: {
-      aiProviderMode: true,
-      openaiApiKey: true,
-      aiMonthlyLimit: true,
-      aiUsageCount: true,
-    },
-  });
-
-  const providerMode = systemSetting?.aiProviderMode ?? "PLATFORM";
-
-  let apiKey = "";
-
-  if (providerMode === "CUSTOM") {
-    apiKey =
-      systemSetting?.openaiApiKey?.trim() || user.openaiApiKey?.trim() || "";
-  } else {
-    apiKey =
-      process.env.OPENAI_API_KEY?.trim() ||
-      systemSetting?.openaiApiKey?.trim() ||
-      "";
+function messageWhenOpenAiUnavailable(schoolAi: ResolvedSchoolAi | null) {
+  if (!schoolAi) {
+    return "Não foi possível carregar o contexto da escola para a EduIA.";
   }
-
-  return {
-    providerMode,
-    apiKey,
-    systemSetting,
-  };
+  if (schoolAi.tier === "starter") {
+    return "Seu plano Starter usa a EduIA integrada (sem OpenAI): posso responder com dados do sistema — alunos, pagamentos, inadimplência, eventos e receitas. Sugestões abaixo.";
+  }
+  if (schoolAi.limitExceeded) {
+    return `O limite mensal de mensagens com IA do seu plano foi atingido (${schoolAi.usageCount}/${schoolAi.monthlyLimit}). Você ainda pode usar as consultas rápidas sugeridas abaixo.`;
+  }
+  return "Para usar a EduIA com OpenAI, cadastre a chave da API em Configurações → IA e integrações.";
 }
 
 export async function POST(request: NextRequest) {
@@ -121,10 +101,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { providerMode, apiKey } = await resolveOpenAiConfig(user);
+    const schoolAi = await resolveSchoolAiForUser(user);
+    const client =
+      schoolAi?.useOpenAi &&
+      schoolAi.apiKey &&
+      !schoolAi.limitExceeded &&
+      schoolAi.monthlyLimit > 0
+        ? new OpenAI({ apiKey: schoolAi.apiKey })
+        : null;
 
-    const client = apiKey ? new OpenAI({ apiKey }) : null;
-
+    let openAiCalls = 0;
     let resultMessage = "";
     let executed = false;
     let suggestions:
@@ -175,12 +161,15 @@ export async function POST(request: NextRequest) {
     }
 
     const classification = client
-      ? await classifyIntent(client, message)
-      : { intent: "CHAT" as const, confidence: 0 };
+      ? await (async () => {
+          openAiCalls += 1;
+          return classifyIntent(client, message);
+        })()
+      : classifyIntentLocally(message);
 
     switch (classification.intent) {
       case "TOTAL_STUDENTS": {
-        const result = await getTotalStudents();
+        const result = await getTotalStudents(user.schoolId);
         resultMessage = result.message;
         suggestions = result.suggestions;
         executed = !!result.executed;
@@ -188,7 +177,7 @@ export async function POST(request: NextRequest) {
       }
 
       case "TOTAL_ACTIVE_STUDENTS": {
-        const result = await getTotalActiveStudents();
+        const result = await getTotalActiveStudents(user.schoolId);
         resultMessage = result.message;
         suggestions = result.suggestions;
         executed = !!result.executed;
@@ -196,7 +185,7 @@ export async function POST(request: NextRequest) {
       }
 
       case "MONTHLY_REVENUE": {
-        const result = await getMonthlyRevenue();
+        const result = await getMonthlyRevenue(user.schoolId);
         resultMessage = result.message;
         suggestions = result.suggestions;
         executed = !!result.executed;
@@ -204,7 +193,7 @@ export async function POST(request: NextRequest) {
       }
 
       case "MONTHLY_FINANCIAL_SUMMARY": {
-        const result = await getMonthlyFinancialSummary();
+        const result = await getMonthlyFinancialSummary(user.schoolId);
         resultMessage = result.message;
         suggestions = result.suggestions;
         executed = !!result.executed;
@@ -212,7 +201,7 @@ export async function POST(request: NextRequest) {
       }
 
       case "TOP_COURSES": {
-        const result = await listTopCourses();
+        const result = await listTopCourses(user.schoolId);
         resultMessage = result.message;
         suggestions = [
           {
@@ -230,7 +219,7 @@ export async function POST(request: NextRequest) {
       }
 
       case "UPCOMING_EVENTS": {
-        const result = await getUpcomingEvents();
+        const result = await getUpcomingEvents(user.schoolId);
         resultMessage = result.message;
         suggestions = result.suggestions;
         executed = !!result.executed;
@@ -238,7 +227,7 @@ export async function POST(request: NextRequest) {
       }
 
       case "LIST_OVERDUE_STUDENTS": {
-        const result = await listOverdueStudents();
+        const result = await listOverdueStudents(user.schoolId);
         resultMessage = result.message;
         suggestions = result.suggestions;
         executed = !!result.executed;
@@ -246,7 +235,7 @@ export async function POST(request: NextRequest) {
       }
 
       case "LIST_OVERDUE_PAYMENTS": {
-        const result = await listOverduePayments();
+        const result = await listOverduePayments(user.schoolId);
         resultMessage = result.message;
         suggestions = result.suggestions;
         executed = !!result.executed;
@@ -256,7 +245,8 @@ export async function POST(request: NextRequest) {
 
       case "GENERATE_MONTHLY_PAYMENTS": {
         const result = await generateMonthlyPayments(
-          isConfirmationMessage(message, "confirmar geração de mensalidades")
+          isConfirmationMessage(message, "confirmar geração de mensalidades"),
+          user.schoolId
         );
         resultMessage = result.message;
         suggestions = result.suggestions;
@@ -266,7 +256,10 @@ export async function POST(request: NextRequest) {
 
       case "MARK_PAYMENT_PAID": {
         const params = client
-          ? await extractPaymentActionParams(client, message)
+          ? await (async () => {
+              openAiCalls += 1;
+              return extractPaymentActionParams(client, message);
+            })()
           : {
               studentName: message,
               paymentMethod: "",
@@ -276,6 +269,7 @@ export async function POST(request: NextRequest) {
           studentName: params.studentName,
           paymentMethod: params.paymentMethod,
           confirmed: isConfirmationMessage(message, "confirmar pagamento"),
+          schoolId: user.schoolId,
         });
 
         resultMessage = result.message;
@@ -286,10 +280,7 @@ export async function POST(request: NextRequest) {
 
       default: {
         if (!client) {
-          resultMessage =
-            providerMode === "CUSTOM"
-              ? "A EduIA está configurada para usar uma chave própria, mas nenhuma chave válida foi encontrada nas Configurações de IA."
-              : "A EduIA está sem a chave da plataforma no momento, mas ainda posso responder consultas operacionais como alunos, pagamentos, inadimplência, eventos e receitas.";
+          resultMessage = messageWhenOpenAiUnavailable(schoolAi);
 
           suggestions = [
             {
@@ -314,10 +305,12 @@ export async function POST(request: NextRequest) {
         }
 
         try {
+          openAiCalls += 1;
           resultMessage = await runAiWithTools({
             client,
             message,
             conversationMessages,
+            schoolId: user.schoolId,
           });
           suggestions = [
             {
@@ -361,6 +354,10 @@ export async function POST(request: NextRequest) {
       response: resultMessage,
       executed,
     });
+
+    if (openAiCalls > 0 && user.schoolId) {
+      await incrementSchoolAiUsage(user.schoolId, openAiCalls);
+    }
 
     return NextResponse.json({
       message: resultMessage,

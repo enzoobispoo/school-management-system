@@ -19,9 +19,9 @@ function startOfToday() {
   return date;
 }
 
-export async function sendAutomaticOverdueReminders() {
+export async function sendAutomaticOverdueReminders(schoolId: string) {
   const school = await prisma.escolaSettings.findUnique({
-    where: { id: "default" },
+    where: { schoolId },
     select: {
       enviarLembreteAuto: true,
     },
@@ -41,6 +41,7 @@ export async function sendAutomaticOverdueReminders() {
 
   const pagamentos = await prisma.pagamento.findMany({
     where: {
+      schoolId,
       status: {
         in: ["PENDENTE", "ATRASADO"],
       },
@@ -117,6 +118,7 @@ export async function sendAutomaticOverdueReminders() {
       const result = await sendWhatsAppMessage({
         to: destinoTelefone,
         message,
+        schoolId,
       });
 
       await prisma.pagamento.update({

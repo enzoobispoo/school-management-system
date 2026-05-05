@@ -6,11 +6,23 @@ function formatDateTime(date: Date | string) {
   return new Date(date).toLocaleString("pt-BR");
 }
 
-export async function getUpcomingEvents(): Promise<AiActionResult> {
+export async function getUpcomingEvents(
+  schoolId?: string | null
+): Promise<AiActionResult> {
+  const sid = schoolId?.trim();
+  if (!sid) {
+    return {
+      message:
+        "Não foi possível identificar a escola. Faça login com um usuário vinculado a uma escola.",
+      suggestions: getDefaultSuggestions(),
+    };
+  }
+
   const hoje = new Date();
 
   const proximosEventos = await prisma.evento.findMany({
     where: {
+      schoolId: sid,
       dataInicio: { gte: hoje },
       ativo: true,
     },

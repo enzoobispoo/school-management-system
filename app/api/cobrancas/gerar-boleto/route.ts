@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUserFromRequest } from "@/lib/auth/current-user";
+import { getCurrentUser, requireSchool } from "@/lib/auth";
 import { createBoleto } from "@/lib/billing/provider";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { buildPaymentReminderMessage } from "@/lib/templates/payment-reminder";
@@ -33,11 +33,14 @@ function hasExistingBoleto(payment: {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUserFromRequest(request);
+    const user = await getCurrentUser();
 
     if (!user) {
       return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     }
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
 
     const body = await request.json();
     const { paymentId } = body as { paymentId?: string };
@@ -49,8 +52,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const payment = await prisma.pagamento.findUnique({
-      where: { id: paymentId },
+    const payment = await prisma.pagamento.findFirst({
+      where: { id: paymentId, schoolId },
       include: {
         matricula: {
           include: {
@@ -98,7 +101,7 @@ export async function POST(request: NextRequest) {
     const aluno = payment.matricula.aluno;
 
     const school = await prisma.escolaSettings.findUnique({
-      where: { id: "default" },
+      where: { schoolId },
       select: {
         multaAtrasoPercentual: true,
         jurosMensalPercentual: true,
@@ -161,6 +164,7 @@ export async function POST(request: NextRequest) {
           const result = await sendWhatsAppMessage({
             to: destinoTelefone,
             message,
+            schoolId,
           });
 
           await createCobrancaEnvioLog({

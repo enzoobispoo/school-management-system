@@ -22,6 +22,7 @@ interface CalendarPageContentProps {
   openAdvancedFilters: () => void;
   hasAdvancedFilters: boolean;
   handleCalendarClick: (day: Date, hour: number) => void;
+  handleDayClick: (day: Date) => void;
   openEventDetails: (event: CalendarEvent) => void;
 }
 
@@ -39,6 +40,7 @@ export function CalendarPageContent({
   openAdvancedFilters,
   hasAdvancedFilters,
   handleCalendarClick,
+  handleDayClick,
   openEventDetails,
 }: CalendarPageContentProps) {
   return (
@@ -64,6 +66,7 @@ export function CalendarPageContent({
           weekDays={weekDays}
           events={filteredEvents}
           onSlotClick={handleCalendarClick}
+          onDayClick={handleDayClick}
           onEventClick={openEventDetails}
         />
       )}

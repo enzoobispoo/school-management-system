@@ -21,6 +21,21 @@ export function FinancialSettingsSection() {
       <div className="grid gap-4 md:grid-cols-2">
         <div className="grid gap-2">
           <label className="text-sm font-medium text-foreground">
+            Meta mensal (R$)
+          </label>
+          <Input
+            type="number"
+            step="0.01"
+            value={form.metaMensal}
+            onChange={(e) => updateField("metaMensal", e.target.value)}
+            placeholder="Ex: 10000"
+            className="h-11 rounded-2xl"
+            disabled={loading}
+          />
+        </div>
+
+        <div className="grid gap-2">
+          <label className="text-sm font-medium text-foreground">
             Dia padrão de vencimento
           </label>
           <Input
@@ -114,7 +129,7 @@ export function FinancialSettingsSection() {
         <Button
           onClick={handleSave}
           disabled={saving || loading}
-          className="h-11 rounded-2xl bg-black px-5 text-white hover:bg-black/90 dark:border dark:border-white/10 dark:bg-white/10 dark:backdrop-blur-md dark:hover:bg-white/20"
+          className="h-8 rounded-md px-4"
         >
           {saving ? "Salvando..." : "Salvar alterações"}
         </Button>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, requireSchool } from "@/lib/auth";
 
 function monthLabel(month: number) {
   const labels = [
@@ -21,6 +22,14 @@ function monthLabel(month: number) {
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    }
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
+
     const { searchParams } = new URL(request.url);
 
     const year = Number(searchParams.get("year") || new Date().getFullYear());
@@ -28,6 +37,7 @@ export async function GET(request: NextRequest) {
 
     const pagamentos = await prisma.pagamento.findMany({
       where: {
+          schoolId,
         status: {
           in: ["PAGO", "PENDENTE", "ATRASADO"],
         },
@@ -59,6 +69,7 @@ export async function GET(request: NextRequest) {
 
     const matriculas = await prisma.matricula.findMany({
       where: {
+          schoolId,
         ...(courseCategory !== "all"
           ? {
               turma: {
@@ -69,11 +80,15 @@ export async function GET(request: NextRequest) {
             }
           : {}),
       },
-      include: {
-        aluno: true,
+      select: {
+        status: true,
+        dataMatricula: true,
+        updatedAt: true,
         turma: {
-          include: {
-            curso: true,
+          select: {
+            curso: {
+              select: { nome: true },
+            },
           },
         },
       },
@@ -124,11 +139,9 @@ export async function GET(request: NextRequest) {
       }).length;
 
       const cancelados = matriculas.filter((m) => {
-        const updatedAt =
-          "updatedAt" in m ? new Date((m as any).updatedAt) : null;
+        const updatedAt = new Date(m.updatedAt);
         return (
-          m.status?.toUpperCase?.() === "CANCELADA" &&
-          updatedAt &&
+          m.status === "CANCELADA" &&
           updatedAt.getFullYear() === year &&
           updatedAt.getMonth() + 1 === month
         );
@@ -187,7 +200,7 @@ export async function GET(request: NextRequest) {
         : 0;
 
     const activeMatriculas = matriculas.filter(
-      (m) => m.status?.toUpperCase?.() !== "CANCELADA"
+      (m) => m.status !== "CANCELADA"
     ).length;
 
     const retentionRate =
@@ -200,7 +213,9 @@ export async function GET(request: NextRequest) {
     );
     const averageTicket = paidCount > 0 ? totalPaidValue / paidCount : 0;
 
-    const metaMensal = 90000;
+    const settings = await prisma.escolaSettings.findUnique({ where: { id: "default" }, select: { metaMensal: true } });
+    const metaMensal = settings?.metaMensal ? Number(settings.metaMensal) : 0;
+
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();

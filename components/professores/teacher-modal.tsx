@@ -59,6 +59,7 @@ export function TeacherModal({
     closeModal,
     handleSubmit,
     formatPhone,
+    guardClose,
   } = useTeacherModal({
     open,
     onOpenChange,
@@ -86,8 +87,8 @@ export function TeacherModal({
     <Dialog
       open={currentOpen}
       onOpenChange={(next) => {
-        setCurrentOpen(next);
         if (!next) closeModal();
+        else setCurrentOpen(true);
       }}
     >
       {!hideTrigger ? (

@@ -103,7 +103,7 @@ export function DashboardSettingsSection() {
         <Button
           onClick={handleSave}
           disabled={saving || loading}
-          className="h-11 rounded-2xl bg-black px-5 text-white hover:bg-black/90 dark:border dark:border-white/10 dark:bg-white/10 dark:backdrop-blur-md dark:hover:bg-white/20"
+          className="h-8 rounded-md px-4"
         >
           {saving ? "Salvando..." : "Salvar alterações"}
         </Button>

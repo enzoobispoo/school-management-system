@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useUnsavedChanges } from "@/hooks/shared/use-unsaved-changes";
 
 interface CourseFormData {
   nome: string;
@@ -31,6 +32,14 @@ interface UseCourseModalParams {
   }) => Promise<void>;
 }
 
+const emptyForm: CourseFormData = {
+  nome: "",
+  categoria: "",
+  duracaoTexto: "",
+  valorMensal: "",
+  descricao: "",
+};
+
 export function useCourseModal({
   open,
   onOpenChange,
@@ -41,13 +50,11 @@ export function useCourseModal({
 
   const [internalOpen, setInternalOpen] = useState(false);
   const [error, setError] = useState("");
-  const [form, setForm] = useState<CourseFormData>({
-    nome: "",
-    categoria: "",
-    duracaoTexto: "",
-    valorMensal: "",
-    descricao: "",
-  });
+  const [form, setForm] = useState<CourseFormData>(emptyForm);
+  const [initialForm, setInitialForm] = useState<CourseFormData>(emptyForm);
+
+  const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm);
+  const { guardClose } = useUnsavedChanges(isDirty);
 
   const currentOpen = isControlled ? open : internalOpen;
 
@@ -61,7 +68,7 @@ export function useCourseModal({
 
   useEffect(() => {
     if (currentOpen) {
-      setForm({
+      const filled: CourseFormData = {
         nome: initialData?.nome ?? "",
         categoria: initialData?.categoria ?? "",
         duracaoTexto: initialData?.duracaoTexto ?? "",
@@ -70,7 +77,9 @@ export function useCourseModal({
             ? String(initialData.valorMensal)
             : "",
         descricao: initialData?.descricao ?? "",
-      });
+      };
+      setForm(filled);
+      setInitialForm(filled);
       setError("");
     }
   }, [currentOpen, initialData]);
@@ -80,19 +89,16 @@ export function useCourseModal({
   }
 
   function resetForm() {
-    setForm({
-      nome: "",
-      categoria: "",
-      duracaoTexto: "",
-      valorMensal: "",
-      descricao: "",
-    });
+    setForm(emptyForm);
+    setInitialForm(emptyForm);
     setError("");
   }
 
   function closeModal() {
-    setCurrentOpen(false);
-    resetForm();
+    guardClose(() => {
+      setCurrentOpen(false);
+      resetForm();
+    });
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -148,5 +154,7 @@ export function useCourseModal({
     updateField,
     closeModal,
     handleSubmit,
+    isDirty,
+    guardClose,
   };
 }

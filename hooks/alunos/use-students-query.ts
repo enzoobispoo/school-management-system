@@ -15,10 +15,40 @@ export interface StudentTableItem {
   guardianName?: string;
   guardianPhone?: string;
   guardianEmail?: string;
+  guardianCpf?: string;
   paymentStatus: StudentPaymentStatus;
   enrollmentDate: string;
   address?: string;
   birthDate?: string;
+  fotoUrl?: string;
+  alunoStatus?: string;
+  motivoSaida?: string;
+  dataSaida?: string;
+  observacoesGerais?: string;
+  indicacao?: string;
+  nivelInicial?: string;
+  idiomaNativo?: string;
+  health?: {
+    possuiLaudo: boolean;
+    laudoTipo?: string;
+    laudoCid?: string;
+    laudoNivel?: string;
+    laudoProfissional?: string;
+    laudoData?: string;
+    laudoDataRaw?: string;
+    laudoDescricao?: string;
+    adaptacaoNecessaria: boolean;
+    adaptacaoDescricao?: string;
+    alergias?: string;
+    medicamentos?: string;
+    condicoesCronicas?: string;
+    planoSaude?: string;
+    contatoEmergenciaNome?: string;
+    contatoEmergenciaTelefone?: string;
+    observacoesMedicas?: string;
+    observacoesProf?: string;
+    tratamentos?: string;
+  };
   financialHistory?: {
     id?: string;
     date: string;
@@ -39,8 +69,35 @@ interface AlunosResponse {
     responsavelNome: string | null;
     responsavelTelefone: string | null;
     responsavelEmail: string | null;
+    responsavelCpf: string | null;
     endereco: string | null;
     cursos: string[];
+    status: string;
+    fotoUrl: string | null;
+    observacoesGerais: string | null;
+    indicacao: string | null;
+    nivelInicial: string | null;
+    idiomaNativo: string | null;
+    motivoSaida: string | null;
+    dataSaida: string | null;
+    possuiLaudo: boolean;
+    laudoTipo: string | null;
+    laudoCid: string | null;
+    laudoNivel: string | null;
+    laudoProfissional: string | null;
+    laudoData: string | null;
+    laudoDescricao: string | null;
+    adaptacaoNecessaria: boolean;
+    adaptacaoDescricao: string | null;
+    alergias: string | null;
+    medicamentos: string | null;
+    condicoesCronicas: string | null;
+    planoSaude: string | null;
+    contatoEmergenciaNome: string | null;
+    contatoEmergenciaTelefone: string | null;
+    observacoesMedicas: string | null;
+    observacoesProf: string | null;
+    tratamentos: string | null;
     matriculas: Array<{
       id: string;
       status: string;
@@ -104,14 +161,42 @@ function normalizeStudents(
       guardianName: aluno.responsavelNome ?? undefined,
       guardianPhone: aluno.responsavelTelefone ?? undefined,
       guardianEmail: aluno.responsavelEmail ?? undefined,
+      guardianCpf: aluno.responsavelCpf ?? undefined,
       paymentStatus,
       enrollmentDate: aluno.matriculas[0]?.dataMatricula
         ? formatDate(aluno.matriculas[0].dataMatricula)
         : "-",
       address: aluno.endereco ?? undefined,
-      birthDate: aluno.dataNascimento
-        ? formatDate(aluno.dataNascimento)
-        : undefined,
+      birthDate: aluno.dataNascimento ? formatDate(aluno.dataNascimento) : undefined,
+      fotoUrl: aluno.fotoUrl ?? undefined,
+      alunoStatus: aluno.status ?? undefined,
+      observacoesGerais: aluno.observacoesGerais ?? undefined,
+      indicacao: aluno.indicacao ?? undefined,
+      nivelInicial: aluno.nivelInicial ?? undefined,
+      idiomaNativo: aluno.idiomaNativo ?? undefined,
+      motivoSaida: aluno.motivoSaida ?? undefined,
+      dataSaida: aluno.dataSaida ? new Date(aluno.dataSaida).toLocaleDateString("pt-BR") : undefined,
+      health: {
+        possuiLaudo: aluno.possuiLaudo,
+        laudoTipo: aluno.laudoTipo ?? undefined,
+        laudoCid: aluno.laudoCid ?? undefined,
+        laudoNivel: aluno.laudoNivel ?? undefined,
+        laudoProfissional: aluno.laudoProfissional ?? undefined,
+        laudoData: aluno.laudoData ? formatDate(aluno.laudoData) : undefined,
+        laudoDataRaw: aluno.laudoData ? new Date(aluno.laudoData).toISOString().slice(0, 10) : undefined,
+        laudoDescricao: aluno.laudoDescricao ?? undefined,
+        adaptacaoNecessaria: aluno.adaptacaoNecessaria,
+        adaptacaoDescricao: aluno.adaptacaoDescricao ?? undefined,
+        alergias: aluno.alergias ?? undefined,
+        medicamentos: aluno.medicamentos ?? undefined,
+        condicoesCronicas: aluno.condicoesCronicas ?? undefined,
+        planoSaude: aluno.planoSaude ?? undefined,
+        contatoEmergenciaNome: aluno.contatoEmergenciaNome ?? undefined,
+        contatoEmergenciaTelefone: aluno.contatoEmergenciaTelefone ?? undefined,
+        observacoesMedicas: aluno.observacoesMedicas ?? undefined,
+        observacoesProf: aluno.observacoesProf ?? undefined,
+        tratamentos: aluno.tratamentos ?? undefined,
+      },
       financialHistory: aluno.pagamentos.map((pagamento) => ({
         id: pagamento.id,
         date: pagamento.dataPagamento
@@ -138,6 +223,7 @@ function normalizeStudents(
 export function useStudentsQuery() {
   const searchParams = useSearchParams();
   const courseId = searchParams.get("courseId") || "";
+  const turmaId = searchParams.get("turmaId") || "";
   const selectedId = searchParams.get("id") || "";
   const matriculaStatus = searchParams.get("matriculaStatus") || "";
   const recent = searchParams.get("recent") || "";
@@ -173,6 +259,7 @@ export function useStudentsQuery() {
       if (search.trim()) params.set("search", search.trim());
       if (statusQuery) params.set("status", statusQuery);
       if (courseId) params.set("courseId", courseId);
+      if (turmaId) params.set("turmaId", turmaId);
       if (matriculaStatus) params.set("matriculaStatus", matriculaStatus);
       if (recent) params.set("recent", recent);
 
@@ -199,17 +286,8 @@ export function useStudentsQuery() {
     const timeout = setTimeout(() => {
       fetchStudents();
     }, 350);
-
     return () => clearTimeout(timeout);
-  }, [
-    page,
-    search,
-    statusQuery,
-    courseId,
-    selectedId,
-    matriculaStatus,
-    recent,
-  ]);
+  }, [page, search, statusQuery, courseId, turmaId, selectedId, matriculaStatus, recent]);
 
   return {
     students,
