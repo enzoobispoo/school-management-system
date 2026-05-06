@@ -16,7 +16,7 @@ function formatRoleLabel(role: string) {
 }
 
 function canManageInvites(role: string) {
-  return role === "SUPER_ADMIN" || role === "ADMIN";
+  return role === "SUPER_ADMIN";
 }
 
 export async function POST(request: NextRequest) {
@@ -26,10 +26,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
     }
 
-    if (currentUser.role === "ADMIN" && !currentUser.schoolId) {
-      return NextResponse.json({ error: "Escola não associada." }, { status: 403 });
-    }
-
     const body = await request.json();
     const inviteId =
       typeof body?.inviteId === "string" ? body.inviteId.trim() : "";
@@ -37,18 +33,13 @@ export async function POST(request: NextRequest) {
       .trim()
       .toLowerCase();
 
-    const schoolFilter =
-      currentUser.role === "ADMIN" && currentUser.schoolId
-        ? { schoolId: currentUser.schoolId }
-        : {};
-
     const conviteAnterior = inviteId
       ? await prisma.userInvite.findFirst({
-          where: { id: inviteId, usedAt: null, ...schoolFilter },
+          where: { id: inviteId, usedAt: null },
         })
       : email
         ? await prisma.userInvite.findFirst({
-            where: { email, usedAt: null, ...schoolFilter },
+            where: { email, usedAt: null },
             orderBy: { createdAt: "desc" },
           })
         : null;

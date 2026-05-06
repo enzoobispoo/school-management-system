@@ -24,10 +24,7 @@ const superAdminItems = [
   { href: "/configuracoes/usuarios", label: "Usuários" },
 ];
 
-const adminItems = [
-  { href: "/configuracoes/usuarios/convites", label: "Convites" },
-  { href: "/configuracoes/ia", label: "IA e integrações" },
-];
+const adminItems = [{ href: "/configuracoes/ia", label: "IA e integrações" }];
 
 export function SettingsNav() {
   const pathname = usePathname();
@@ -64,8 +61,6 @@ export function SettingsNav() {
           pathname === item.href ||
           (item.href === "/configuracoes/usuarios" &&
             pathname.startsWith("/configuracoes/usuarios")) ||
-          (item.href === "/configuracoes/usuarios/convites" &&
-            pathname.startsWith("/configuracoes/usuarios/convites")) ||
           (item.href === "/configuracoes/ia" && pathname.startsWith("/configuracoes/ia"));
 
         return (

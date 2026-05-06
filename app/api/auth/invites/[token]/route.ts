@@ -32,14 +32,38 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     }
 
     const targetSchoolId = invite.schoolId ?? "default_school";
-    const school = await getOrCreateSchoolSetting(targetSchoolId);
+    const schoolSettings = await getOrCreateSchoolSetting(targetSchoolId);
+
+    let planNome: string | null = null;
+    let planSlug: string | null = null;
+    if (invite.schoolId) {
+      const schoolMeta = await prisma.school.findUnique({
+        where: { id: invite.schoolId },
+        select: {
+          plano: true,
+          subscriptions: {
+            where: { status: "ATIVA" },
+            take: 1,
+            orderBy: { dataInicio: "desc" },
+            select: {
+              plan: { select: { nome: true, slug: true } },
+            },
+          },
+        },
+      });
+      const active = schoolMeta?.subscriptions[0]?.plan;
+      planNome = active?.nome ?? schoolMeta?.plano ?? null;
+      planSlug = active?.slug ?? schoolMeta?.plano ?? null;
+    }
 
     return NextResponse.json({
       invite: {
         email: invite.email,
         role: invite.role,
-        schoolName: school.nomeEscola,
+        schoolName: schoolSettings.nomeEscola,
         expiresAt: invite.expiresAt,
+        planNome,
+        planSlug,
       },
     });
   } catch (error) {

@@ -1,13 +1,6 @@
-import { SettingsShell } from "@/components/configuracoes/settings-shell";
-import { UserInvitesSection } from "@/components/configuracoes/sections/user-invites-section";
+import { redirect } from "next/navigation";
 
-export default function ConfiguracoesUsuariosConvitesPage() {
-  return (
-    <SettingsShell
-      title="Usuários"
-      description="Gerencie usuários, permissões e convites do sistema."
-    >
-      <UserInvitesSection />
-    </SettingsShell>
-  );
+/** Convites de acesso são geridos em Configurações do painel admin (super admin). */
+export default function ConvitesRedirectPage() {
+  redirect("/admin/configuracoes?tab=convites");
 }

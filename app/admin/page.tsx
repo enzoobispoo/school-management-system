@@ -4,13 +4,13 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Building2, Users, GraduationCap, DollarSign,
-  LogOut, RefreshCw, TrendingUp, TrendingDown, AlertTriangle, BookOpen, BarChart3,
+  Building2,
+  LogOut, RefreshCw, TrendingUp, TrendingDown, BarChart3,
   Moon, Sun, Settings2,
 } from "lucide-react";
 import {
-  AreaChart, Area, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 
 /* ─── Types ─────────────────────────────────────────────────── */
@@ -25,6 +25,7 @@ interface Metricas {
   inadimplentes: number; taxaInadimplencia: number;
   receitaPeriodo: number; receitaVariacao: number; receitaPrevPeriodo: number;
   ticketMedio: number;
+  mrrAtual: number;
 }
 
 interface DashboardData {
@@ -34,14 +35,13 @@ interface DashboardData {
   planos: { plano: string; total: number }[];
   topSchools: {
     id: string; nome: string; slug: string; plano: string; ativo: boolean; createdAt: string;
-    _count: { alunos: number; matriculas: number; users: number };
   }[];
 }
 
 /* ─── Helpers ────────────────────────────────────────────────── */
+const NUM = (v: number) => new Intl.NumberFormat("pt-BR").format(v);
 const BRL = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
-const NUM = (v: number) => new Intl.NumberFormat("pt-BR").format(v);
 
 const PERIOD_LABELS: Record<Period, string> = {
   "7d": "7 dias", "30d": "30 dias", "90d": "90 dias", "12m": "12 meses", "ytd": "Este ano",
@@ -261,6 +261,13 @@ export default function AdminDashboard() {
           ))}
         </div>
 
+        {/* IMPORTANTE: manter este container visível no dashboard admin */}
+        <div
+          id="admin-dashboard-container"
+          data-testid="admin-dashboard-container"
+          className="mb-3 rounded-2xl bg-muted/40 p-5 sm:p-6 shadow-md"
+          style={{ border: "2px solid color-mix(in oklab, currentColor 20%, transparent)" }}
+        >
         {/* Loading skeleton */}
         {loading && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -293,79 +300,29 @@ export default function AdminDashboard() {
               </span>
             </div>
 
-            {/* Row 1 — 4 main KPIs */}
+            {/* Empresa */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard label="Escolas ativas" value={NUM(m.activeSchools)}
+              <StatCard label="Total de escolas" value={NUM(m.totalSchools)}
                 delta={m.newVariacao} deltaLabel={dl}
-                sub={`${NUM(m.newInPeriod)} novas no período · ${NUM(m.totalSchools)} total`}
+                sub={`${NUM(m.newInPeriod)} novas no período`}
                 icon={Building2} />
-              <StatCard label="Alunos cadastrados" value={NUM(m.totalAlunos)}
-                delta={m.alunosVariacao} deltaLabel={dl}
-                sub={`${NUM(m.newAlunosInPeriod)} novos no período`}
-                icon={GraduationCap} />
-              <StatCard label="Receita no período" value={BRL(m.receitaPeriodo)}
-                delta={m.receitaVariacao} deltaLabel={dl}
-                sub={`Período anterior: ${BRL(m.receitaPrevPeriodo)}`}
-                icon={DollarSign} />
-              <StatCard label="Matrículas ativas" value={NUM(m.activeMatriculas)}
-                sub={`${NUM(m.totalMatriculas)} total · ${NUM(m.inadimplentes)} inadimplentes`}
-                icon={BookOpen} />
+              <StatCard label="Escolas pagantes" value={NUM(m.totalUsers)}
+                sub={`${NUM(m.activeMatriculas)} assinaturas ativas`} icon={Building2} />
+              <StatCard label="MRR atual" value={BRL(m.mrrAtual)}
+                sub="Soma das assinaturas ativas" icon={BarChart3} />
+              <StatCard label="Ticket médio / escola" value={BRL(m.ticketMedio)}
+                sub="MRR dividido por escolas pagantes" icon={TrendingUp} />
             </div>
 
-            {/* Row 2 — 4 secondary KPIs */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard label="Usuários na plataforma" value={NUM(m.totalUsers)}
-                sub="Excluindo super admins" icon={Users} />
-              <StatCard label="Ticket médio/matrícula" value={BRL(m.ticketMedio)}
-                sub="Receita período ÷ matrículas ativas" icon={DollarSign} />
-              <StatCard label="Taxa de inadimplência" value={`${m.taxaInadimplencia}%`}
-                sub={`${NUM(m.inadimplentes)} pagamentos atrasados`}
-                icon={AlertTriangle} warn={m.taxaInadimplencia > 20} />
-              <StatCard label="Escolas inativas" value={NUM(m.inactiveSchools)}
-                sub={`de ${NUM(m.totalSchools)} total`} icon={Building2} />
-            </div>
-
-            {/* Row 3 — Charts */}
-            <div className="grid lg:grid-cols-2 gap-4">
-
-              {/* Receita */}
+            {/* Crescimento de escolas */}
+            <div className="grid lg:grid-cols-1 gap-4">
               <div className="rounded-xl border border-border/60 bg-card p-5">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <p className="text-sm font-medium text-foreground">Receita</p>
+                    <p className="text-sm font-medium text-foreground">Receita de novos contratos</p>
                     <p className="text-xs text-muted-foreground">{PERIOD_LABELS[period]}</p>
                   </div>
                   <span className="text-sm font-semibold text-foreground">{BRL(m.receitaPeriodo)}</span>
-                </div>
-                <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={data.chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="gReceita" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={fg} stopOpacity={0.15} />
-                        <stop offset="95%" stopColor={fg} stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={border} />
-                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: fgMuted }}
-                      axisLine={false} tickLine={false}
-                      interval={data.chartData.length > 15 ? Math.floor(data.chartData.length / 8) : 0} />
-                    <YAxis tick={{ fontSize: 10, fill: fgMuted }}
-                      axisLine={false} tickLine={false}
-                      tickFormatter={(v) => v >= 1000 ? `R$${(v/1000).toFixed(0)}k` : `R$${v}`} />
-                    <Tooltip {...tt} formatter={(v: number) => [BRL(v), "Receita"]} />
-                    <Area type="monotone" dataKey="receita" stroke={fg}
-                      strokeWidth={2} fill="url(#gReceita)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Crescimento */}
-              <div className="rounded-xl border border-border/60 bg-card p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Crescimento</p>
-                    <p className="text-xs text-muted-foreground">Novas escolas e alunos · {PERIOD_LABELS[period]}</p>
-                  </div>
                 </div>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={data.chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
@@ -376,10 +333,7 @@ export default function AdminDashboard() {
                     <YAxis tick={{ fontSize: 10, fill: fgMuted }}
                       axisLine={false} tickLine={false} allowDecimals={false} />
                     <Tooltip {...tt} />
-                    <Legend wrapperStyle={{ fontSize: 11, color: fgMuted }} />
-                    <Bar dataKey="escolas" name="Escolas" fill={fg} radius={[3,3,0,0]} />
-                    <Bar dataKey="alunos" name="Alunos" fill={fgMuted}
-                      radius={[3,3,0,0]} opacity={0.6} />
+                    <Bar dataKey="receita" name="Receita" fill={fg} radius={[3,3,0,0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -440,7 +394,7 @@ export default function AdminDashboard() {
                           }`}>{school.ativo ? "Ativa" : "Inativa"}</span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {school._count.alunos} alunos · {school._count.matriculas} matrículas · {school._count.users} usuários
+                          {school.slug}
                         </p>
                       </div>
                       <div className="shrink-0 ml-3 text-right">
@@ -481,9 +435,7 @@ export default function AdminDashboard() {
                       {school.plano}
                     </span>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    {school.slug} · {school._count.users} usuários · {school._count.alunos} alunos · {school._count.matriculas} matrículas
-                  </p>
+                  <p className="text-sm text-muted-foreground mt-0.5">{school.slug}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Criada em {new Date(school.createdAt).toLocaleDateString("pt-BR")}
                   </p>
@@ -496,6 +448,7 @@ export default function AdminDashboard() {
             ))}
           </div>
         )}
+        </div>
       </main>
     </div>
   );

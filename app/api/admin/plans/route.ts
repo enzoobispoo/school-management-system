@@ -11,21 +11,28 @@ function slugify(text: string) {
 }
 
 export async function GET(request: NextRequest) {
-  const user = await getCurrentUserFromRequest(request);
-  if (!user || user.role !== "SUPER_ADMIN") {
-    return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+  try {
+    const user = await getCurrentUserFromRequest(request);
+    if (!user || user.role !== "SUPER_ADMIN") {
+      return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+    }
+
+    const plans = await prisma.plan.findMany({
+      orderBy: { preco: "asc" },
+      include: { _count: { select: { subscriptions: { where: { status: "ATIVA" } } } } },
+    });
+
+    return NextResponse.json(
+      plans.map((p) => ({
+        ...p,
+        preco: Number(p.preco),
+        assinantesAtivos: p._count.subscriptions,
+      }))
+    );
+  } catch (e) {
+    console.error("GET /api/admin/plans:", e);
+    return NextResponse.json({ error: "Erro ao listar planos." }, { status: 500 });
   }
-
-  const plans = await prisma.plan.findMany({
-    orderBy: { preco: "asc" },
-    include: { _count: { select: { subscriptions: { where: { status: "ATIVA" } } } } },
-  });
-
-  return NextResponse.json(plans.map(p => ({
-    ...p,
-    preco: Number(p.preco),
-    assinantesAtivos: p._count.subscriptions,
-  })));
 }
 
 export async function POST(request: NextRequest) {

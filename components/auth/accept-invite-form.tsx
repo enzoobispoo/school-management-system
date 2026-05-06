@@ -15,6 +15,8 @@ interface InviteResponse {
     role: "ADMIN" | "FINANCEIRO" | "SECRETARIA" | "PROFESSOR";
     schoolName: string;
     expiresAt: string;
+    planNome: string | null;
+    planSlug: string | null;
   };
   error?: string;
 }
@@ -154,6 +156,11 @@ export function AcceptInviteForm({ token }: AcceptInviteFormProps) {
             Convite para <strong>{invite?.email}</strong> •{" "}
             {formatRole(invite?.role)}
           </p>
+          {invite?.planSlug && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Plano: {invite.planNome ?? invite.planSlug}
+            </p>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="grid gap-4">

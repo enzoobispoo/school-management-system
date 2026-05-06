@@ -1,14 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   BarChart3,
   Building2,
   CreditCard,
   Landmark,
   LogOut,
+  Mail,
   MessageCircle,
   Moon,
   RefreshCw,
@@ -24,8 +25,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { effectiveAiMonthlyLimit, type PlanTier } from "@/lib/school-plan";
+import { AdminConvitesTab } from "@/components/admin/admin-convites-tab";
 
-type Tab = "usuarios" | "financeiro" | "planos";
+type Tab = "usuarios" | "convites" | "financeiro" | "planos";
 
 type SchoolRow = {
   id: string;
@@ -81,12 +83,14 @@ const ROLE_LABEL: Record<string, string> = {
   PROFESSOR: "Professor",
 };
 
-export default function AdminConfiguracoesPage() {
+function AdminConfiguracoesPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const dark = useTheme();
   const [userName, setUserName] = useState("");
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [tab, setTab] = useState<Tab>("usuarios");
+  const [convitesNonce, setConvitesNonce] = useState(0);
   const [notice, setNotice] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   const [schools, setSchools] = useState<SchoolRow[]>([]);
@@ -125,11 +129,19 @@ export default function AdminConfiguracoesPage() {
 
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [plansLoading, setPlansLoading] = useState(false);
+  const [plansError, setPlansError] = useState<string | null>(null);
   const [planDrafts, setPlanDrafts] = useState<Record<string, { preco: string; limiteAlunos: string; limiteTurmas: string; limiteUsuarios: string }>>({});
 
   useEffect(() => {
     setTheme(dark ? "dark" : "light");
   }, [dark]);
+
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t === "usuarios" || t === "convites" || t === "financeiro" || t === "planos") {
+      setTab(t);
+    }
+  }, [searchParams]);
 
   function toggleTheme() {
     const next = theme === "light" ? "dark" : "light";
@@ -210,9 +222,16 @@ export default function AdminConfiguracoesPage() {
 
   const loadPlans = useCallback(async () => {
     setPlansLoading(true);
+    setPlansError(null);
     try {
       const r = await fetch("/api/admin/plans");
-      if (!r.ok) return;
+      if (!r.ok) {
+        const errBody = await r.json().catch(() => ({}));
+        const msg =
+          typeof errBody?.error === "string" ? errBody.error : "Erro ao carregar planos.";
+        setPlansError(msg);
+        return;
+      }
       const list: PlanRow[] = await r.json();
       setPlans(list);
       const next: Record<string, { preco: string; limiteAlunos: string; limiteTurmas: string; limiteUsuarios: string }> = {};
@@ -229,6 +248,12 @@ export default function AdminConfiguracoesPage() {
       setPlansLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (tab === "convites" && plans.length === 0 && !plansLoading) {
+      loadPlans();
+    }
+  }, [tab, plans.length, plansLoading, loadPlans]);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -369,6 +394,7 @@ export default function AdminConfiguracoesPage() {
 
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: "usuarios", label: "Usuários", icon: Users },
+    { id: "convites", label: "Convites", icon: Mail },
     { id: "financeiro", label: "Integrações (escola)", icon: Wallet },
     { id: "planos", label: "Planos", icon: CreditCard },
   ];
@@ -389,10 +415,10 @@ export default function AdminConfiguracoesPage() {
           <div className="flex items-center gap-2 shrink-0">
             <Link
               href="/admin"
-              className="hidden sm:inline-flex h-8 items-center gap-1.5 rounded-xl border border-border px-3 text-xs font-medium text-muted-foreground hover:bg-accent transition"
+              className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-border px-3 text-xs font-medium text-muted-foreground hover:bg-accent transition"
             >
               <BarChart3 className="h-3.5 w-3.5" />
-              Visão geral
+              Voltar ao dashboard
             </Link>
             <button
               type="button"
@@ -406,6 +432,11 @@ export default function AdminConfiguracoesPage() {
               type="button"
               onClick={() => {
                 if (tab === "usuarios") loadUsers();
+                if (tab === "convites") {
+                  setConvitesNonce((n) => n + 1);
+                  loadSchools();
+                  loadPlans();
+                }
                 if (tab === "financeiro" && finSchoolId) loadFinanceiro(finSchoolId);
                 if (tab === "planos") loadPlans();
               }}
@@ -435,7 +466,7 @@ export default function AdminConfiguracoesPage() {
         <div className="mb-6">
           <h1 className="text-xl font-semibold text-foreground">Configurações da plataforma</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Usuários das escolas, integrações por escola (Asaas, OpenAI, Twilio) e preços dos planos.
+            Usuários, convites de acesso, integrações por escola (Asaas, OpenAI, Twilio) e preços dos planos.
           </p>
         </div>
 
@@ -468,6 +499,22 @@ export default function AdminConfiguracoesPage() {
             </button>
           ))}
         </div>
+
+        {/* Painel único das abas — manter este wrapper */}
+        <div className="rounded-2xl border border-border/60 bg-card p-6 sm:p-8 shadow-sm ring-1 ring-black/5 dark:ring-white/10">
+        {tab === "convites" && (
+          <AdminConvitesTab
+            key={convitesNonce}
+            schools={schools}
+            plans={plans}
+            plansLoading={plansLoading}
+            plansError={plansError}
+            onReloadCatalog={() => {
+              loadSchools();
+              loadPlans();
+            }}
+          />
+        )}
 
         {tab === "usuarios" && (
           <section className="rounded-xl border border-border/60 bg-card p-5 space-y-4">
@@ -972,7 +1019,16 @@ export default function AdminConfiguracoesPage() {
             </p>
           </section>
         )}
+        </div>
       </main>
     </div>
+  );
+}
+
+export default function AdminConfiguracoesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background p-8 text-sm text-muted-foreground">Carregando…</div>}>
+      <AdminConfiguracoesPageInner />
+    </Suspense>
   );
 }

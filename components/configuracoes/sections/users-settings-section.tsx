@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SettingsFeedback } from "@/components/configuracoes/shared/settings-feedback";
@@ -72,19 +71,11 @@ export function UsersSettingsSection() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Usuários</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Gerencie perfis e acesso ao sistema.
-          </p>
-        </div>
-        <Link
-          href="/configuracoes/usuarios/convites"
-          className="rounded-2xl bg-black px-4 py-2 text-sm text-white hover:bg-black/90 dark:border dark:border-white/10 dark:bg-white/10 dark:backdrop-blur-md dark:hover:bg-white/20"
-        >
-          Novo convite
-        </Link>
+      <div>
+        <h2 className="text-lg font-semibold text-foreground">Usuários</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Gerencie perfis e acesso ao sistema.
+        </p>
       </div>
 
       {/* Busca e filtros */}

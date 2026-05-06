@@ -120,91 +120,105 @@ export async function GET(request: NextRequest) {
     const { start, end, prevStart, prevEnd, granularity, chartPoints } = bounds;
     const labels = buildChartLabels(period, bounds);
 
+    const schoolFilter = {
+      NOT: [
+        { plano: { equals: "teste", mode: "insensitive" as const } },
+        { slug: { contains: "teste", mode: "insensitive" as const } },
+        { slug: { contains: "test", mode: "insensitive" as const } },
+      ],
+    };
+
     const [
       totalSchools,
       activeSchools,
       newInPeriod,
       newInPrevPeriod,
-      totalUsers,
-      totalAlunos,
-      newAlunosInPeriod,
-      newAlunosInPrevPeriod,
-      totalMatriculas,
-      activeMatriculas,
-      inadimplentes,
-      receitaPeriodo,
-      receitaPeriodoAnterior,
-      pagamentosChart,
+      payingSchools,
+      activeSubscriptions,
+      mrrAtualAgg,
+      receitaPeriodoAgg,
+      receitaPeriodoAnteriorAgg,
+      subscriptionsChart,
       schoolsChart,
-      alunosChart,
       planosCounts,
       topSchools,
     ] = await Promise.all([
-      prisma.school.count(),
-      prisma.school.count({ where: { ativo: true } }),
-      prisma.school.count({ where: { createdAt: { gte: start, lte: end } } }),
-      prisma.school.count({ where: { createdAt: { gte: prevStart, lte: prevEnd } } }),
-      prisma.user.count({ where: { ativo: true, role: { not: "SUPER_ADMIN" } } }),
-      prisma.aluno.count(),
-      prisma.aluno.count({ where: { createdAt: { gte: start, lte: end } } }),
-      prisma.aluno.count({ where: { createdAt: { gte: prevStart, lte: prevEnd } } }),
-      prisma.matricula.count(),
-      prisma.matricula.count({ where: { status: "ATIVA" } }),
-      prisma.pagamento.count({ where: { status: "ATRASADO" } }),
-      prisma.pagamento.aggregate({
-        where: { status: "PAGO", dataPagamento: { gte: start, lte: end } },
-        _sum: { valor: true },
+      prisma.school.count({ where: schoolFilter }),
+      prisma.school.count({ where: { ...schoolFilter, ativo: true } }),
+      prisma.school.count({ where: { ...schoolFilter, createdAt: { gte: start, lte: end } } }),
+      prisma.school.count({ where: { ...schoolFilter, createdAt: { gte: prevStart, lte: prevEnd } } }),
+      prisma.schoolSubscription.groupBy({
+        by: ["schoolId"],
+        where: { status: "ATIVA", school: schoolFilter },
+      }).then((rows) => rows.length),
+      prisma.schoolSubscription.count({
+        where: { status: "ATIVA", school: schoolFilter },
       }),
-      prisma.pagamento.aggregate({
-        where: { status: "PAGO", dataPagamento: { gte: prevStart, lte: prevEnd } },
-        _sum: { valor: true },
+      prisma.schoolSubscription.aggregate({
+        where: { status: "ATIVA", school: schoolFilter },
+        _sum: { valorPago: true },
       }),
-      prisma.pagamento.findMany({
-        where: { status: "PAGO", dataPagamento: { gte: start, lte: end } },
-        select: { valor: true, dataPagamento: true },
+      prisma.schoolSubscription.aggregate({
+        where: {
+          status: "ATIVA",
+          school: schoolFilter,
+          dataInicio: { gte: start, lte: end },
+        },
+        _sum: { valorPago: true },
+      }),
+      prisma.schoolSubscription.aggregate({
+        where: {
+          status: "ATIVA",
+          school: schoolFilter,
+          dataInicio: { gte: prevStart, lte: prevEnd },
+        },
+        _sum: { valorPago: true },
+      }),
+      prisma.schoolSubscription.findMany({
+        where: {
+          status: "ATIVA",
+          school: schoolFilter,
+          dataInicio: { gte: start, lte: end },
+        },
+        select: { valorPago: true, dataInicio: true },
       }),
       prisma.school.findMany({
-        where: { createdAt: { gte: start, lte: end } },
+        where: { ...schoolFilter, createdAt: { gte: start, lte: end } },
         select: { createdAt: true },
       }),
-      prisma.aluno.findMany({
-        where: { createdAt: { gte: start, lte: end } },
-        select: { createdAt: true },
-      }),
-      prisma.school.groupBy({ by: ["plano"], _count: { id: true } }),
+      prisma.school.groupBy({ by: ["plano"], where: schoolFilter, _count: { id: true } }),
       prisma.school.findMany({
+        where: schoolFilter,
         orderBy: { createdAt: "desc" },
         take: 10,
         select: {
           id: true, nome: true, slug: true, plano: true, ativo: true, createdAt: true,
-          _count: { select: { alunos: true, matriculas: true, users: true } },
         },
       }),
     ]);
 
     // Build chart data
-    const receitaItems = pagamentosChart
-      .filter(p => p.dataPagamento)
-      .map(p => ({ date: new Date(p.dataPagamento!), value: Number(p.valor) }));
-
+    const receitaItems = subscriptionsChart.map((s) => ({
+      date: new Date(s.dataInicio),
+      value: Number(s.valorPago),
+    }));
     const schoolItems = schoolsChart.map(s => ({ date: new Date(s.createdAt), value: 1 }));
-    const alunoItems  = alunosChart.map(a => ({ date: new Date(a.createdAt), value: 1 }));
 
     const bucket = granularity === "day" ? bucketByDay : bucketByMonth;
 
     const receitaBuckets = bucket(receitaItems, start, chartPoints);
     const schoolBuckets  = bucket(schoolItems, start, chartPoints);
-    const alunoBuckets   = bucket(alunoItems, start, chartPoints);
 
     const chartData = labels.map((label, i) => ({
       label,
       receita: receitaBuckets[i],
       escolas: schoolBuckets[i],
-      alunos:  alunoBuckets[i],
+      alunos: 0,
     }));
 
-    const receitaVal     = Number(receitaPeriodo._sum.valor ?? 0);
-    const receitaPrevVal = Number(receitaPeriodoAnterior._sum.valor ?? 0);
+    const receitaVal = Number(receitaPeriodoAgg._sum.valorPago ?? 0);
+    const receitaPrevVal = Number(receitaPeriodoAnteriorAgg._sum.valorPago ?? 0);
+    const mrrAtual = Number(mrrAtualAgg._sum.valorPago ?? 0);
 
     return NextResponse.json({
       period,
@@ -214,19 +228,19 @@ export async function GET(request: NextRequest) {
         inactiveSchools: totalSchools - activeSchools,
         newInPeriod,
         newVariacao: pct(newInPeriod, newInPrevPeriod),
-        totalUsers,
-        totalAlunos,
-        newAlunosInPeriod,
-        alunosVariacao: pct(newAlunosInPeriod, newAlunosInPrevPeriod),
-        totalMatriculas,
-        activeMatriculas,
-        inadimplentes,
-        taxaInadimplencia: totalMatriculas > 0
-          ? Number(((inadimplentes / totalMatriculas) * 100).toFixed(1)) : 0,
+        totalUsers: payingSchools,
+        totalAlunos: 0,
+        newAlunosInPeriod: 0,
+        alunosVariacao: 0,
+        totalMatriculas: activeSubscriptions,
+        activeMatriculas: activeSubscriptions,
+        inadimplentes: 0,
+        taxaInadimplencia: 0,
         receitaPeriodo: receitaVal,
         receitaVariacao: pct(receitaVal, receitaPrevVal),
         receitaPrevPeriodo: receitaPrevVal,
-        ticketMedio: activeMatriculas > 0 ? receitaVal / activeMatriculas : 0,
+        ticketMedio: payingSchools > 0 ? mrrAtual / payingSchools : 0,
+        mrrAtual,
       },
       chartData,
       planos: planosCounts.map(p => ({ plano: p.plano, total: p._count.id })),
