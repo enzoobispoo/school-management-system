@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Collapsible } from "@/components/ui/collapsible";
 import { Clock, Users } from "lucide-react";
@@ -60,7 +61,13 @@ export function CourseCard({
               <div className="flex flex-col gap-2">
                 <div className="flex items-start gap-2">
                   <h3 className="text-lg font-semibold text-foreground">
-                    {course.name}
+                    <Link
+                      href={`/cursos/${course.id}`}
+                      className="hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {course.name}
+                    </Link>
                   </h3>
 
                   {!course.active ? (

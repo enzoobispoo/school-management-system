@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendAutomaticOverdueReminders } from "@/lib/services/auto-payment-reminder";
 import { retryFailedCobrancas } from "@/lib/services/retry-failed-cobrancas";
+import { autoSuspendOverdueEnrollments } from "@/lib/services/auto-suspend-overdue-enrollments";
+import { enforceSubscriptionDelinquencyPolicy } from "@/lib/services/enforce-subscription-delinquency-policy";
+import { logFinanceAuditEvent } from "@/lib/services/finance-audit";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -27,9 +30,48 @@ export async function GET(request: NextRequest) {
 
     const results = await Promise.all(
       schools.map(async (school) => {
-        const overdueResult = await sendAutomaticOverdueReminders(school.id);
-        const retryResult = await retryFailedCobrancas(school.id);
-        return { schoolId: school.id, schoolNome: school.nome, overdueResult, retryResult };
+        try {
+          const overdueResult = await sendAutomaticOverdueReminders(school.id);
+          const retryResult = await retryFailedCobrancas(school.id);
+          const suspendResult = await autoSuspendOverdueEnrollments(school.id);
+          const subscriptionPolicyResult =
+            await enforceSubscriptionDelinquencyPolicy(school.id);
+
+          await logFinanceAuditEvent({
+            schoolId: school.id,
+            eventType: "CRON_COBRANCAS_ATRASADAS_EXECUTED",
+            source: "cron",
+            status: "success",
+            message: "Execução da rotina de cobrança atrasada concluída.",
+            payload: {
+              sentOverdue: overdueResult.sentCount,
+              retried: retryResult.retriedCount,
+              suspendedEnrollments: suspendResult.suspended,
+              subscriptionPolicyAffected: subscriptionPolicyResult.affected,
+            },
+          });
+
+          return {
+            schoolId: school.id,
+            schoolNome: school.nome,
+            overdueResult,
+            retryResult,
+            suspendResult,
+            subscriptionPolicyResult,
+          };
+        } catch (error) {
+          await logFinanceAuditEvent({
+            schoolId: school.id,
+            eventType: "CRON_COBRANCAS_ATRASADAS_FAILED",
+            source: "cron",
+            status: "failed",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Falha ao executar rotina de cobrança atrasada.",
+          });
+          throw error;
+        }
       })
     );
 

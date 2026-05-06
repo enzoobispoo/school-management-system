@@ -6,9 +6,11 @@ import { PaymentsTable } from "@/components/financeiro/payments-table";
 import { PaymentsTableSkeleton } from "@/components/financeiro/payments-table-skeleton";
 import { FinancialFiltersBar } from "@/components/financeiro/financial-filters-bar";
 import { FinancialPagination } from "@/components/financeiro/financial-pagination";
+import { FinancialAuditTrailCard } from "@/components/financeiro/financial-audit-trail-card";
 import type {
   PaymentTableItem,
   FinancialAdvancedMetrics,
+  FinancialAuditTrailItem,
 } from "@/hooks/financeiro/use-financial-query";
 
 interface FinancialPageContentProps {
@@ -43,6 +45,7 @@ interface FinancialPageContentProps {
     quantidadeAtrasados: number;
   };
   advancedMetrics: FinancialAdvancedMetrics;
+  auditTrail?: FinancialAuditTrailItem[];
   onGenerateMonthlyPayments: () => Promise<void>;
   onRegisterPayment: (payment: {
     id: string;
@@ -107,6 +110,8 @@ export function FinancialPageContent(props: FinancialPageContentProps) {
           taxaInadimplencia={advancedMetrics.taxaInadimplencia}
         />
       )}
+
+      {!loadingTotals ? <FinancialAuditTrailCard items={props.auditTrail ?? []} /> : null}
 
       <div className="mb-4 mt-6">
         <FinancialFiltersBar {...props} payments={payments} />

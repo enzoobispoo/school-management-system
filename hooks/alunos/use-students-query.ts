@@ -56,6 +56,15 @@ export interface StudentTableItem {
     amount: number;
     status: StudentPaymentStatus;
   }[];
+  situacaoResumo?: {
+    mediaGeral?: number | null;
+    frequenciaGeral?: number | null;
+    faltas: number;
+    totalNotas: number;
+    advertencias: number;
+    possuiObservacoes: boolean;
+    risco: "ok" | "atencao";
+  };
 }
 
 interface AlunosResponse {
@@ -122,6 +131,15 @@ interface AlunosResponse {
       competenciaMes: number;
       competenciaAno: number;
     }>;
+    situacaoResumo?: {
+      mediaGeral?: number | null;
+      frequenciaGeral?: number | null;
+      faltas: number;
+      totalNotas: number;
+      advertencias: number;
+      possuiObservacoes: boolean;
+      risco: "ok" | "atencao";
+    };
   }>;
   meta: {
     total: number;
@@ -216,6 +234,21 @@ function normalizeStudents(
             ? "pending"
             : "paid",
       })),
+      situacaoResumo: aluno.situacaoResumo
+        ? {
+            ...aluno.situacaoResumo,
+            mediaGeral:
+              aluno.situacaoResumo.mediaGeral !== null &&
+              aluno.situacaoResumo.mediaGeral !== undefined
+                ? Number(aluno.situacaoResumo.mediaGeral)
+                : null,
+            frequenciaGeral:
+              aluno.situacaoResumo.frequenciaGeral !== null &&
+              aluno.situacaoResumo.frequenciaGeral !== undefined
+                ? Number(aluno.situacaoResumo.frequenciaGeral)
+                : null,
+          }
+        : undefined,
     };
   });
 }
@@ -227,6 +260,7 @@ export function useStudentsQuery() {
   const selectedId = searchParams.get("id") || "";
   const matriculaStatus = searchParams.get("matriculaStatus") || "";
   const recent = searchParams.get("recent") || "";
+  const statusFromUrl = searchParams.get("status") || "";
 
   const [students, setStudents] = useState<StudentTableItem[]>([]);
   const [search, setSearch] = useState("");
@@ -245,6 +279,16 @@ export function useStudentsQuery() {
     if (statusFilter === "all") return "";
     return statusFilter;
   }, [statusFilter]);
+
+  useEffect(() => {
+    if (
+      statusFromUrl === "paid" ||
+      statusFromUrl === "pending" ||
+      statusFromUrl === "overdue"
+    ) {
+      setStatusFilter(statusFromUrl);
+    }
+  }, [statusFromUrl]);
 
   async function fetchStudents() {
     try {

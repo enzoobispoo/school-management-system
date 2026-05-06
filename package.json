@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "db:seed-plans": "node scripts/seed-plans.mjs",
+    "db:seed-demo-student": "node scripts/seed-demo-student.mjs",
+    "db:cleanup-demo-student": "node scripts/cleanup-demo-student.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {

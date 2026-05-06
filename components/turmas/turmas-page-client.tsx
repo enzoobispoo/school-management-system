@@ -21,6 +21,8 @@ export function TurmasPageClient() {
 
       <TurmasPageContent
         professorId={turmasPage.professorId}
+        ocupacao={turmasPage.ocupacao}
+        setOcupacaoFilter={turmasPage.setOcupacaoFilter}
         turmas={turmasPage.turmas}
         search={turmasPage.search}
         setSearch={turmasPage.setSearch}

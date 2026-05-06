@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 interface TurmasResponse {
   data: Array<{
@@ -119,10 +119,24 @@ function normalizeTurmas(apiData: TurmasResponse["data"]): TurmaCardItem[] {
 }
 
 export function useTurmasPage() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const professorId = searchParams.get("professorId") || "";
   const ativoParam = searchParams.get("ativo");
   const ocupacao = searchParams.get("ocupacao") || "";
+
+  const setOcupacaoFilter = useCallback(
+    (value: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("page");
+      if (!value || value === "todas") params.delete("ocupacao");
+      else params.set("ocupacao", value);
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
 
   const [turmas, setTurmas] = useState<TurmaCardItem[]>([]);
   const [search, setSearch] = useState("");
@@ -160,6 +174,9 @@ export function useTurmasPage() {
       if (search.trim()) params.set("search", search.trim());
       if (professorId) params.set("professorId", professorId);
       if (ativoQuery) params.set("ativo", ativoQuery);
+      if (ocupacao === "lotadas" || ocupacao === "ociosas") {
+        params.set("ocupacao", ocupacao);
+      }
 
       const response = await fetch(`/api/turmas?${params.toString()}`, {
         method: "GET",
@@ -171,15 +188,7 @@ export function useTurmasPage() {
       }
 
       const result: TurmasResponse = await response.json();
-      let normalized = normalizeTurmas(result.data);
-
-      if (ocupacao === "lotadas") {
-        normalized = normalized.filter((turma) => turma.occupied >= turma.capacity);
-      }
-
-      if (ocupacao === "ociosas") {
-        normalized = normalized.filter((turma) => turma.available > 0);
-      }
+      const normalized = normalizeTurmas(result.data);
 
       setTurmas(normalized);
       setMeta(result.meta);
@@ -212,6 +221,8 @@ export function useTurmasPage() {
 
   return {
     professorId,
+    ocupacao,
+    setOcupacaoFilter,
     turmas,
     search,
     setSearch,

@@ -64,10 +64,13 @@ export function useFinancialPage() {
     modals.openGenerateBoleto(payment);
   }
 
-  async function handleGenerateBoleto(paymentIds: string[]) {
+  async function handleGenerateBoleto(
+    paymentIds: string[],
+    method: "boleto" | "pix" | "card" = "boleto"
+  ) {
     try {
       query.setError("");
-      await actions.handleGenerateBoletoBatch(paymentIds);
+      await actions.handleGenerateBoletoBatch(paymentIds, method);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Erro ao gerar boleto";

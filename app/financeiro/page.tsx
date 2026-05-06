@@ -90,8 +90,8 @@ export default function FinanceiroPage() {
             status: p.status,
           }))}
         generating={financialPage.actionLoadingId === "batch-boleto"}
-        onGenerate={async (paymentIds) => {
-          await financialPage.handleGenerateBoleto(paymentIds);
+        onGenerate={async (paymentIds, method) => {
+          await financialPage.handleGenerateBoleto(paymentIds, method);
           financialPage.closeGenerateBoleto();
         }}
       />

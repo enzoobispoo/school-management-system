@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createAlunoSchema } from "@/lib/validations/aluno";
 import { Prisma, StatusMatricula } from "@prisma/client";
 import { getCurrentUser, requireSchool } from "@/lib/auth";
+import { computeSituacaoRisco } from "@/lib/alunos/situacao-risco";
 
 function getComputedPaymentStatus(pagamento: {
   status: string;
@@ -129,6 +130,65 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    const matriculaIds = alunos.flatMap((a) => a.matriculas.map((m) => m.id));
+
+    let notasByMatricula = new Map<string, { media: number | null; totalNotas: number }>();
+    let faltasByMatricula = new Map<string, { faltas: number; presencas: number }>();
+    try {
+      if (matriculaIds.length > 0) {
+        const [notasRows, faltasRows] = await Promise.all([
+          prisma.notaAvaliacao.groupBy({
+            by: ["matriculaId"],
+            where: { schoolId, matriculaId: { in: matriculaIds } },
+            _avg: { nota: true },
+            _count: { id: true },
+          }),
+          prisma.presencaAula.groupBy({
+            by: ["matriculaId", "presente"],
+            where: { schoolId, matriculaId: { in: matriculaIds } },
+            _count: { id: true },
+          }),
+        ]);
+
+        notasByMatricula = new Map(
+          notasRows.map((r) => [
+            r.matriculaId,
+            { media: r._avg.nota ? Number(r._avg.nota) : null, totalNotas: r._count.id },
+          ])
+        );
+
+        for (const r of faltasRows) {
+          const curr = faltasByMatricula.get(r.matriculaId) || { faltas: 0, presencas: 0 };
+          if (r.presente) curr.presencas += r._count.id;
+          else curr.faltas += r._count.id;
+          faltasByMatricula.set(r.matriculaId, curr);
+        }
+      }
+    } catch {
+      // Fallback seguro caso tabelas acadêmicas ainda não existam no banco.
+    }
+
+    const alunoIds = alunos.map((a) => a.id);
+    let advertenciasByAluno = new Map<string, number>();
+    try {
+      if (alunoIds.length > 0) {
+        const rows = await prisma.alunoRegistro.groupBy({
+          by: ["alunoId"],
+          where: {
+            schoolId,
+            alunoId: { in: alunoIds },
+            tipo: "ADVERTENCIA",
+          },
+          _count: { id: true },
+        });
+        advertenciasByAluno = new Map(
+          rows.map((r) => [r.alunoId, r._count.id])
+        );
+      }
+    } catch {
+      // Tabela AlunoRegistro pode não existir em bancos sem migração.
+    }
+
     const data = alunos.map((aluno) => {
       const cursos = aluno.matriculas.map(
         (matricula) => matricula.turma.curso.nome
@@ -147,6 +207,43 @@ export async function GET(request: NextRequest) {
           competenciaAno: pagamento.competenciaAno,
         }))
       );
+
+      const stats = aluno.matriculas.reduce(
+        (acc, matricula) => {
+          const nota = notasByMatricula.get(matricula.id);
+          const freq = faltasByMatricula.get(matricula.id);
+          if (nota?.media !== null && nota?.media !== undefined) {
+            acc.mediaSum += Number(nota.media);
+            acc.mediaCount += 1;
+            acc.totalNotas += nota.totalNotas;
+          }
+          if (freq) {
+            acc.faltas += freq.faltas;
+            acc.presencas += freq.presencas;
+          }
+          return acc;
+        },
+        { mediaSum: 0, mediaCount: 0, totalNotas: 0, faltas: 0, presencas: 0 }
+      );
+
+      const mediaGeral =
+        stats.mediaCount > 0 ? stats.mediaSum / stats.mediaCount : null;
+      const totalChamadas = stats.presencas + stats.faltas;
+      const frequenciaGeral =
+        totalChamadas > 0 ? (stats.presencas / totalChamadas) * 100 : null;
+      const possuiObservacoes = Boolean(
+        aluno.observacoesGerais ||
+          aluno.observacoesProf ||
+          aluno.observacoesMedicas ||
+          aluno.laudoDescricao
+      );
+      const advertencias = advertenciasByAluno.get(aluno.id) ?? 0;
+      const risco = computeSituacaoRisco({
+        pagamentoStatuses: pagamentos.map((p) => p.status),
+        frequenciaGeral,
+        mediaGeral,
+        advertencias,
+      });
 
       return {
         id: aluno.id,
@@ -204,6 +301,15 @@ export async function GET(request: NextRequest) {
           },
         })),
         pagamentos,
+        situacaoResumo: {
+          mediaGeral,
+          frequenciaGeral,
+          faltas: stats.faltas,
+          totalNotas: stats.totalNotas,
+          advertencias,
+          possuiObservacoes,
+          risco,
+        },
       };
     });
 

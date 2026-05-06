@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,7 +10,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useNotificationsPolling } from "@/hooks/dashboard/use-notifications-polling";
+import { useNotificationsInbox } from "@/components/providers/notifications-inbox-provider";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 function formatRelativeTime(dateString: string) {
@@ -36,7 +36,7 @@ export function HeaderNotifications() {
     markAllAsRead,
     clearAll,
     clearHasNew,
-  } = useNotificationsPolling();
+  } = useNotificationsInbox();
 
   // limpa o flash quando o dropdown abre
   function handleOpenChange(open: boolean) {
@@ -104,7 +104,18 @@ export function HeaderNotifications() {
                 {!n.lida && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-foreground" />}
               </div>
               <p className="line-clamp-2 text-xs text-muted-foreground">{n.mensagem}</p>
-              <span className="text-[11px] text-muted-foreground">{formatRelativeTime(n.createdAt)}</span>
+              <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="text-[11px] text-muted-foreground">{formatRelativeTime(n.createdAt)}</span>
+                {n.linkHref ? (
+                  <Link
+                    href={n.linkHref}
+                    className="text-[11px] font-medium text-primary hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Abrir
+                  </Link>
+                ) : null}
+              </div>
             </DropdownMenuItem>
           ))
         )}

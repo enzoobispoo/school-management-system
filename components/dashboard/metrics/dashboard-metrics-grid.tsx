@@ -162,10 +162,10 @@ export function DashboardMetricsGrid({
 
   const gridClassName =
     totalVisibleCards <= 4
-      ? "grid gap-4 md:grid-cols-2"
+      ? "grid gap-3 md:grid-cols-2 md:gap-4"
       : totalVisibleCards === 5
-        ? "grid gap-4 md:grid-cols-2 xl:grid-cols-3"
-        : "grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4";
+        ? "grid gap-3 md:grid-cols-2 md:gap-4 xl:grid-cols-3"
+        : "grid gap-3 md:grid-cols-2 md:gap-4 xl:grid-cols-3 2xl:grid-cols-4";
 
   return (
     <div className={gridClassName}>

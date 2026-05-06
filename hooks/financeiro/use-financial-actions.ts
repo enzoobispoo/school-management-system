@@ -4,6 +4,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 export function useFinancialActions(onSuccess: () => Promise<void>) {
+  type ChargeMethod = "boleto" | "pix" | "card";
+
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [generatingMonthlyPayments, setGeneratingMonthlyPayments] = useState(false);
 
@@ -61,31 +63,41 @@ export function useFinancialActions(onSuccess: () => Promise<void>) {
     } finally { setGeneratingMonthlyPayments(false); }
   }
 
-  async function handleGenerateBoleto(payment: { id: string; student: string; description: string; amount: number }) {
+  async function handleGenerateBoleto(
+    payment: { id: string; student: string; description: string; amount: number },
+    method: ChargeMethod = "boleto"
+  ) {
     try {
       setActionLoadingId(payment.id);
       const response = await fetch("/api/cobrancas/gerar-boleto", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentId: payment.id }),
+        body: JSON.stringify({ paymentId: payment.id, method }),
       });
       let result: any = null;
       try { result = await response.json(); } catch { result = null; }
       if (!response.ok) { toast.error(result?.error || "Erro ao gerar boleto"); return; }
-      toast.success(`Boleto de ${payment.student} gerado com sucesso`);
+      toast.success(`Cobrança de ${payment.student} gerada com sucesso`);
       await onSuccess();
       if (result?.boleto?.bankSlipUrl) window.open(result.boleto.bankSlipUrl, "_blank", "noopener,noreferrer");
       else if (result?.boleto?.invoiceUrl) window.open(result.boleto.invoiceUrl, "_blank", "noopener,noreferrer");
+      else if (result?.boleto?.pixCopyPaste) {
+        await navigator.clipboard.writeText(result.boleto.pixCopyPaste);
+        toast.success("Código PIX copiado para área de transferência");
+      }
     } finally { setActionLoadingId(null); }
   }
 
-  async function handleGenerateBoletoBatch(paymentIds: string[]) {
+  async function handleGenerateBoletoBatch(
+    paymentIds: string[],
+    method: ChargeMethod = "boleto"
+  ) {
     try {
       setActionLoadingId("batch-boleto");
       const response = await fetch("/api/cobrancas/gerar-boleto-lote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentIds }),
+        body: JSON.stringify({ paymentIds, method }),
       });
       let result: any = null;
       try { result = await response.json(); } catch { result = null; }

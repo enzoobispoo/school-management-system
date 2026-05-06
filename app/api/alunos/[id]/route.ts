@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { updateAlunoSchema } from "@/lib/validations/aluno"
 import { Prisma } from "@prisma/client"
 import { getCurrentUser, requireSchool } from "@/lib/auth"
+import { computeSituacaoRisco } from "@/lib/alunos/situacao-risco"
 
 function getComputedPaymentStatus(pagamento: {
   status: string
@@ -64,6 +65,66 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       )
     }
 
+    let mediaGeral: number | null = null;
+    let frequenciaGeral: number | null = null;
+    let faltas = 0;
+    let totalNotas = 0;
+    try {
+      const matriculaIds = aluno.matriculas.map((m) => m.id);
+      if (matriculaIds.length > 0) {
+        const [notasRows, faltasRows] = await Promise.all([
+          prisma.notaAvaliacao.groupBy({
+            by: ["matriculaId"],
+            where: { schoolId, matriculaId: { in: matriculaIds } },
+            _avg: { nota: true },
+            _count: { id: true },
+          }),
+          prisma.presencaAula.groupBy({
+            by: ["presente"],
+            where: { schoolId, matriculaId: { in: matriculaIds } },
+            _count: { id: true },
+          }),
+        ]);
+        const medias = notasRows
+          .map((r) => (r._avg.nota ? Number(r._avg.nota) : null))
+          .filter((v): v is number => v !== null);
+        totalNotas = notasRows.reduce((acc, r) => acc + r._count.id, 0);
+        mediaGeral = medias.length > 0 ? medias.reduce((a, b) => a + b, 0) / medias.length : null;
+        const presencas = faltasRows.find((r) => r.presente)?._count.id ?? 0;
+        faltas = faltasRows.find((r) => !r.presente)?._count.id ?? 0;
+        const totalChamadas = presencas + faltas;
+        frequenciaGeral = totalChamadas > 0 ? (presencas / totalChamadas) * 100 : null;
+      }
+    } catch {
+      // fallback enquanto migrações acadêmicas não estiverem aplicadas
+    }
+
+    let advertencias = 0;
+    try {
+      advertencias = await prisma.alunoRegistro.count({
+        where: {
+          schoolId,
+          alunoId: aluno.id,
+          tipo: "ADVERTENCIA",
+        },
+      });
+    } catch {
+      // AlunoRegistro pode não existir
+    }
+
+    const pagamentoStatuses = aluno.matriculas.flatMap((matricula) =>
+      matricula.pagamentos.map((pagamento) =>
+        getComputedPaymentStatus(pagamento)
+      )
+    );
+
+    const risco = computeSituacaoRisco({
+      pagamentoStatuses,
+      frequenciaGeral,
+      mediaGeral,
+      advertencias,
+    });
+
     const response = {
       id: aluno.id,
       cpf: aluno.cpf,
@@ -118,6 +179,20 @@ export async function GET(_request: NextRequest, context: RouteContext) {
           observacoes: pagamento.observacoes,
         })),
       })),
+      situacaoResumo: {
+        mediaGeral,
+        frequenciaGeral,
+        faltas,
+        totalNotas,
+        advertencias,
+        possuiObservacoes: Boolean(
+          aluno.observacoesGerais ||
+            aluno.observacoesProf ||
+            aluno.observacoesMedicas ||
+            aluno.laudoDescricao
+        ),
+        risco,
+      },
     }
 
     return NextResponse.json(response)

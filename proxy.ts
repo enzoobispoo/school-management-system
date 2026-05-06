@@ -11,6 +11,7 @@ const PUBLIC_API_PREFIXES = [
   "/api/configuracoes/escola/public",
   "/api/webhooks/asaas",
   "/api/cron/cobrancas-atrasadas",
+  "/api/cron/operational-incidents",
 ];
 
 type UserRole =
@@ -58,9 +59,11 @@ const SUPER_ADMIN_ONLY = [
 const FINANCEIRO_ROUTES = [
   "/financeiro",
   "/relatorios",
+  "/operacao",
   "/api/pagamentos",
   "/api/relatorios",
   "/api/cobrancas",
+  "/api/operacao",
 ];
 
 // Rotas que SECRETARIA pode acessar (além das compartilhadas)
@@ -69,11 +72,13 @@ const SECRETARIA_ROUTES = [
   "/cursos",
   "/turmas",
   "/professores",
+  "/operacao",
   "/api/alunos",
   "/api/cursos",
   "/api/turmas",
   "/api/professores",
   "/api/matriculas",
+  "/api/operacao",
 ];
 
 // Rotas compartilhadas por todos os usuários autenticados

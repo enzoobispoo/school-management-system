@@ -17,6 +17,8 @@ import type { TurmaCardItem } from "@/hooks/turmas/use-turmas-page";
 
 interface Props {
   professorId: string;
+  ocupacao: string;
+  setOcupacaoFilter: (value: string) => void;
   search: string;
   setSearch: (value: string) => void;
   statusFilter: string;
@@ -28,6 +30,8 @@ interface Props {
 
 export function TurmasFiltersBar({
   professorId,
+  ocupacao,
+  setOcupacaoFilter,
   search,
   setSearch,
   statusFilter,
@@ -66,6 +70,27 @@ export function TurmasFiltersBar({
                 <SelectItem value="all">Todas</SelectItem>
                 <SelectItem value="active">Ativas</SelectItem>
                 <SelectItem value="inactive">Inativas</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={
+                ocupacao === "lotadas" || ocupacao === "ociosas"
+                  ? ocupacao
+                  : "todas"
+              }
+              onValueChange={(value) => {
+                setPage(1);
+                setOcupacaoFilter(value);
+              }}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Ocupação" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas (ocupação)</SelectItem>
+                <SelectItem value="ociosas">Com vaga</SelectItem>
+                <SelectItem value="lotadas">Lotadas</SelectItem>
               </SelectContent>
             </Select>
           </div>

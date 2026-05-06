@@ -38,7 +38,9 @@ export function StudentTableRow({
       <TableRow
         className={cn(
           "cursor-pointer border-border/50 transition-colors",
-          expanded && "bg-muted/30"
+          expanded && "bg-muted/30",
+          student.situacaoResumo?.risco === "atencao" &&
+            "bg-amber-500/[0.06] dark:bg-amber-500/10"
         )}
         onClick={onToggle}
       >
@@ -100,6 +102,36 @@ export function StudentTableRow({
 
         <TableCell className="py-3">
           <StudentPaymentBadge status={student.paymentStatus} />
+        </TableCell>
+
+        <TableCell className="py-3">
+          <span
+            className={cn(
+              "text-xs font-medium",
+              !student.situacaoResumo
+                ? "text-muted-foreground"
+                : student.situacaoResumo.risco === "atencao"
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-emerald-600 dark:text-emerald-400"
+            )}
+          >
+            {!student.situacaoResumo
+              ? "Sem dados"
+              : student.situacaoResumo.risco === "atencao"
+                ? "Precisa atenção"
+                : "Estável"}
+          </span>
+        </TableCell>
+
+        <TableCell className="py-3 text-sm tabular-nums text-muted-foreground">
+          {student.situacaoResumo?.mediaGeral !== null &&
+          student.situacaoResumo?.mediaGeral !== undefined
+            ? student.situacaoResumo.mediaGeral.toFixed(1)
+            : "—"}
+        </TableCell>
+
+        <TableCell className="py-3 text-sm tabular-nums text-muted-foreground">
+          {student.situacaoResumo ? student.situacaoResumo.faltas : "—"}
         </TableCell>
 
         <TableCell className="py-3 text-muted-foreground">

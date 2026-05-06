@@ -13,9 +13,11 @@ function getGreeting(hour: number) {
 }
 
 function getSubtitle(hour: number) {
-  if (hour < 12) return "Confira o resumo de hoje e fique por dentro de tudo.";
-  if (hour < 18) return "Resumo do desempenho, financeiro e atividades recentes.";
-  return "Veja o que aconteceu hoje na sua escola.";
+  if (hour < 12)
+    return "Comece pelas operações urgentes e pelos indicadores que mais impactam caixa e ocupação.";
+  if (hour < 18)
+    return "Use a central de operações para priorizar cobrança, turmas e acompanhamento acadêmico.";
+  return "Feche o dia conferindo pendências financeiras e movimentações recentes.";
 }
 
 function pad(n: number) {

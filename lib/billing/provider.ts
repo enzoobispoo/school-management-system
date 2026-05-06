@@ -14,6 +14,7 @@ interface CreateBoletoParams {
   externalReference?: string;
   interestPercentage?: number;
   finePercentage?: number;
+  method?: "boleto" | "pix" | "card";
 }
 
 async function getProvider(): Promise<BillingProvider> {
@@ -34,6 +35,12 @@ async function getProvider(): Promise<BillingProvider> {
 
 export async function createBoleto(params: CreateBoletoParams) {
   const provider = await getProvider();
+  const billingType =
+    params.method === "pix"
+      ? "PIX"
+      : params.method === "card"
+      ? "UNDEFINED"
+      : "BOLETO";
 
   switch (provider) {
     case "asaas":
@@ -50,6 +57,7 @@ export async function createBoleto(params: CreateBoletoParams) {
         externalReference: params.externalReference,
         interestPercentage: params.interestPercentage,
         finePercentage: params.finePercentage,
+        billingType,
       });
 
     default:

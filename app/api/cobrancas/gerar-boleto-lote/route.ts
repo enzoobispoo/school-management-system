@@ -20,14 +20,15 @@ function formatDateToYMD(date: Date) {
 function hasExistingBoleto(payment: {
   billingProvider: string | null;
   billingExternalId: string | null;
-  billingInvoiceUrl: string | null;
-  billingBankSlipUrl: string | null;
 }) {
-  return Boolean(
-    payment.billingProvider &&
-      payment.billingExternalId &&
-      (payment.billingBankSlipUrl || payment.billingInvoiceUrl)
-  );
+  return Boolean(payment.billingProvider && payment.billingExternalId);
+}
+
+function normalizeChargeMethod(value?: string | null): "boleto" | "pix" | "card" {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "pix") return "pix";
+  if (normalized === "cartao" || normalized === "cartão" || normalized === "card") return "card";
+  return "boleto";
 }
 
 export async function POST(request: NextRequest) {
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
 
-    const { paymentIds } = await request.json();
+    const { paymentIds, method } = await request.json();
 
     if (!paymentIds || !Array.isArray(paymentIds) || paymentIds.length === 0) {
       return NextResponse.json(
@@ -159,8 +160,11 @@ export async function POST(request: NextRequest) {
         multaAtrasoPercentual: true,
         jurosMensalPercentual: true,
         autoSendBoletoWhatsApp: true,
+        defaultChargeMethod: true,
       },
     });
+
+    const selectedMethod = normalizeChargeMethod(method || school?.defaultChargeMethod);
 
     const boleto = await createBoleto({
         studentName: aluno.responsavelNome || aluno.nome,
@@ -177,6 +181,7 @@ export async function POST(request: NextRequest) {
         finePercentage: school?.multaAtrasoPercentual
           ? Number(school.multaAtrasoPercentual)
           : 0,
+        method: selectedMethod,
       })
 
       if (!aluno.asaasCustomerId && boleto.customerId) {
@@ -195,9 +200,12 @@ export async function POST(request: NextRequest) {
       },
       data: {
         billingProvider: "asaas",
+        billingChargeType: boleto.billingType,
         billingExternalId: boleto.paymentId,
         billingInvoiceUrl: boleto.invoiceUrl,
         billingBankSlipUrl: boleto.bankSlipUrl,
+        billingPixQrCode: boleto.pixQrCode,
+        billingPixCopyPaste: boleto.pixCopyPaste,
         billingStatus: boleto.status,
         boletoGeradoEm: new Date(),
       },

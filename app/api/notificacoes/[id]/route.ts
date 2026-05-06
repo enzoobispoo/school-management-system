@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { updateNotificacaoSchema } from "@/lib/validations/notificacao"
 import { getCurrentUser, requireSchool } from "@/lib/auth";
+import { enrichNotificationWithLinkHref } from "@/lib/notificacoes/enrich-notification-link";
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -27,7 +28,8 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       )
     }
 
-    return NextResponse.json(notificacao)
+    const payload = await enrichNotificationWithLinkHref(notificacao, schoolId);
+    return NextResponse.json(payload)
   } catch (error) {
     console.error("Erro ao buscar notificação:", error)
     return NextResponse.json(
@@ -76,7 +78,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       data: parsed.data,
     })
 
-    return NextResponse.json(notificacao)
+    const payload = await enrichNotificationWithLinkHref(notificacao, schoolId)
+    return NextResponse.json(payload)
   } catch (error) {
     console.error("Erro ao atualizar notificação:", error)
     return NextResponse.json(

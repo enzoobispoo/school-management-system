@@ -5,6 +5,7 @@ import {
   StatusPagamento,
   TipoNotificacao,
 } from "@prisma/client";
+import { logFinanceAuditEvent } from "@/lib/services/finance-audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -104,9 +105,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const externalReference = body.payment?.externalReference;
     const pagamento = await prisma.pagamento.findFirst({
       where: {
-        billingExternalId: paymentId,
+        OR: [
+          { billingExternalId: paymentId },
+          ...(externalReference ? [{ id: externalReference }] : []),
+        ],
       },
       include: {
         matricula: {
@@ -151,9 +156,56 @@ export async function POST(request: NextRequest) {
         : new Date();
     }
 
+    const nextPaymentDate = dataToUpdate.dataPagamento ?? null;
+    const sameStatusAlreadyApplied =
+      pagamento.billingStatus === (asaasStatus || null) &&
+      (!mappedStatus || pagamento.status === mappedStatus) &&
+      ((pagamento.dataPagamento?.getTime() ?? null) ===
+        (nextPaymentDate ? nextPaymentDate.getTime() : null)) &&
+      (pagamento.billingInvoiceUrl ?? null) ===
+        (body.payment?.invoiceUrl || pagamento.billingInvoiceUrl || null) &&
+      (pagamento.billingBankSlipUrl ?? null) ===
+        (body.payment?.bankSlipUrl || pagamento.billingBankSlipUrl || null);
+
+    if (sameStatusAlreadyApplied) {
+      await logFinanceAuditEvent({
+        schoolId: pagamento.schoolId,
+        eventType: "ASAAS_WEBHOOK_DUPLICATE",
+        source: "webhook",
+        status: "ignored",
+        referenceId: pagamento.id,
+        message: "Evento do Asaas recebido sem alterações efetivas.",
+        payload: {
+          paymentId,
+          asaasStatus,
+          externalReference: body.payment?.externalReference ?? null,
+        },
+      });
+      return NextResponse.json({
+        success: true,
+        ignored: true,
+        message: "Evento já aplicado anteriormente.",
+        pagamentoId: pagamento.id,
+      });
+    }
+
     const updated = await prisma.pagamento.update({
       where: { id: pagamento.id },
       data: dataToUpdate,
+    });
+
+    await logFinanceAuditEvent({
+      schoolId: pagamento.schoolId,
+      eventType: "ASAAS_WEBHOOK_PROCESSED",
+      source: "webhook",
+      status: "success",
+      referenceId: pagamento.id,
+      message: `Webhook Asaas aplicado com status ${asaasStatus ?? "desconhecido"}.`,
+      payload: {
+        paymentId,
+        externalReference: body.payment?.externalReference ?? null,
+        localStatus: updated.status,
+      },
     });
 
     if (mappedStatus === StatusPagamento.PAGO) {

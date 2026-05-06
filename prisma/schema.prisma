@@ -21,6 +21,7 @@ model School {
   cursos         Curso[]
   professores    Professor[]
   turmas         Turma[]
+  disciplinas    Disciplina[]
   matriculas     Matricula[]
   pagamentos     Pagamento[]
   eventos        Evento[]
@@ -28,6 +29,15 @@ model School {
   userInvites    UserInvite[]
   escolaSettings EscolaSettings?
   subscriptions  SchoolSubscription[]
+  financeAuditEvents FinanceAuditEvent[]
+  turmaDisciplinas TurmaDisciplina[]
+  avaliacoes       Avaliacao[]
+  notasAvaliacao   NotaAvaliacao[]
+  aulasRegistro    AulaRegistro[]
+  presencasAula    PresencaAula[]
+  alunoRegistros         AlunoRegistro[]
+  operationalIncidents    OperationalIncident[]
+  operationalPlaybookRuns OperationalPlaybookRun[]
 
   @@index([slug])
   @@index([ativo])
@@ -127,6 +137,7 @@ model Aluno {
   documentos      AlunoDocumento[]
   statusHistorico AlunoStatusHistorico[]
   matriculas      Matricula[]
+  registros       AlunoRegistro[]
 
   @@unique([schoolId, email])
   @@unique([schoolId, cpf])
@@ -173,6 +184,7 @@ model Professor {
   turmas          Turma[]
   cursos          ProfessorCurso[]
   historicoTurmas TurmaProfessorHistorico[]
+  avaliacoes      Avaliacao[]
 
   @@unique([schoolId, email])
   @@index([schoolId])
@@ -198,6 +210,9 @@ model Turma {
   matriculas           Matricula[]
   horarios             TurmaHorario[]
   historicoProfessores TurmaProfessorHistorico[]
+  disciplinas         TurmaDisciplina[]
+  avaliacoes          Avaliacao[]
+  aulas               AulaRegistro[]
 
   @@unique([schoolId, cursoId, nome])
   @@index([schoolId])
@@ -237,6 +252,8 @@ model Matricula {
   aluno      Aluno      @relation(fields: [alunoId], references: [id], onDelete: Cascade)
   turma      Turma      @relation(fields: [turmaId], references: [id])
   pagamentos Pagamento[]
+  notas      NotaAvaliacao[]
+  presencas  PresencaAula[]
 
   @@index([schoolId])
   @@index([alunoId])
@@ -261,9 +278,12 @@ model Pagamento {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   billingProvider     String?
+  billingChargeType   String?
   billingExternalId   String?
   billingInvoiceUrl   String?
   billingBankSlipUrl  String?
+  billingPixQrCode    String?
+  billingPixCopyPaste String?
   billingStatus       String?
   boletoGeradoEm      DateTime?
   cobrancaLoteId      String?
@@ -537,6 +557,147 @@ model AiChatMessage {
   @@index([createdAt])
 }
 
+model FinanceAuditEvent {
+  id          String   @id @default(cuid())
+  schoolId    String
+  eventType   String
+  source      String
+  status      String
+  referenceId String?
+  message     String
+  payload     Json?
+  createdAt   DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([eventType])
+  @@index([source])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Disciplina {
+  id        String   @id @default(cuid())
+  schoolId  String
+  nome      String
+  codigo    String?
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school     School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  turmas     TurmaDisciplina[]
+  avaliacoes Avaliacao[]
+  aulas      AulaRegistro[]
+
+  @@unique([schoolId, nome])
+  @@index([schoolId])
+  @@index([ativo])
+}
+
+model TurmaDisciplina {
+  id           String   @id @default(cuid())
+  schoolId     String
+  turmaId      String
+  disciplinaId String
+  createdAt    DateTime @default(now())
+
+  school     School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  turma      Turma      @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  disciplina Disciplina @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
+
+  @@unique([turmaId, disciplinaId])
+  @@index([schoolId])
+  @@index([turmaId])
+  @@index([disciplinaId])
+}
+
+model Avaliacao {
+  id           String   @id @default(cuid())
+  schoolId     String
+  turmaId      String
+  disciplinaId String
+  professorId  String?
+  titulo       String
+  descricao    String?
+  peso         Decimal? @db.Decimal(5, 2)
+  dataAvaliacao DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  school     School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  turma      Turma       @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  disciplina Disciplina  @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
+  professor  Professor?  @relation(fields: [professorId], references: [id], onDelete: SetNull)
+  notas      NotaAvaliacao[]
+
+  @@index([schoolId])
+  @@index([turmaId])
+  @@index([disciplinaId])
+  @@index([dataAvaliacao])
+}
+
+model NotaAvaliacao {
+  id          String   @id @default(cuid())
+  schoolId    String
+  avaliacaoId String
+  matriculaId String
+  nota        Decimal  @db.Decimal(5, 2)
+  observacao  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  avaliacao Avaliacao @relation(fields: [avaliacaoId], references: [id], onDelete: Cascade)
+  matricula Matricula @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+
+  @@unique([avaliacaoId, matriculaId])
+  @@index([schoolId])
+  @@index([matriculaId])
+}
+
+model AulaRegistro {
+  id           String    @id @default(cuid())
+  schoolId     String
+  turmaId      String
+  disciplinaId String
+  titulo       String?
+  conteudo     String?
+  dataAula     DateTime
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  school     School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  turma      Turma       @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  disciplina Disciplina  @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
+  presencas  PresencaAula[]
+
+  @@index([schoolId])
+  @@index([turmaId])
+  @@index([disciplinaId])
+  @@index([dataAula])
+}
+
+model PresencaAula {
+  id          String   @id @default(cuid())
+  schoolId    String
+  aulaId      String
+  matriculaId String
+  presente    Boolean  @default(true)
+  observacao  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school    School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  aula      AulaRegistro @relation(fields: [aulaId], references: [id], onDelete: Cascade)
+  matricula Matricula   @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+
+  @@unique([aulaId, matriculaId])
+  @@index([schoolId])
+  @@index([matriculaId])
+}
+
 model EscolaSettings {
   id                    String   @id
   schoolId              String   @unique
@@ -570,6 +731,10 @@ model EscolaSettings {
   billingEnabled        Boolean  @default(false)
   autoGenerateBoleto    Boolean  @default(false)
   autoSendBoletoWhatsApp Boolean @default(false)
+  reguaCobrancaDias          String?  @default("1,3,7")
+  suspenderAposInadimplenciaDias Int  @default(30)
+  subscriptionInadimplenciaAction String @default("SUSPENDER")
+  subscriptionInadimplenciaDias Int @default(45)
   openaiApiKey              String?
   aiMonthlyLimitOverride    Int?
   aiUsageCount              Int      @default(0)
@@ -642,6 +807,12 @@ enum TipoNotificacao {
   PAGAMENTO
 }
 
+enum TipoAlunoRegistro {
+  OCORRENCIA
+  ADVERTENCIA
+  OBSERVACAO
+}
+
 enum EntidadeNotificacao {
   ALUNO
   MATRICULA
@@ -691,6 +862,113 @@ model AlunoStatusHistorico {
   aluno      Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
 
   @@index([alunoId])
+  @@index([createdAt])
+}
+
+model AlunoRegistro {
+  id        String            @id @default(cuid())
+  schoolId  String
+  alunoId   String
+  tipo      TipoAlunoRegistro
+  titulo    String
+  descricao String?
+  gravidade String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  aluno  Aluno  @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([alunoId])
+  @@index([tipo])
+  @@index([createdAt])
+}
+
+enum IncidentSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  DISMISSED
+}
+
+enum IncidentCategory {
+  FINANCE
+  ACADEMIC
+  ENROLLMENT
+  SYSTEM
+}
+
+model OperationalIncident {
+  id                 String            @id @default(cuid())
+  schoolId           String
+  playbookCode       String?
+  dedupeKey          String
+  category           IncidentCategory
+  severity           IncidentSeverity
+  status             IncidentStatus    @default(OPEN)
+  title              String
+  description        String            @db.Text
+  problemStatement   String            @db.Text
+  suggestedActions   Json
+  impactHint         String?
+  contextJson        Json?
+  lastDetectedAt     DateTime          @default(now())
+  lastNotifiedAt     DateTime?
+  acknowledgedAt     DateTime?
+  acknowledgedById   String?
+  resolvedAt         DateTime?
+  resolvedById       String?
+  dismissedAt        DateTime?
+  dismissedById      String?
+  dismissReason      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, dedupeKey])
+  @@index([schoolId, status])
+  @@index([schoolId, severity])
+  @@index([lastDetectedAt])
+}
+
+model OperationalPlaybook {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  name           String
+  active         Boolean  @default(true)
+  definitionJson Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  runs OperationalPlaybookRun[]
+
+  @@index([active])
+}
+
+model OperationalPlaybookRun {
+  id           String   @id @default(cuid())
+  schoolId     String
+  playbookId   String
+  playbookCode String
+  status       String
+  message      String?
+  detailJson   Json?
+  createdAt    DateTime @default(now())
+
+  school   School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  playbook OperationalPlaybook @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([playbookId])
   @@index([createdAt])
 }
 

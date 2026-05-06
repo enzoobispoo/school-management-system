@@ -9,6 +9,7 @@ interface Notification {
   mensagem: string;
   lida: boolean;
   createdAt: string;
+  linkHref?: string | null;
 }
 
 interface NotificationsState {

@@ -17,9 +17,12 @@ interface PagamentosResponse {
     metodoPagamento?: string | null;
     observacoes?: string | null;
     billingProvider?: string | null;
+    billingChargeType?: string | null;
     billingExternalId?: string | null;
     billingInvoiceUrl?: string | null;
     billingBankSlipUrl?: string | null;
+    billingPixQrCode?: string | null;
+    billingPixCopyPaste?: string | null;
     billingStatus?: string | null;
     boletoGeradoEm?: string | null;
     ultimoLembreteEnviadoEm?: string | null;
@@ -81,9 +84,12 @@ export interface PaymentTableItem {
   competence: string;
   metodoPagamento?: string | null;
   billingProvider?: string | null;
+  billingChargeType?: string | null;
   billingExternalId?: string | null;
   billingInvoiceUrl?: string | null;
   billingBankSlipUrl?: string | null;
+  billingPixQrCode?: string | null;
+  billingPixCopyPaste?: string | null;
   billingStatus?: string | null;
   boletoGeradoEm?: string | null;
   hasBoleto: boolean;
@@ -107,6 +113,22 @@ export interface FinancialAdvancedMetrics {
   receitaPrevista: number;
   taxaRecebimento: number;
   taxaInadimplencia: number;
+}
+
+export interface FinancialAuditTrailItem {
+  id: string;
+  eventType: string;
+  source: string;
+  status: string;
+  referenceId: string | null;
+  message: string;
+  createdAt: string;
+}
+
+interface FinancialMetricsResponse {
+  totals: FinancialTotals;
+  advancedMetrics: FinancialAdvancedMetrics;
+  auditTrail?: FinancialAuditTrailItem[];
 }
 
 function formatDate(dateString?: string | null) {
@@ -194,9 +216,12 @@ function normalizePayments(
         ),
         metodoPagamento: payment.metodoPagamento,
         billingProvider: payment.billingProvider,
+        billingChargeType: payment.billingChargeType,
         billingExternalId: payment.billingExternalId,
         billingInvoiceUrl: payment.billingInvoiceUrl,
         billingBankSlipUrl: payment.billingBankSlipUrl,
+        billingPixQrCode: payment.billingPixQrCode,
+        billingPixCopyPaste: payment.billingPixCopyPaste,
         billingStatus: payment.billingStatus,
         boletoGeradoEm: payment.boletoGeradoEm,
         hasBoleto,
@@ -215,81 +240,6 @@ function normalizePayments(
   };
 
   return normalized.sort((a, b) => order[a.status] - order[b.status]);
-}
-
-function calculateFinancialTotals(
-  payments: PagamentosResponse["data"]
-): FinancialTotals {
-  const validPayments = payments.filter(
-    (payment) => payment.status !== "CANCELADO"
-  );
-
-  const receitaTotal = validPayments
-    .filter((payment) => payment.status === "PAGO")
-    .reduce((acc, payment) => acc + payment.valor, 0);
-
-  const now = new Date();
-  const currentMonth = now.getMonth() + 1;
-  const currentYear = now.getFullYear();
-
-  const recebidoMes = validPayments
-    .filter(
-      (payment) =>
-        payment.status === "PAGO" &&
-        payment.competenciaMes === currentMonth &&
-        payment.competenciaAno === currentYear
-    )
-    .reduce((acc, payment) => acc + payment.valor, 0);
-
-  const pendentes = validPayments.filter(
-    (payment) => payment.status === "PENDENTE"
-  );
-
-  const atrasados = validPayments.filter(
-    (payment) => payment.status === "ATRASADO"
-  );
-
-  const valoresPendentes = pendentes.reduce(
-    (acc, payment) => acc + payment.valor,
-    0
-  );
-
-  const valoresAtrasados = atrasados.reduce(
-    (acc, payment) => acc + payment.valor,
-    0
-  );
-
-  return {
-    receitaTotal,
-    recebidoMes,
-    valoresPendentes,
-    valoresAtrasados,
-    quantidadePendentes: pendentes.length,
-    quantidadeAtrasados: atrasados.length,
-  };
-}
-
-function calculateAdvancedMetrics(
-  totals: FinancialTotals
-): FinancialAdvancedMetrics {
-  const receitaPrevista = totals.valoresPendentes + totals.valoresAtrasados;
-
-  const baseRecebimento = totals.recebidoMes + totals.valoresPendentes;
-  const taxaRecebimento =
-    baseRecebimento > 0 ? (totals.recebidoMes / baseRecebimento) * 100 : 0;
-
-  const baseInadimplencia =
-    totals.receitaTotal + totals.valoresPendentes + totals.valoresAtrasados;
-  const taxaInadimplencia =
-    baseInadimplencia > 0
-      ? (totals.valoresAtrasados / baseInadimplencia) * 100
-      : 0;
-
-  return {
-    receitaPrevista,
-    taxaRecebimento,
-    taxaInadimplencia,
-  };
 }
 
 export function useFinancialQuery() {
@@ -323,6 +273,7 @@ export function useFinancialQuery() {
     quantidadePendentes: 0,
     quantidadeAtrasados: 0,
   });
+  const [auditTrail, setAuditTrail] = useState<FinancialAuditTrailItem[]>([]);
 
   function updateParams(nextParams: Record<string, string | number | null>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -387,10 +338,30 @@ export function useFinancialQuery() {
     return { month: m, year: y };
   }, [month]);
 
-  const advancedMetrics = useMemo(
-    () => calculateAdvancedMetrics(financialTotals),
-    [financialTotals]
-  );
+  const advancedMetrics = useMemo(() => financialTotals ? ({
+    receitaPrevista: financialTotals.valoresPendentes + financialTotals.valoresAtrasados,
+    taxaRecebimento:
+      financialTotals.recebidoMes + financialTotals.valoresPendentes > 0
+        ? (financialTotals.recebidoMes /
+            (financialTotals.recebidoMes + financialTotals.valoresPendentes)) *
+          100
+        : 0,
+    taxaInadimplencia:
+      financialTotals.receitaTotal +
+        financialTotals.valoresPendentes +
+        financialTotals.valoresAtrasados >
+      0
+        ? (financialTotals.valoresAtrasados /
+            (financialTotals.receitaTotal +
+              financialTotals.valoresPendentes +
+              financialTotals.valoresAtrasados)) *
+          100
+        : 0,
+  }) : {
+    receitaPrevista: 0,
+    taxaRecebimento: 0,
+    taxaInadimplencia: 0,
+  }, [financialTotals]);
 
   async function fetchPayments() {
     try {
@@ -432,12 +403,7 @@ export function useFinancialQuery() {
   async function fetchFinancialTotals() {
     try {
       setLoadingTotals(true);
-
-      const params = new URLSearchParams();
-      params.set("page", "1");
-      params.set("pageSize", "1000");
-
-      const response = await fetch(`/api/pagamentos?${params.toString()}`, {
+      const response = await fetch("/api/financeiro/metricas", {
         cache: "no-store",
       });
 
@@ -445,8 +411,9 @@ export function useFinancialQuery() {
         throw new Error("Falha ao carregar totais financeiros");
       }
 
-      const result: PagamentosResponse = await response.json();
-      setFinancialTotals(calculateFinancialTotals(result.data));
+      const result: FinancialMetricsResponse = await response.json();
+      setFinancialTotals(result.totals);
+      setAuditTrail(result.auditTrail ?? []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -481,5 +448,6 @@ export function useFinancialQuery() {
     fetchFinancialTotals,
     financialTotals,
     advancedMetrics,
+    auditTrail,
   };
 }

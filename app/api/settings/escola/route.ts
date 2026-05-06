@@ -70,6 +70,15 @@ export async function PUT(request: NextRequest) {
         notificarNovoAluno: body.notificarNovoAluno, notificarPagamento: body.notificarPagamento,
         notificarAtraso: body.notificarAtraso, enviarLembreteAuto: body.enviarLembreteAuto,
         autoSendBoletoWhatsApp: body.autoSendBoletoWhatsApp,
+        reguaCobrancaDias: body.reguaCobrancaDias ?? "1,3,7",
+        suspenderAposInadimplenciaDias:
+          body.suspenderAposInadimplenciaDias ?? 30,
+        subscriptionInadimplenciaAction:
+          body.subscriptionInadimplenciaAction === "CANCELAR"
+            ? "CANCELAR"
+            : "SUSPENDER",
+        subscriptionInadimplenciaDias:
+          body.subscriptionInadimplenciaDias ?? 45,
         temaPadrao: body.temaPadrao, densidade: body.densidade,
         billingProvider,
         billingEnabled: body.billingEnabled,
@@ -92,6 +101,15 @@ export async function PUT(request: NextRequest) {
         notificarAtraso: body.notificarAtraso ?? true,
         enviarLembreteAuto: body.enviarLembreteAuto ?? false,
         autoSendBoletoWhatsApp: body.autoSendBoletoWhatsApp ?? false,
+        reguaCobrancaDias: body.reguaCobrancaDias ?? "1,3,7",
+        suspenderAposInadimplenciaDias:
+          body.suspenderAposInadimplenciaDias ?? 30,
+        subscriptionInadimplenciaAction:
+          body.subscriptionInadimplenciaAction === "CANCELAR"
+            ? "CANCELAR"
+            : "SUSPENDER",
+        subscriptionInadimplenciaDias:
+          body.subscriptionInadimplenciaDias ?? 45,
         temaPadrao: body.temaPadrao ?? "light", densidade: body.densidade ?? "comfortable",
         billingProvider,
         billingEnabled: body.billingEnabled ?? false,

@@ -6,6 +6,7 @@ import {
   markAllAsReadSchema,
 } from "@/lib/validations/notificacao"
 import { getCurrentUser, requireSchool } from "@/lib/auth"
+import { enrichNotificationsWithLinkHref } from "@/lib/notificacoes/enrich-notification-link"
 
 export async function GET(request: NextRequest) {
   try {
@@ -44,8 +45,10 @@ export async function GET(request: NextRequest) {
       }),
     ])
 
+    const data = await enrichNotificationsWithLinkHref(notificacoes, schoolId);
+
     return NextResponse.json({
-      data: notificacoes,
+      data,
       meta: {
         total,
         unreadCount,

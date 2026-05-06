@@ -27,7 +27,7 @@ interface GenerateBoletoModalProps {
   payments?: PaymentOption[];
   loading?: boolean;
   generating?: boolean;
-  onGenerate: (paymentIds: string[]) => Promise<void>;
+  onGenerate: (paymentIds: string[], method: "boleto" | "pix" | "card") => Promise<void>;
 }
 
 export function GenerateBoletoModal({
@@ -40,10 +40,12 @@ export function GenerateBoletoModal({
   onGenerate,
 }: GenerateBoletoModalProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [method, setMethod] = useState<"boleto" | "pix" | "card">("boleto");
 
   useEffect(() => {
     if (!open) {
       setSelectedIds([]);
+      setMethod("boleto");
       return;
     }
 
@@ -71,7 +73,7 @@ export function GenerateBoletoModal({
 
   async function handleGenerate() {
     if (selectedIds.length === 0) return;
-    await onGenerate(selectedIds);
+    await onGenerate(selectedIds, method);
   }
 
   return (
@@ -156,6 +158,20 @@ export function GenerateBoletoModal({
           </p>
         </div>
 
+        <div className="mt-3 grid gap-2">
+          <label className="text-sm font-medium text-foreground">Método da cobrança</label>
+          <select
+            value={method}
+            onChange={(e) => setMethod(e.target.value as "boleto" | "pix" | "card")}
+            className="h-10 rounded-xl border border-input bg-background px-3 text-sm"
+            disabled={generating}
+          >
+            <option value="boleto">Boleto</option>
+            <option value="pix">PIX</option>
+            <option value="card">Cartão (link de pagamento)</option>
+          </select>
+        </div>
+
         <div className="mt-2 flex justify-end gap-2">
           <Button
             variant="outline"
@@ -171,7 +187,7 @@ export function GenerateBoletoModal({
             disabled={selectedIds.length === 0 || generating}
             className="rounded-2xl"
           >
-            {generating ? "Gerando..." : "Gerar boleto"}
+            {generating ? "Gerando..." : "Gerar cobrança"}
           </Button>
         </div>
       </DialogContent>

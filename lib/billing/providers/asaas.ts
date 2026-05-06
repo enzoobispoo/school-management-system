@@ -16,6 +16,7 @@ interface CreateAsaasBoletoInput {
   externalReference?: string;
   interestPercentage?: number;
   finePercentage?: number;
+  billingType?: "BOLETO" | "PIX" | "UNDEFINED";
 }
 
 interface AsaasCustomerResponse {
@@ -33,6 +34,13 @@ interface AsaasPaymentResponse {
   status: string;
   invoiceUrl?: string | null;
   bankSlipUrl?: string | null;
+  billingType?: string | null;
+  pixTransaction?: {
+    qrCode?: {
+      encodedImage?: string | null;
+      payload?: string | null;
+    } | null;
+  } | null;
 }
 
 interface AsaasIdentificationFieldResponse {
@@ -182,7 +190,7 @@ export async function createAsaasBoleto(input: CreateAsaasBoletoInput) {
       method: "POST",
       body: JSON.stringify({
         customer: customer.id,
-        billingType: "BOLETO",
+        billingType: input.billingType || "BOLETO",
         value: input.value,
         dueDate: input.dueDate,
         description: input.description,
@@ -220,8 +228,11 @@ export async function createAsaasBoleto(input: CreateAsaasBoletoInput) {
     customerId: customer.id,
     paymentId: payment.id,
     status: payment.status,
+    billingType: payment.billingType || input.billingType || "BOLETO",
     invoiceUrl: payment.invoiceUrl || null,
     bankSlipUrl: payment.bankSlipUrl || null,
+    pixQrCode: payment.pixTransaction?.qrCode?.encodedImage || null,
+    pixCopyPaste: payment.pixTransaction?.qrCode?.payload || null,
     identificationField: identificationField?.identificationField || null,
     nossoNumero: identificationField?.nossoNumero || null,
     barCode: identificationField?.barCode || null,

@@ -3,12 +3,21 @@
 import { useState } from "react";
 import { Sidebar } from "./sidebar";
 import { AiFloatingButton } from "@/components/dashboard/ai/ai-floating-button";
+import { NotificationsInboxProvider } from "@/components/providers/notifications-inbox-provider";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
+  return (
+    <NotificationsInboxProvider>
+      <DashboardLayoutShell>{children}</DashboardLayoutShell>
+    </NotificationsInboxProvider>
+  );
+}
+
+function DashboardLayoutShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(true);
 
   return (

@@ -42,7 +42,7 @@ export default function DashboardPage() {
     <DashboardLayout>
       <Header
         title="Dashboard"
-        description="Visão geral do seu sistema escolar"
+        description="Painel executivo para rotina diária e escolas de grande porte"
       />
 
       <DashboardMainLayout

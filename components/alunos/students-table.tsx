@@ -13,8 +13,37 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { GraduationCap, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import type { StudentTableItem } from "@/hooks/alunos/use-students-query";
 
-type SortKey = "name" | "enrollmentDate" | "paymentStatus";
+type SortKey =
+  | "name"
+  | "enrollmentDate"
+  | "paymentStatus"
+  | "situacaoRisco"
+  | "media"
+  | "faltas";
 type SortDir = "asc" | "desc";
+
+function situacaoRiscoRank(student: StudentTableItem): number {
+  const r = student.situacaoResumo?.risco;
+  if (!student.situacaoResumo || !r) return 2;
+  return r === "atencao" ? 0 : 1;
+}
+
+function compareMedia(a: StudentTableItem, b: StudentTableItem): number {
+  const ma = a.situacaoResumo?.mediaGeral;
+  const mb = b.situacaoResumo?.mediaGeral;
+  const na = ma == null || Number.isNaN(ma);
+  const nb = mb == null || Number.isNaN(mb);
+  if (na && nb) return 0;
+  if (na) return 1;
+  if (nb) return -1;
+  return ma - mb;
+}
+
+function compareFaltas(a: StudentTableItem, b: StudentTableItem): number {
+  const fa = a.situacaoResumo?.faltas ?? 0;
+  const fb = b.situacaoResumo?.faltas ?? 0;
+  return fa - fb;
+}
 
 function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
   if (col !== sortKey) return <ChevronsUpDown className="ml-1 inline h-3 w-3 opacity-40" />;
@@ -61,6 +90,9 @@ export function StudentsTable({
     if (sortKey === "name") cmp = a.name.localeCompare(b.name);
     else if (sortKey === "enrollmentDate") cmp = a.enrollmentDate.localeCompare(b.enrollmentDate);
     else if (sortKey === "paymentStatus") cmp = (statusOrder[a.paymentStatus] ?? 1) - (statusOrder[b.paymentStatus] ?? 1);
+    else if (sortKey === "situacaoRisco") cmp = situacaoRiscoRank(a) - situacaoRiscoRank(b);
+    else if (sortKey === "media") cmp = compareMedia(a, b);
+    else if (sortKey === "faltas") cmp = compareFaltas(a, b);
     return sortDir === "asc" ? cmp : -cmp;
   });
 
@@ -85,7 +117,7 @@ export function StudentsTable({
   return (
     <div className="overflow-hidden rounded-[24px] border border-border/50 bg-card">
       <div className="overflow-x-auto">
-        <Table className="min-w-[760px]">
+        <Table className="min-w-[920px]">
           <TableHeader>
             <TableRow className="border-border/50 hover:bg-transparent">
               <TableHead className="w-10"></TableHead>
@@ -102,6 +134,27 @@ export function StudentsTable({
                 onClick={() => toggleSort("paymentStatus")}
               >
                 Status <SortIcon col="paymentStatus" sortKey={sortKey} sortDir={sortDir} />
+              </TableHead>
+              <TableHead
+                className="cursor-pointer select-none font-medium hover:text-foreground"
+                onClick={() => toggleSort("situacaoRisco")}
+              >
+                Situação{" "}
+                <SortIcon col="situacaoRisco" sortKey={sortKey} sortDir={sortDir} />
+              </TableHead>
+              <TableHead
+                className="cursor-pointer select-none font-medium hover:text-foreground"
+                onClick={() => toggleSort("media")}
+              >
+                Média{" "}
+                <SortIcon col="media" sortKey={sortKey} sortDir={sortDir} />
+              </TableHead>
+              <TableHead
+                className="cursor-pointer select-none font-medium hover:text-foreground"
+                onClick={() => toggleSort("faltas")}
+              >
+                Faltas{" "}
+                <SortIcon col="faltas" sortKey={sortKey} sortDir={sortDir} />
               </TableHead>
               <TableHead
                 className="cursor-pointer select-none font-medium hover:text-foreground"

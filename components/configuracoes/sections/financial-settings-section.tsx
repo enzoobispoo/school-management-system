@@ -89,6 +89,43 @@ export function FinancialSettingsSection() {
         </div>
       </div>
 
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-2">
+          <label className="text-sm font-medium text-foreground">
+            Ação na assinatura por inadimplência
+          </label>
+          <select
+            value={form.subscriptionInadimplenciaAction}
+            onChange={(e) =>
+              updateField(
+                "subscriptionInadimplenciaAction",
+                e.target.value as "SUSPENDER" | "CANCELAR"
+              )
+            }
+            className="h-11 rounded-2xl border border-input bg-background px-3 text-sm"
+            disabled={loading}
+          >
+            <option value="SUSPENDER">Suspender assinatura</option>
+            <option value="CANCELAR">Cancelar assinatura</option>
+          </select>
+        </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium text-foreground">
+            Aplicar ação na assinatura após (dias)
+          </label>
+          <Input
+            type="number"
+            min={1}
+            value={form.subscriptionInadimplenciaDias}
+            onChange={(e) =>
+              updateField("subscriptionInadimplenciaDias", e.target.value)
+            }
+            className="h-11 rounded-2xl"
+            disabled={loading}
+          />
+        </div>
+      </div>
+
       <div className="grid gap-3">
         <label className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-4">
           <input
@@ -123,6 +160,36 @@ export function FinancialSettingsSection() {
             </p>
           </div>
         </label>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-2">
+          <label className="text-sm font-medium text-foreground">
+            Régua automática de cobrança (dias)
+          </label>
+          <Input
+            value={form.reguaCobrancaDias}
+            onChange={(e) => updateField("reguaCobrancaDias", e.target.value)}
+            placeholder="Ex: 1,3,7"
+            className="h-11 rounded-2xl"
+            disabled={loading}
+          />
+        </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium text-foreground">
+            Suspender após inadimplência (dias)
+          </label>
+          <Input
+            type="number"
+            min={1}
+            value={form.suspenderAposInadimplenciaDias}
+            onChange={(e) =>
+              updateField("suspenderAposInadimplenciaDias", e.target.value)
+            }
+            className="h-11 rounded-2xl"
+            disabled={loading}
+          />
+        </div>
       </div>
 
       <div>

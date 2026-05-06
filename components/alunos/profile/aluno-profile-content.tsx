@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -51,6 +51,24 @@ type Aluno = {
   matriculas: Matricula[];
   documentos: Array<{ id: string; nome: string; tipo: string; url: string; tamanho: number | null; createdAt: Date }>;
   statusHistorico: Array<{ id: string; statusDe: string; statusPara: string; motivo: string | null; createdAt: Date }>;
+  situacaoResumo?: {
+    mediaGeral: number | null;
+    frequenciaGeral: number | null;
+    faltas: number;
+    totalNotas: number;
+    advertencias: number;
+    possuiObservacoes: boolean;
+    risco?: "ok" | "atencao";
+  };
+};
+
+type AlunoRegistro = {
+  id: string;
+  tipo: "OCORRENCIA" | "ADVERTENCIA" | "OBSERVACAO";
+  titulo: string;
+  descricao: string | null;
+  gravidade: string | null;
+  createdAt: string;
 };
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -302,13 +320,23 @@ function ReativarMatriculaButton({ matriculaId, onSuccess }: { matriculaId: stri
 }
 
 export function AlunoProfileContent({ aluno: initial }: { aluno: Aluno }) {
+  type ProfileTab = "geral" | "boletim" | "ocorrencias" | "saude";
+  type RegistroFiltroTipo = "TODOS" | "OCORRENCIA" | "ADVERTENCIA" | "OBSERVACAO";
+  type RegistroFiltroGravidade = "TODAS" | "BAIXA" | "MEDIA" | "ALTA";
   const router = useRouter();
   const [aluno, setAluno] = useState(initial);
   const [editOpen, setEditOpen] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [cancelMatricula, setCancelMatricula] = useState<Matricula | null>(null);
-  const [showHealth, setShowHealth] = useState(false);
-  const [showHistorico, setShowHistorico] = useState(false);
+  const [activeTab, setActiveTab] = useState<ProfileTab>("geral");
+  const [boletim, setBoletim] = useState<any>(null);
+  const [registros, setRegistros] = useState<AlunoRegistro[]>([]);
+  const [registroTipo, setRegistroTipo] = useState<"OCORRENCIA" | "ADVERTENCIA" | "OBSERVACAO">("OBSERVACAO");
+  const [registroTitulo, setRegistroTitulo] = useState("");
+  const [registroDescricao, setRegistroDescricao] = useState("");
+  const [registroGravidade, setRegistroGravidade] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState<RegistroFiltroTipo>("TODOS");
+  const [filtroGravidade, setFiltroGravidade] = useState<RegistroFiltroGravidade>("TODAS");
 
   async function handleEdit(payload: Record<string, unknown>) {
     setEditLoading(true);
@@ -339,20 +367,87 @@ export function AlunoProfileContent({ aluno: initial }: { aluno: Aluno }) {
   const h = aluno;
   const hasHealth = h.possuiLaudo || h.adaptacaoNecessaria || h.alergias || h.medicamentos || h.condicoesCronicas || h.observacoesMedicas;
 
+  useEffect(() => {
+    const activeMatricula = aluno.matriculas.find((m) => m.status === "ATIVA") || aluno.matriculas[0];
+    if (!activeMatricula) return;
+    fetch(`/api/academico/matriculas/${activeMatricula.id}/boletim`, { cache: "no-store" })
+      .then((r) => r.json().then((j) => (r.ok ? j : null)))
+      .then((j) => setBoletim(j))
+      .catch(() => undefined);
+
+    fetch(`/api/alunos/${aluno.id}/registros`, { cache: "no-store" })
+      .then((r) => r.json().then((j) => (r.ok ? j : [])))
+      .then((j) => setRegistros(Array.isArray(j) ? j : []))
+      .catch(() => undefined);
+  }, [aluno.id, aluno.matriculas]);
+
+  async function addRegistro() {
+    if (!registroTitulo.trim()) {
+      toast.error("Informe um título para o registro.");
+      return;
+    }
+    const res = await fetch(`/api/alunos/${aluno.id}/registros`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tipo: registroTipo,
+        titulo: registroTitulo.trim(),
+        descricao: registroDescricao.trim() || null,
+        gravidade: registroGravidade.trim() || null,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data?.error || "Não foi possível salvar o registro.");
+      return;
+    }
+    toast.success("Registro salvo.");
+    setRegistroTitulo("");
+    setRegistroDescricao("");
+    setRegistroGravidade("");
+    setRegistros((prev) => [data, ...prev]);
+  }
+
+  const resumoRegistros = registros.reduce(
+    (acc, r) => {
+      if (r.tipo === "OCORRENCIA") acc.ocorrencias += 1;
+      if (r.tipo === "ADVERTENCIA") acc.advertencias += 1;
+      if (r.tipo === "OBSERVACAO") acc.observacoes += 1;
+      const g = (r.gravidade || "").trim().toUpperCase();
+      if (g === "BAIXA") acc.baixa += 1;
+      if (g === "MEDIA" || g === "MÉDIA") acc.media += 1;
+      if (g === "ALTA") acc.alta += 1;
+      return acc;
+    },
+    { ocorrencias: 0, advertencias: 0, observacoes: 0, baixa: 0, media: 0, alta: 0 }
+  );
+
+  const registrosFiltrados = registros.filter((r) => {
+    const okTipo = filtroTipo === "TODOS" ? true : r.tipo === filtroTipo;
+    const gravidadeNormalizada = (r.gravidade || "").trim().toUpperCase();
+    const okGravidade =
+      filtroGravidade === "TODAS"
+        ? true
+        : filtroGravidade === "MEDIA"
+          ? gravidadeNormalizada === "MEDIA" || gravidadeNormalizada === "MÉDIA"
+          : gravidadeNormalizada === filtroGravidade;
+    return okTipo && okGravidade;
+  });
+
   return (
-    <div className="p-6 space-y-6">
-      <Link href="/alunos" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+    <div className="mx-auto w-full max-w-6xl p-6 space-y-5">
+      <Link href="/alunos" className="inline-flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors">
         <ArrowLeft className="h-4 w-4" />
         Voltar para alunos
       </Link>
 
       {/* Header */}
-      <div className="rounded-[28px] border border-border bg-card px-6 py-6 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+      <div className="rounded-2xl border border-border/70 bg-card/80 px-6 py-6">
         <div className="flex items-start gap-5">
           <AlunoPhoto alunoId={aluno.id} initialUrl={aluno.fotoUrl} onRefresh={() => router.refresh()} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-3 mb-1">
-              <h2 className="text-[26px] font-semibold tracking-[-0.04em] text-foreground leading-tight">{aluno.nome}</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-foreground leading-tight">{aluno.nome}</h2>
               <Badge variant={statusAlunoVariant[aluno.status] ?? "outline"} className="rounded-full">
                 {statusAlunoLabel[aluno.status] ?? aluno.status}
               </Badge>
@@ -367,12 +462,12 @@ export function AlunoProfileContent({ aluno: initial }: { aluno: Aluno }) {
             </div>
             {aluno.endereco && <p className="mt-1 text-sm text-muted-foreground">{aluno.endereco}</p>}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" size="sm" className="rounded-2xl gap-1.5 print:hidden" onClick={() => window.print()}>
+            <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" size="sm" className="rounded-xl gap-1.5 print:hidden border-border/70 bg-background/70" onClick={() => window.print()}>
               <Printer className="h-3.5 w-3.5" />
               Exportar PDF
             </Button>
-            <Button variant="outline" size="sm" className="rounded-2xl gap-1.5 print:hidden" onClick={() => setEditOpen(true)}>
+            <Button variant="outline" size="sm" className="rounded-xl gap-1.5 print:hidden border-border/70 bg-background/70" onClick={() => setEditOpen(true)}>
               <Pencil className="h-3.5 w-3.5" />
               Editar
             </Button>
@@ -380,9 +475,217 @@ export function AlunoProfileContent({ aluno: initial }: { aluno: Aluno }) {
         </div>
       </div>
 
+      <Card className="rounded-2xl border-border/70 bg-card/80">
+        <CardHeader className="text-base font-semibold">
+          Situação geral para atendimento
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+            <p className="text-xs text-muted-foreground">Média geral</p>
+            <p className="text-lg font-semibold">
+              {aluno.situacaoResumo?.mediaGeral !== null &&
+              aluno.situacaoResumo?.mediaGeral !== undefined
+                ? aluno.situacaoResumo.mediaGeral.toFixed(2)
+                : "-"}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+            <p className="text-xs text-muted-foreground">Frequência geral</p>
+            <p className="text-lg font-semibold">
+              {aluno.situacaoResumo?.frequenciaGeral !== null &&
+              aluno.situacaoResumo?.frequenciaGeral !== undefined
+                ? `${aluno.situacaoResumo.frequenciaGeral.toFixed(1)}%`
+                : "-"}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+            <p className="text-xs text-muted-foreground">Classificação</p>
+            <p
+              className={`text-lg font-semibold ${
+                !aluno.situacaoResumo?.risco
+                  ? "text-muted-foreground"
+                  : aluno.situacaoResumo.risco === "atencao"
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-emerald-600 dark:text-emerald-400"
+              }`}
+            >
+              {!aluno.situacaoResumo?.risco
+                ? "-"
+                : aluno.situacaoResumo.risco === "atencao"
+                  ? "Precisa atenção"
+                  : "Estável"}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+            <p className="text-xs text-muted-foreground">Faltas</p>
+            <p className="text-lg font-semibold">{aluno.situacaoResumo?.faltas ?? 0}</p>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+            <p className="text-xs text-muted-foreground">Registros avaliativos</p>
+            <p className="text-lg font-semibold">{aluno.situacaoResumo?.totalNotas ?? 0}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="rounded-2xl border border-border/70 bg-card/80 p-2">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          {[
+            { id: "geral", label: "Informações gerais" },
+            { id: "boletim", label: "Boletim" },
+            { id: "ocorrencias", label: "Ocorrências" },
+            { id: "saude", label: "Saúde" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as ProfileTab)}
+              className={`rounded-xl px-3 py-2 text-xs font-medium transition-colors ${
+                activeTab === tab.id
+                  ? "border border-border bg-muted text-foreground"
+                  : "border border-transparent text-muted-foreground hover:border-border/60 hover:text-foreground"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <Card className={`rounded-[24px] border-border/50 shadow-sm ${activeTab === "boletim" ? "" : "hidden"}`}>
+        <CardHeader className="text-base font-semibold">
+          Boletim e situação pedagógica
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {!boletim ? (
+            <p className="text-sm text-muted-foreground">Boletim indisponível no momento.</p>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">
+                {boletim.turma?.nome ?? "Turma atual"}
+              </p>
+              {(boletim.disciplinas || []).map((d: any) => (
+                <div key={d.disciplinaId} className="rounded-lg border border-border/70 bg-muted/20 p-2">
+                  <p className="text-sm font-medium">{d.disciplinaNome}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Média: {d.media !== null ? Number(d.media).toFixed(2) : "-"} | Frequência:{" "}
+                    {d.frequencia !== null ? `${Number(d.frequencia).toFixed(1)}%` : "-"}
+                  </p>
+                </div>
+              ))}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className={`rounded-[24px] border-border/50 shadow-sm ${activeTab === "ocorrencias" ? "" : "hidden"}`}>
+        <CardHeader className="text-base font-semibold">
+          Ocorrências, advertências e observações
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Ocorrências</p>
+              <p className="text-lg font-semibold">{resumoRegistros.ocorrencias}</p>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Advertências</p>
+              <p className="text-lg font-semibold">{resumoRegistros.advertencias}</p>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Observações</p>
+              <p className="text-lg font-semibold">{resumoRegistros.observacoes}</p>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Gravidade alta</p>
+              <p className="text-lg font-semibold">{resumoRegistros.alta}</p>
+            </div>
+          </div>
+
+          <div className="grid gap-2 md:grid-cols-4">
+            <select
+              className="h-10 rounded-xl border border-input bg-background px-3 text-sm"
+              value={registroTipo}
+              onChange={(e) => setRegistroTipo(e.target.value as any)}
+            >
+              <option value="OBSERVACAO">Observação</option>
+              <option value="OCORRENCIA">Ocorrência</option>
+              <option value="ADVERTENCIA">Advertência</option>
+            </select>
+            <input
+              className="h-10 rounded-xl border border-input bg-background px-3 text-sm md:col-span-2"
+              placeholder="Título"
+              value={registroTitulo}
+              onChange={(e) => setRegistroTitulo(e.target.value)}
+            />
+            <input
+              className="h-10 rounded-xl border border-input bg-background px-3 text-sm"
+              placeholder="Gravidade (opcional)"
+              value={registroGravidade}
+              onChange={(e) => setRegistroGravidade(e.target.value)}
+            />
+          </div>
+          <textarea
+            className="min-h-24 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
+            placeholder="Descrição do registro..."
+            value={registroDescricao}
+            onChange={(e) => setRegistroDescricao(e.target.value)}
+          />
+          <div className="flex justify-end">
+            <Button className="rounded-xl" onClick={addRegistro}>
+              Salvar registro
+            </Button>
+          </div>
+
+          <div className="grid gap-2 md:grid-cols-2">
+            <select
+              className="h-10 rounded-xl border border-input bg-background px-3 text-sm"
+              value={filtroTipo}
+              onChange={(e) => setFiltroTipo(e.target.value as RegistroFiltroTipo)}
+            >
+              <option value="TODOS">Todos os tipos</option>
+              <option value="OCORRENCIA">Somente ocorrências</option>
+              <option value="ADVERTENCIA">Somente advertências</option>
+              <option value="OBSERVACAO">Somente observações</option>
+            </select>
+            <select
+              className="h-10 rounded-xl border border-input bg-background px-3 text-sm"
+              value={filtroGravidade}
+              onChange={(e) => setFiltroGravidade(e.target.value as RegistroFiltroGravidade)}
+            >
+              <option value="TODAS">Todas as gravidades</option>
+              <option value="BAIXA">Baixa</option>
+              <option value="MEDIA">Média</option>
+              <option value="ALTA">Alta</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            {registrosFiltrados.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sem registros.</p>
+            ) : (
+              registrosFiltrados.map((r) => (
+                <div key={r.id} className="rounded-lg border border-border/70 bg-muted/20 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">{r.titulo}</p>
+                    <Badge variant="outline" className="rounded-full text-[10px]">
+                      {r.tipo}
+                    </Badge>
+                  </div>
+                  {r.descricao ? <p className="mt-1 text-sm text-muted-foreground">{r.descricao}</p> : null}
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {r.gravidade ? `${r.gravidade} · ` : ""}
+                    {fmtDate(r.createdAt)}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className={activeTab === "geral" ? "space-y-5" : "hidden"}>
       {/* Responsável */}
       {(aluno.responsavelNome || aluno.responsavelTelefone || aluno.responsavelEmail || aluno.responsavelCpf) && (
-        <Card className="rounded-[24px] border-border/50 shadow-sm">
+        <Card className="rounded-2xl border-border/70 bg-card/80">
           <CardHeader className="flex flex-row items-center gap-2 text-base font-semibold pb-3">
             <UserCircle className="h-4 w-4 text-muted-foreground" />
             Responsável
@@ -397,7 +700,7 @@ export function AlunoProfileContent({ aluno: initial }: { aluno: Aluno }) {
       )}
 
       {/* Matrículas */}
-      <Card className="rounded-[24px] border-border/50 shadow-sm">
+      <Card className="rounded-2xl border-border/70 bg-card/80">
         <CardHeader className="text-base font-semibold">
           Matrículas ({aluno.matriculas.length})
         </CardHeader>
@@ -406,7 +709,7 @@ export function AlunoProfileContent({ aluno: initial }: { aluno: Aluno }) {
             <p className="text-sm text-muted-foreground">Nenhuma matrícula encontrada.</p>
           ) : (
             aluno.matriculas.map((m) => (
-              <div key={m.id} className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <div key={m.id} className="rounded-xl border border-border/70 bg-background/60 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-medium text-foreground">{m.turma.curso.nome}</p>
@@ -446,7 +749,7 @@ export function AlunoProfileContent({ aluno: initial }: { aluno: Aluno }) {
 
                 {/* Pagamentos */}
                 {m.pagamentos.length > 0 && (
-                  <div className="mt-3 space-y-1.5 border-t border-border/30 pt-3">
+                  <div className="mt-3 space-y-1.5 border-t border-border/50 pt-3">
                     <div className="flex items-center justify-between">
                       <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Pagamentos</p>
                       <p className="text-[11px] text-muted-foreground">{m.pagamentos.length} registro(s)</p>
@@ -472,7 +775,7 @@ export function AlunoProfileContent({ aluno: initial }: { aluno: Aluno }) {
 
       {/* Histórico de turmas */}
       {aluno.matriculas.length > 1 && (
-        <Card className="rounded-[24px] border-border/50 shadow-sm">
+        <Card className="rounded-2xl border-border/70 bg-card/80">
           <CardHeader className="flex flex-row items-center gap-2 text-base font-semibold">
             <History className="h-4 w-4 text-muted-foreground" />
             Histórico de turmas
@@ -506,7 +809,7 @@ export function AlunoProfileContent({ aluno: initial }: { aluno: Aluno }) {
       )}
 
       {/* Documentos */}
-      <Card className="rounded-[24px] border-border/50 shadow-sm">
+      <Card className="rounded-2xl border-border/70 bg-card/80">
         <CardHeader className="flex flex-row items-center gap-2 text-base font-semibold">
           <FileText className="h-4 w-4 text-muted-foreground" />
           Documentos
@@ -515,27 +818,10 @@ export function AlunoProfileContent({ aluno: initial }: { aluno: Aluno }) {
           <StudentDocuments alunoId={aluno.id} />
         </CardContent>
       </Card>
+      </div>
 
       {/* Seções colapsáveis */}
-      <div className="flex flex-wrap gap-2">
-        {hasHealth && (
-          <button
-            onClick={() => setShowHealth((v) => !v)}
-            className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-colors ${showHealth ? "border-border bg-muted text-foreground" : "border-border/50 bg-card text-muted-foreground hover:border-border hover:text-foreground"}`}
-          >
-            <HeartPulse className="h-3.5 w-3.5" />
-            {showHealth ? "Ocultar saúde" : "Ver informações de saúde"}
-          </button>
-        )}
-        {aluno.statusHistorico.length > 0 && (
-          <button
-            onClick={() => setShowHistorico((v) => !v)}
-            className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-colors ${showHistorico ? "border-border bg-muted text-foreground" : "border-border/50 bg-card text-muted-foreground hover:border-border hover:text-foreground"}`}
-          >
-            <History className="h-3.5 w-3.5" />
-            {showHistorico ? "Ocultar histórico" : "Ver histórico de status"}
-          </button>
-        )}
+      <div className={`flex flex-wrap gap-2 ${activeTab === "geral" ? "" : "hidden"}`}>
         {(aluno.observacoesGerais || aluno.indicacao || aluno.nivelInicial || aluno.idiomaNativo) && (
           <div className="rounded-xl border border-border/50 bg-card px-3 py-2">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Informações adicionais</p>
@@ -550,15 +836,15 @@ export function AlunoProfileContent({ aluno: initial }: { aluno: Aluno }) {
       </div>
 
       {/* Saúde */}
-      {showHealth && hasHealth && (
-        <Card className="rounded-[24px] border-border/50 shadow-sm">
+      {activeTab === "saude" && hasHealth && (
+        <Card className="rounded-2xl border-border/70 bg-card/80">
           <CardHeader className="flex flex-row items-center gap-2 text-base font-semibold">
             <HeartPulse className="h-4 w-4 text-muted-foreground" />
             Saúde
           </CardHeader>
           <CardContent className="space-y-3">
             {aluno.possuiLaudo && (
-              <div className="rounded-xl border border-border/50 bg-muted/20 p-3 space-y-1">
+              <div className="rounded-xl border border-border/70 bg-background/60 p-3 space-y-1">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Laudo</p>
                 <InfoRow label="Tipo" value={aluno.laudoTipo} />
                 <InfoRow label="CID" value={aluno.laudoCid} />
@@ -569,7 +855,7 @@ export function AlunoProfileContent({ aluno: initial }: { aluno: Aluno }) {
               </div>
             )}
             {aluno.adaptacaoNecessaria && (
-              <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
+              <div className="rounded-xl border border-border/70 bg-background/60 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Adaptações</p>
                 <p className="text-sm text-foreground">{aluno.adaptacaoDescricao || "Necessita de adaptações."}</p>
               </div>
@@ -591,15 +877,15 @@ export function AlunoProfileContent({ aluno: initial }: { aluno: Aluno }) {
       )}
 
       {/* Histórico de status */}
-      {showHistorico && aluno.statusHistorico.length > 0 && (
-        <Card className="rounded-[24px] border-border/50 shadow-sm">
+      {activeTab === "geral" && aluno.statusHistorico.length > 0 && (
+        <Card className="rounded-2xl border-border/70 bg-card/80">
           <CardHeader className="flex flex-row items-center gap-2 text-base font-semibold">
             <History className="h-4 w-4 text-muted-foreground" />
             Histórico de status
           </CardHeader>
           <CardContent className="space-y-1.5">
             {aluno.statusHistorico.map((h) => (
-              <div key={h.id} className="flex items-start justify-between rounded-xl border border-border/50 bg-muted/20 px-3 py-2 text-sm">
+              <div key={h.id} className="flex items-start justify-between rounded-xl border border-border/70 bg-background/60 px-3 py-2 text-sm">
                 <div>
                   <span className="text-muted-foreground">{statusAlunoLabel[h.statusDe] ?? h.statusDe}</span>
                   <span className="mx-1.5 text-muted-foreground">→</span>

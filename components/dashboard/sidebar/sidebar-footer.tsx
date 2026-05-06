@@ -15,18 +15,17 @@ export function SidebarFooter({ collapsed = false }: SidebarFooterProps) {
 
   return (
     <div className="px-3 pb-4 pt-2">
-      {/* Divisor */}
-      <div className="mb-3 h-px bg-sidebar-border/50" />
+      <div className="mb-3 h-px bg-sidebar-border/60" />
 
       <Link
         href="/configuracoes"
         title={collapsed ? "Configurações" : undefined}
         className={cn(
-          "group flex items-center rounded-xl py-2 text-[13px] font-medium transition-all duration-150",
+          "group relative flex items-center rounded-xl py-2.5 text-[13px] font-medium transition-all duration-150",
           collapsed ? "justify-center px-2" : "gap-3 px-3",
           isActive
-            ? "bg-sidebar-accent text-sidebar-foreground shadow-sm"
-            : "text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+            ? "bg-sidebar-accent text-sidebar-foreground shadow-sm ring-1 ring-sidebar-border/60"
+            : "text-sidebar-foreground/55 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
         )}
       >
         <Settings

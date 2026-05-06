@@ -1,8 +1,16 @@
 {
   "crons": [
     {
+      "path": "/api/cron/recorrencia-mensalidades",
+      "schedule": "10 1 * * *"
+    },
+    {
       "path": "/api/cron/cobrancas-atrasadas",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/operational-incidents",
+      "schedule": "25 * * * *"
     }
   ]
 }

@@ -20,6 +20,10 @@ interface FinancialSettingsForm {
 
   enviarLembreteAuto: boolean;
   autoSendBoletoWhatsApp: boolean;
+  reguaCobrancaDias: string;
+  suspenderAposInadimplenciaDias: string;
+  subscriptionInadimplenciaAction: "SUSPENDER" | "CANCELAR";
+  subscriptionInadimplenciaDias: string;
 }
 
 export function useFinancialSettings() {
@@ -41,6 +45,10 @@ export function useFinancialSettings() {
 
     enviarLembreteAuto: false,
     autoSendBoletoWhatsApp: false,
+    reguaCobrancaDias: "1,3,7",
+    suspenderAposInadimplenciaDias: "30",
+    subscriptionInadimplenciaAction: "SUSPENDER",
+    subscriptionInadimplenciaDias: "45",
   });
 
   const [loading, setLoading] = useState(true);
@@ -104,6 +112,17 @@ export function useFinancialSettings() {
 
           enviarLembreteAuto: Boolean(school?.enviarLembreteAuto),
           autoSendBoletoWhatsApp: Boolean(school?.autoSendBoletoWhatsApp),
+          reguaCobrancaDias: school?.reguaCobrancaDias ?? "1,3,7",
+          suspenderAposInadimplenciaDias: String(
+            school?.suspenderAposInadimplenciaDias ?? 30
+          ),
+          subscriptionInadimplenciaAction:
+            school?.subscriptionInadimplenciaAction === "CANCELAR"
+              ? "CANCELAR"
+              : "SUSPENDER",
+          subscriptionInadimplenciaDias: String(
+            school?.subscriptionInadimplenciaDias ?? 45
+          ),
         });
       } catch (err) {
         console.error(err);
@@ -140,6 +159,15 @@ export function useFinancialSettings() {
           gerarMensalidadeAuto: form.gerarMensalidadeAuto,
           enviarLembreteAuto: form.enviarLembreteAuto,
           autoSendBoletoWhatsApp: form.autoSendBoletoWhatsApp,
+          reguaCobrancaDias: form.reguaCobrancaDias || "1,3,7",
+          suspenderAposInadimplenciaDias: Number(
+            form.suspenderAposInadimplenciaDias || 30
+          ),
+          subscriptionInadimplenciaAction:
+            form.subscriptionInadimplenciaAction,
+          subscriptionInadimplenciaDias: Number(
+            form.subscriptionInadimplenciaDias || 45
+          ),
         }),
       });
 

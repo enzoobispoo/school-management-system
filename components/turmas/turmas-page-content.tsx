@@ -9,6 +9,8 @@ import type { TurmaCardItem } from "@/hooks/turmas/use-turmas-page";
 
 interface Props {
   professorId: string;
+  ocupacao: string;
+  setOcupacaoFilter: (value: string) => void;
   turmas: TurmaCardItem[];
   search: string;
   setSearch: (value: string) => void;
@@ -39,6 +41,8 @@ export function TurmasPageContent(props: Props) {
     <>
       <TurmasFiltersBar
         professorId={props.professorId}
+        ocupacao={props.ocupacao}
+        setOcupacaoFilter={props.setOcupacaoFilter}
         search={props.search}
         setSearch={props.setSearch}
         statusFilter={props.statusFilter}

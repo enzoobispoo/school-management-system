@@ -255,7 +255,7 @@ export function StudentExpandedRow({ student, onRefresh }: StudentExpandedRowPro
 
   return (
     <TableRow className="border-border/50 bg-muted/20 hover:bg-transparent">
-      <TableCell colSpan={7} className="p-0">
+      <TableCell colSpan={10} className="p-0">
         <div className="animate-in fade-in-0 slide-in-from-top-1 border-t border-border/30 px-6 py-4 duration-200">
 
           {/* Layout principal */}

@@ -9,6 +9,7 @@ import { DashboardMetricsGrid } from "@/components/dashboard/metrics/dashboard-m
 import { DashboardCustomizePanel } from "@/components/dashboard/metrics/dashboard-customize-panel";
 import { DashboardChartsSection } from "@/components/dashboard/charts/dashboard-charts-section";
 import { DashboardActivitySection } from "@/components/dashboard/activity/dashboard-activity-section";
+import { DashboardCommandCenter } from "@/components/dashboard/dashboard-command-center";
 import { useDashboardCardsPreferences } from "@/hooks/dashboard/use-dashboard-cards-preferences";
 import {
   useDashboardInsightsPreferences,
@@ -69,17 +70,25 @@ export function DashboardPageContent({
   }
 
   return (
-    <div className="mt-10">
-      <div className="mb-4 flex items-center justify-end">
+    <div className="mt-8 space-y-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
+            Painel da escola
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Visão executiva para alto volume: prioridades primeiro, depois indicadores e histórico.
+          </p>
+        </div>
         <Button
           type="button"
           variant="outline"
           size="sm"
-          className="rounded-xl"
+          className="shrink-0 rounded-xl"
           onClick={() => setShowSettings((prev) => !prev)}
         >
           <Settings2 className="mr-2 h-4 w-4" />
-          Personalizar dashboard
+          Personalizar indicadores
         </Button>
       </div>
 
@@ -99,21 +108,50 @@ export function DashboardPageContent({
         onDismiss={dismissInsight}
       />
 
-      <DashboardMetricsGrid
-        metrics={metrics}
-        optionalCards={optionalCards}
-        cardsOrder={cardsOrder}
-        loading={loading || loadingPreferences}
-      />
+      <DashboardCommandCenter metrics={metrics} loading={loading} />
 
-      <DashboardChartsSection data={data} loading={loading} />
+      <section className="space-y-3">
+        <div>
+          <h3 className="text-base font-semibold tracking-tight text-foreground">
+            Indicadores principais
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Números consolidados da sua escola (personalize quais cartões aparecem acima).
+          </p>
+        </div>
+        <DashboardMetricsGrid
+          metrics={metrics}
+          optionalCards={optionalCards}
+          cardsOrder={cardsOrder}
+          loading={loading || loadingPreferences}
+        />
+      </section>
 
-      <DashboardActivitySection
-        recentActivities={recentActivities}
-        loading={loading}
-      />
+      <section className="space-y-3">
+        <div>
+          <h3 className="text-base font-semibold tracking-tight text-foreground">
+            Tendências e distribuição
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Receita ao longo do tempo e alunos por curso.
+          </p>
+        </div>
+        <DashboardChartsSection data={data} loading={loading} />
+      </section>
 
-<ChargeStudentsModal />
+      <section className="space-y-3">
+        <div>
+          <h3 className="text-base font-semibold tracking-tight text-foreground">
+            Movimentação recente
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Últimos eventos registrados pelo sistema.
+          </p>
+        </div>
+        <DashboardActivitySection recentActivities={recentActivities} loading={loading} />
+      </section>
+
+      <ChargeStudentsModal />
     </div>
   );
 }

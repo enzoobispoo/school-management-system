@@ -21,14 +21,18 @@ function formatDateToYMD(date: Date) {
 function hasExistingBoleto(payment: {
   billingProvider: string | null;
   billingExternalId: string | null;
-  billingInvoiceUrl: string | null;
-  billingBankSlipUrl: string | null;
 }) {
   return Boolean(
     payment.billingProvider &&
-      payment.billingExternalId &&
-      (payment.billingBankSlipUrl || payment.billingInvoiceUrl)
+      payment.billingExternalId
   );
+}
+
+function normalizeChargeMethod(value?: string | null): "boleto" | "pix" | "card" {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "pix") return "pix";
+  if (normalized === "cartao" || normalized === "cartão" || normalized === "card") return "card";
+  return "boleto";
 }
 
 export async function POST(request: NextRequest) {
@@ -43,7 +47,7 @@ export async function POST(request: NextRequest) {
     const { schoolId } = _school;
 
     const body = await request.json();
-    const { paymentId } = body as { paymentId?: string };
+    const { paymentId, method } = body as { paymentId?: string; method?: string };
 
     if (!paymentId) {
       return NextResponse.json(
@@ -106,8 +110,11 @@ export async function POST(request: NextRequest) {
         multaAtrasoPercentual: true,
         jurosMensalPercentual: true,
         autoSendBoletoWhatsApp: true,
+        defaultChargeMethod: true,
       },
     });
+
+    const selectedMethod = normalizeChargeMethod(method || school?.defaultChargeMethod);
 
     const boleto = await createBoleto({
       studentName: aluno.responsavelNome || aluno.nome,
@@ -124,6 +131,7 @@ export async function POST(request: NextRequest) {
       finePercentage: school?.multaAtrasoPercentual
         ? Number(school.multaAtrasoPercentual)
         : 0,
+      method: selectedMethod,
     });
 
 
@@ -140,9 +148,12 @@ export async function POST(request: NextRequest) {
       where: { id: payment.id },
       data: {
         billingProvider: "asaas",
+        billingChargeType: boleto.billingType,
         billingExternalId: boleto.paymentId,
         billingInvoiceUrl: boleto.invoiceUrl,
         billingBankSlipUrl: boleto.bankSlipUrl,
+        billingPixQrCode: boleto.pixQrCode,
+        billingPixCopyPaste: boleto.pixCopyPaste,
         billingStatus: boleto.status,
         boletoGeradoEm: new Date(),
       },
@@ -196,13 +207,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       reused: false,
-      message: "Boleto gerado com sucesso.",
+      message: "Cobrança gerada com sucesso.",
       payment: updatedPayment,
       boleto: {
         provider: "asaas",
+        billingType: boleto.billingType,
         paymentId: boleto.paymentId,
         invoiceUrl: boleto.invoiceUrl,
         bankSlipUrl: boleto.bankSlipUrl,
+        pixQrCode: boleto.pixQrCode,
+        pixCopyPaste: boleto.pixCopyPaste,
         identificationField: boleto.identificationField,
         nossoNumero: boleto.nossoNumero,
         barCode: boleto.barCode,

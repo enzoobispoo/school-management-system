@@ -19,13 +19,30 @@ function startOfToday() {
   return date;
 }
 
+function endOfToday() {
+  const date = new Date();
+  date.setHours(23, 59, 59, 999);
+  return date;
+}
+
+function parseDunningSchedule(scheduleRaw: string | null | undefined) {
+  const parsed = (scheduleRaw || "1,3,7")
+    .split(",")
+    .map((n) => Number(n.trim()))
+    .filter((n) => Number.isInteger(n) && n > 0 && n <= 120);
+
+  return new Set(parsed.length ? parsed : [1, 3, 7]);
+}
+
 export async function sendAutomaticOverdueReminders(schoolId: string) {
   const school = await prisma.escolaSettings.findUnique({
     where: { schoolId },
     select: {
       enviarLembreteAuto: true,
+      reguaCobrancaDias: true,
     },
   });
+  const reminderOffsets = parseDunningSchedule(school?.reguaCobrancaDias);
 
   if (!school?.enviarLembreteAuto) {
     return {
@@ -38,6 +55,7 @@ export async function sendAutomaticOverdueReminders(schoolId: string) {
   }
 
   const todayStart = startOfToday();
+  const todayEnd = endOfToday();
 
   const pagamentos = await prisma.pagamento.findMany({
     where: {
@@ -49,10 +67,6 @@ export async function sendAutomaticOverdueReminders(schoolId: string) {
       vencimento: {
         lt: todayStart,
       },
-      OR: [
-        { ultimoLembreteEnviadoEm: null },
-        { ultimoLembreteEnviadoEm: { lt: todayStart } },
-      ],
     },
     include: {
       matricula: {
@@ -71,6 +85,34 @@ export async function sendAutomaticOverdueReminders(schoolId: string) {
 
   for (const pagamento of pagamentos) {
     const aluno = pagamento.matricula.aluno;
+
+    const overdueDays = Math.floor(
+      (todayStart.getTime() - new Date(pagamento.vencimento).setHours(0, 0, 0, 0)) / 86400000
+    );
+    if (!reminderOffsets.has(overdueDays)) {
+      skipped.push(
+        `${aluno.nome} (fora da régua automática configurada — atual D+${overdueDays})`
+      );
+      continue;
+    }
+
+    const reminderMarker = `[AUTO_D+${overdueDays}]`;
+    const sameOffsetAlreadySent = await prisma.cobrancaEnvio.findFirst({
+      where: {
+        pagamentoId: pagamento.id,
+        canal: CanalCobranca.WHATSAPP,
+        tipo: TipoEnvioCobranca.COBRANCA_ATRASO,
+        status: StatusEnvioCobranca.ENVIADO,
+        createdAt: { gte: todayStart, lte: todayEnd },
+        mensagem: { contains: reminderMarker },
+      },
+      select: { id: true },
+    });
+    if (sameOffsetAlreadySent) {
+      skipped.push(`${aluno.nome} (régua D+${overdueDays} já enviada hoje)`);
+      continue;
+    }
+
     const destinoTelefone = aluno.responsavelTelefone || aluno.telefone;
     const boletoUrl =
       pagamento.billingBankSlipUrl || pagamento.billingInvoiceUrl;
@@ -104,7 +146,7 @@ export async function sendAutomaticOverdueReminders(schoolId: string) {
       continue;
     }
 
-    const message = buildPaymentReminderMessage({
+    const message = `${reminderMarker}\n${buildPaymentReminderMessage({
       name: aluno.responsavelNome || aluno.nome,
       amount: Number(pagamento.valor),
       competence: formatCompetence(
@@ -112,7 +154,7 @@ export async function sendAutomaticOverdueReminders(schoolId: string) {
         pagamento.competenciaAno
       ),
       boletoUrl,
-    });
+    })}`;
 
     try {
       const result = await sendWhatsAppMessage({
