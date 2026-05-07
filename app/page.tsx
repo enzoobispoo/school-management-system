@@ -14,8 +14,14 @@ export default function DashboardPage() {
   const dashboard = useDashboardPage();
   const searchParams = useSearchParams();
   const [userName, setUserName] = useState("");
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [sessionResolved, setSessionResolved] = useState(false);
 
   const initialAiPrompt = searchParams.get("ai") || "";
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   useEffect(() => {
     async function loadUser() {
@@ -28,10 +34,19 @@ export default function DashboardPage() {
             window.location.href = "/admin";
             return;
           }
+          if (data.user?.role === "PROFESSOR") {
+            window.location.href = "/docente";
+            return;
+          }
           setUserName(data.user?.nome || "");
+          setUserRole(
+            typeof data.user?.role === "string" ? data.user.role : null
+          );
         }
       } catch (error) {
         console.error("Erro ao carregar usuário:", error);
+      } finally {
+        setSessionResolved(true);
       }
     }
 
@@ -46,7 +61,16 @@ export default function DashboardPage() {
       />
 
       <DashboardMainLayout
-        rightPanel={<DashboardRightPanel initialPrompt={initialAiPrompt} />}
+        rightPanel={
+          !sessionResolved || userRole === "PROFESSOR" ? null : (
+            <DashboardRightPanel
+              initialPrompt={initialAiPrompt}
+              dashboardMetrics={dashboard.metrics}
+              dashboardMetricsLoading={dashboard.loading}
+              dashboardMetricsError={dashboard.error !== ""}
+            />
+          )
+        }
       >
         <DashboardGreeting
           name={userName ? userName.split(" ")[0] : "Usuário"}

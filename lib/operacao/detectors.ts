@@ -232,9 +232,110 @@ async function sysFinanceAuditFailures(
   };
 }
 
+/** Pagamentos pendentes com vencimento nos próximos 7 dias (fluxo de caixa). */
+async function finPendingDueNext7Days(
+  schoolId: string
+): Promise<IncidentDetectionResult | null> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const windowEnd = new Date(today);
+  windowEnd.setDate(windowEnd.getDate() + 8);
+
+  const count = await prisma.pagamento.count({
+    where: {
+      schoolId,
+      status: "PENDENTE",
+      vencimento: { gte: tomorrow, lt: windowEnd },
+    },
+  });
+
+  if (count === 0) return null;
+
+  const agg = await prisma.pagamento.aggregate({
+    where: {
+      schoolId,
+      status: "PENDENTE",
+      vencimento: { gte: tomorrow, lt: windowEnd },
+    },
+    _sum: { valor: true },
+  });
+  const total = agg._sum.valor ? Number(agg._sum.valor) : 0;
+
+  const severity: IncidentSeverity =
+    count >= 80 ? "WARNING" : "INFO";
+
+  return {
+    dedupeKey: "FIN_PENDING_DUE_7D",
+    category: "FINANCE",
+    severity,
+    title: `${count} pagamento${count === 1 ? "" : "s"} vencendo em até 7 dias`,
+    description:
+      "Há títulos ainda pendentes com vencimento próximo. Antecipe cobrança amigável e confirme se boletos/pix foram entregues.",
+    problemStatement:
+      "Sem ação, parte desses valores pode virar atraso na semana seguinte.",
+    suggestedActions: [
+      "Abrir o Financeiro e filtrar pendentes com vencimento próximo.",
+      "Disparar lembrete ou contato antes do vencimento.",
+      "Conferir envio automático de fatura se estiver habilitado.",
+    ],
+    impactHint: `R$ ${moneyPtBR(total)} a receber neste período`,
+    contextJson: {
+      count,
+      totalValor: total,
+    },
+  };
+}
+
+/** Registros de aula recentes sem nenhuma presença lançada (últimos 14 dias). */
+async function acadAulasSemPresenca(
+  schoolId: string
+): Promise<IncidentDetectionResult | null> {
+  const since = new Date();
+  since.setDate(since.getDate() - 14);
+  since.setHours(0, 0, 0, 0);
+
+  const count = await prisma.aulaRegistro.count({
+    where: {
+      schoolId,
+      dataAula: { gte: since },
+      presencas: { none: {} },
+    },
+  });
+
+  if (count === 0) return null;
+
+  const severity: IncidentSeverity =
+    count >= 15 ? "WARNING" : "INFO";
+
+  return {
+    dedupeKey: "ACAD_AULAS_SEM_PRESENCA_14D",
+    category: "ACADEMIC",
+    severity,
+    title: `${count} aula${count === 1 ? "" : "s"} sem lançamento de presença (14 dias)`,
+    description:
+      "Existem aulas registradas sem marcação de presença dos alunos. Isso pode prejudicar frequência e relatórios.",
+    problemStatement:
+      "Professor ou sistema pode não estar registrando presença após cada aula.",
+    suggestedActions: [
+      "Abrir o módulo acadêmico e revisar chamadas/presença das turmas.",
+      "Orientar professores a fechar presença no mesmo dia da aula.",
+      "Verificar se há turmas novas sem fluxo de chamada definido.",
+    ],
+    impactHint: `${count} registro(s) sem presença`,
+    contextJson: {
+      count,
+      desde: since.toISOString(),
+    },
+  };
+}
+
 export const DETECTOR_REGISTRY: Record<string, DetectorFn> = {
   fin_overdue_summary: finOverdueSummary,
+  fin_pending_due_7d: finPendingDueNext7Days,
   acad_turmas_over_capacity: acadTurmasOverCapacity,
+  acad_aulas_sem_presenca_14d: acadAulasSemPresenca,
   enroll_active_without_matricula: enrollActiveWithoutMatricula,
   sys_finance_audit_failures: sysFinanceAuditFailures,
 };

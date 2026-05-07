@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, requireSchool } from "@/lib/auth";
+import { labelDiaSemana } from "@/lib/docente/dia-semana";
+import { applyProfessorTrocaInTransaction } from "@/lib/turmas/apply-professor-troca";
+import { mensagemConflitoHorarioProfessor } from "@/lib/turmas/professor-horario-conflito";
+import {
+  TROCA_PRISMA_STALE_MESSAGE,
+  TrocaPrismaStaleError,
+  trocaProfessorPropostaDelegate,
+} from "@/lib/prisma/troca-professor-proposta";
 
 interface RouteContext {
   params: Promise<{
@@ -8,24 +16,7 @@ interface RouteContext {
   }>;
 }
 
-function timeToMinutes(time: string) {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-function hasTimeOverlap(
-  startA: string,
-  endA: string,
-  startB: string,
-  endB: string
-) {
-  const aStart = timeToMinutes(startA);
-  const aEnd = timeToMinutes(endA);
-  const bStart = timeToMinutes(startB);
-  const bEnd = timeToMinutes(endB);
-
-  return aStart < bEnd && bStart < aEnd;
-}
+const ROLES_DESCOBERTOS = new Set(["ADMIN", "SECRETARIA", "SUPER_ADMIN"]);
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
   try {
@@ -39,6 +30,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       motivoTroca,
       observacoes,
       dataInicio,
+      aplicarImediato,
     } = body;
 
     if (!novoProfessorId) {
@@ -72,6 +64,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       where: { id: turmaId, schoolId },
       include: {
         horarios: true,
+        curso: { select: { nome: true } },
+        professor: { select: { id: true, nome: true } },
       },
     });
 
@@ -124,97 +118,141 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         schoolId,
         professorId: novoProfessorId,
         ativo: true,
-        id: {
-          not: turmaId,
-        },
+        id: { not: turmaId },
       },
       include: {
-        curso: {
-          select: {
-            id: true,
-            nome: true,
-          },
-        },
+        curso: { select: { nome: true } },
         horarios: true,
       },
     });
 
-    for (const outraTurma of outrasTurmasDoProfessor) {
-      for (const horarioAtual of turma.horarios) {
-        for (const horarioOutraTurma of outraTurma.horarios) {
-          const sameDay =
-            horarioAtual.diaSemana === horarioOutraTurma.diaSemana;
+    const msgConflito = mensagemConflitoHorarioProfessor(
+      turma.horarios,
+      outrasTurmasDoProfessor
+    );
+    if (msgConflito) {
+      return NextResponse.json({ error: msgConflito }, { status: 400 });
+    }
 
-          const overlap = hasTimeOverlap(
-            horarioAtual.horaInicio,
-            horarioAtual.horaFim,
-            horarioOutraTurma.horaInicio,
-            horarioOutraTurma.horaFim
-          );
+    const alvoTemContaProfessor = await prisma.user.findFirst({
+      where: {
+        professorId: novoProfessorId,
+        role: "PROFESSOR",
+        ativo: true,
+      },
+      select: { id: true },
+    });
 
-          if (sameDay && overlap) {
-            return NextResponse.json(
-              {
-                error: `Conflito de horário: o professor já está vinculado à turma "${outraTurma.nome}" (${outraTurma.curso.nome}) em ${horarioOutraTurma.diaSemana}, ${horarioOutraTurma.horaInicio}-${horarioOutraTurma.horaFim}.`,
-              },
-              { status: 400 }
-            );
-          }
-        }
+    const forcarImediato =
+      aplicarImediato === true &&
+      user.role &&
+      ROLES_DESCOBERTOS.has(user.role);
+
+    if (alvoTemContaProfessor && !forcarImediato) {
+      const trocaTx = trocaProfessorPropostaDelegate(prisma);
+      if (!trocaTx) {
+        return NextResponse.json({ error: TROCA_PRISMA_STALE_MESSAGE }, { status: 503 });
       }
+
+      await trocaTx.updateMany({
+        where: {
+          turmaId,
+          professorAlvoId: novoProfessorId,
+          status: "PENDENTE",
+        },
+        data: { status: "CANCELADA" },
+      });
+
+      const resumoHorarios = turma.horarios
+        .map(
+          (h) =>
+            `${labelDiaSemana(h.diaSemana)} ${h.horaInicio}–${h.horaFim}`
+        )
+        .join(" · ");
+
+      const resumoTurma = `${turma.nome} — ${turma.curso.nome}`;
+      const anteriorNome = turma.professor?.nome ?? "Titular atual";
+
+      const proposta = await prisma.$transaction(async (tx) => {
+        const innerTroca = trocaProfessorPropostaDelegate(tx as unknown as typeof prisma);
+        if (!innerTroca) throw new TrocaPrismaStaleError();
+
+        const p = await innerTroca.create({
+          data: {
+            schoolId,
+            turmaId,
+            professorAnteriorId: turma.professorId,
+            professorAlvoId: novoProfessorId,
+            motivoTroca: motivoTroca ? String(motivoTroca) : null,
+            observacoes: observacoes ? String(observacoes) : null,
+            dataInicioPrevista: inicio,
+            resumoTurma,
+            resumoHorarios,
+            status: "PENDENTE",
+          },
+        });
+
+        const linhas = [
+          `Turma: ${resumoTurma}`,
+          `Horários: ${resumoHorarios}`,
+          `Titular atual: ${anteriorNome}`,
+          `Início previsto: ${inicio.toLocaleDateString("pt-BR")}`,
+          motivoTroca ? `Motivo informado pela escola: ${String(motivoTroca)}` : null,
+          observacoes ? `Observações: ${String(observacoes)}` : null,
+          "",
+          "Abra as solicitações em /docente/trocas para aceitar ou recusar.",
+        ].filter(Boolean);
+
+        await tx.notificacao.create({
+          data: {
+            schoolId,
+            tipo: "TROCA_PROFESSOR_SOLICITADA",
+            titulo: "Nova solicitação para assumir uma turma",
+            mensagem: linhas.join("\n").slice(0, 2000),
+            entidadeTipo: "SISTEMA",
+            entidadeId: p.id,
+            destinatarioProfessorId: novoProfessorId,
+          },
+        });
+
+        return p;
+      });
+
+      return NextResponse.json({
+        success: true,
+        pendenteConfirmacao: true,
+        propostaId: proposta.id,
+        message:
+          "Solicitação enviada ao professor. A troca só será aplicada após a confirmação no painel do docente.",
+      });
     }
 
     await prisma.$transaction(async (tx) => {
-      if (turma.professorId) {
-        await tx.turmaProfessorHistorico.updateMany({
-          where: {
-            turmaId,
-            professorId: turma.professorId,
-            dataFim: null,
-          },
-          data: {
-            dataFim: inicio,
-          },
-        });
-      }
-
-      await tx.turmaProfessorHistorico.create({
-        data: {
-          turmaId,
-          professorId: novoProfessorId,
-          dataInicio: inicio,
-          dataFim: null,
-          motivoTroca: motivoTroca || null,
-          observacoes: observacoes || null,
-          // criadoPor: session?.user?.id ?? null,
-        },
-      });
-
-      await tx.turma.update({
-        where: { id: turmaId },
-        data: {
-          professorId: novoProfessorId,
-        },
-      });
-
-      await tx.notificacao.create({
-        data: {
-          schoolId: turma.schoolId,
-          tipo: "SISTEMA",
-          titulo: "Professor alterado na turma",
-          mensagem: `A turma ${turma.nome} agora está vinculada ao professor ${novoProfessor.nome}.`,
-          entidadeTipo: "TURMA",
-          entidadeId: turmaId,
-        },
+      await applyProfessorTrocaInTransaction(tx, {
+        schoolId,
+        turmaId,
+        professorAnteriorId: turma.professorId,
+        novoProfessorId,
+        novoProfessorNome: novoProfessor.nome,
+        turmaNome: turma.nome,
+        inicio,
+        motivoTroca,
+        observacoes,
+        criarNotificacaoAlteracao: true,
       });
     });
 
     return NextResponse.json({
       success: true,
+      pendenteConfirmacao: false,
       message: "Professor alterado com sucesso.",
     });
   } catch (error) {
     console.error("Erro ao trocar professor:", error);
+
+    if (error instanceof TrocaPrismaStaleError) {
+      return NextResponse.json({ error: error.message }, { status: 503 });
+    }
 
     return NextResponse.json(
       { error: "Erro interno ao trocar professor." },

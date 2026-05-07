@@ -22,6 +22,8 @@ export async function GET(request: NextRequest) {
         email: user.email,
         role: user.role,
         ativo: user.ativo,
+        professorId: user.professorId ?? null,
+        avatarUrl: user.avatarUrl ?? null,
       },
     });
   } catch (error) {

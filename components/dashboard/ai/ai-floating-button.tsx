@@ -1,27 +1,46 @@
 "use client";
 
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { AiAssistantPanel } from "@/components/dashboard/ai/ai-assistant-panel";
 
-export function AiFloatingButton() {
+interface AiFloatingButtonProps {
+  /** Mantém o FAB também em telas grandes (legado / fallback). */
+  forceFloatingDesktop?: boolean;
+  /** Esconde o FAB a partir do breakpoint (painel lateral visível no xl docente). */
+  visibility?: "below-lg" | "below-xl";
+  embeddedVariant?: "executive" | "professor";
+}
+
+export function AiFloatingButton({
+  forceFloatingDesktop = false,
+  visibility = "below-lg",
+  embeddedVariant = "executive",
+}: AiFloatingButtonProps) {
   const [open, setOpen] = useState(false);
+
+  const hideFrom =
+    forceFloatingDesktop ? ""
+    : visibility === "below-xl" ? "xl:hidden"
+    : "lg:hidden";
 
   return (
     <>
-      <div className="fixed bottom-4 right-4 z-50 lg:hidden">
+      <div className={cn("fixed bottom-4 right-4 z-50", hideFrom)}>
         <button
+          type="button"
           onClick={() => setOpen(true)}
-          className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white shadow-lg dark:bg-white/10 dark:backdrop-blur-md"
+          className="rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-lg transition-colors hover:bg-primary/90"
         >
-          IA
+          EduIA
         </button>
       </div>
 
       {open ? (
-        <div className="fixed inset-0 z-50 bg-background lg:hidden">
-          <div className="flex h-full flex-col">
-            <div className="flex items-center justify-between border-b border-border px-4 py-4">
-              <span className="font-semibold text-foreground">Assistente IA</span>
+        <div className={cn("fixed inset-0 z-50 bg-background", hideFrom)}>
+          <div className="flex h-full min-h-0 flex-col overflow-hidden">
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+              <span className="font-semibold text-foreground">EduIA</span>
               <button
                 onClick={() => setOpen(false)}
                 className="text-sm text-muted-foreground hover:text-foreground"
@@ -30,8 +49,11 @@ export function AiFloatingButton() {
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 p-3">
-              <AiAssistantPanel embedded />
+            <div className="min-h-0 flex-1 overflow-hidden p-3">
+              <AiAssistantPanel
+                embedded
+                variant={embeddedVariant}
+              />
             </div>
           </div>
         </div>

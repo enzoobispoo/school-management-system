@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 
 function applyTheme(theme: "light" | "dark") {
   const root = document.documentElement;
@@ -11,7 +11,7 @@ function applyTheme(theme: "light" | "dark") {
 export function HeaderThemeToggle() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const isDark = document.documentElement.classList.contains("dark");
     setTheme(isDark ? "dark" : "light");
   }, []);
@@ -24,7 +24,7 @@ export function HeaderThemeToggle() {
     await fetch("/api/settings/aparencia", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ temaPadrao: next, densidade: "comfortable" }),
+      body: JSON.stringify({ temaPadrao: next }),
     }).catch(() => {});
   }
 

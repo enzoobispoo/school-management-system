@@ -2,12 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { AUTH_COOKIE_NAME, signAuthToken } from "@/lib/auth/session";
+import { getClientIp } from "@/lib/security/request-ip";
+import { rateLimitOrFail } from "@/lib/security/rate-limit";
+import { jsonTooManyRequests } from "@/lib/security/rate-limit-http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request);
+    const loginLimit = rateLimitOrFail(`auth:login:${ip}`, 35, 15 * 60 * 1000);
+    if (!loginLimit.ok) {
+      return jsonTooManyRequests(loginLimit);
+    }
+
     const body = await request.json();
 
     const identifier = String(body?.email ?? "").trim().toLowerCase();

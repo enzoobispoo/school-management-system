@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 interface ProfessoresResponse {
@@ -104,7 +104,7 @@ export function useTeachersQuery() {
     return courseFilter;
   }, [courseFilter]);
 
-  async function fetchTeachers() {
+  const fetchTeachers = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -150,15 +150,15 @@ export function useTeachersQuery() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [search, courseQuery, selectedId, ativoParam]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      fetchTeachers();
+      void fetchTeachers();
     }, 300);
 
     return () => clearTimeout(timeout);
-  }, [search, courseQuery, selectedId, ativoParam]);
+  }, [fetchTeachers]);
 
   return {
     teachers,

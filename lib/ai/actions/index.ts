@@ -8,3 +8,6 @@ export { getTotalActiveStudents } from "@/lib/ai/actions/get-total-active-studen
 export { getMonthlyFinancialSummary } from "@/lib/ai/actions/get-monthly-financial-summary";
 export { listOverduePayments } from "@/lib/ai/actions/list-overdue-payments";
 export { listTopCourses } from "@/lib/ai/actions/list-top-courses";
+export { getTotalActiveEnrollments } from "@/lib/ai/actions/get-total-active-enrollments";
+export { getTotalOverduePaymentsSummary } from "@/lib/ai/actions/get-total-overdue-payments-summary";
+export { getTotalPendingPaymentsSummary } from "@/lib/ai/actions/get-total-pending-payments-summary";

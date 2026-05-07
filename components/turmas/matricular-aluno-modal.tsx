@@ -7,6 +7,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Search } from "lucide-react";
 
 interface Aluno {
@@ -35,9 +43,25 @@ export function MatricularAlunoModal({
   const [alunos, setAlunos] = useState<Aluno[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState<string | null>(null);
+  const [diaVencimentoMensal, setDiaVencimentoMensal] = useState(10);
 
   useEffect(() => {
-    if (!open) { setSearch(""); setAlunos([]); return; }
+    if (!open) {
+      setSearch("");
+      setAlunos([]);
+      return;
+    }
+    void (async () => {
+      try {
+        const res = await fetch("/api/settings/escola", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        const d = Number(data.diaVencimentoPadrao ?? 10);
+        if (d >= 1 && d <= 31) setDiaVencimentoMensal(d);
+      } catch {
+        /* default */
+      }
+    })();
   }, [open]);
 
   useEffect(() => {
@@ -61,7 +85,7 @@ export function MatricularAlunoModal({
       const res = await fetch("/api/matriculas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ alunoId, turmaId }),
+        body: JSON.stringify({ alunoId, turmaId, diaVencimentoMensal }),
       });
       const data = await res.json();
       if (!res.ok) { toast.error(data.error || "Erro ao matricular aluno"); return; }
@@ -84,6 +108,29 @@ export function MatricularAlunoModal({
         </DialogHeader>
 
         <div className="space-y-3">
+          <div className="grid gap-2">
+            <Label className="text-xs font-medium">Vencimento das mensalidades (dia do mês)</Label>
+            <Select
+              value={String(diaVencimentoMensal)}
+              onValueChange={(v) => setDiaVencimentoMensal(Number(v))}
+              disabled={Boolean(submitting)}
+            >
+              <SelectTrigger className="h-11 rounded-2xl">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="max-h-[220px]">
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                  <SelectItem key={d} value={String(d)}>
+                    Dia {d}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Por matrícula; meses curtos ajustam para o último dia.
+            </p>
+          </div>
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input

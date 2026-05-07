@@ -1,6 +1,7 @@
 "use client";
 
-import { MoreHorizontal, FileText } from "lucide-react";
+import { toast } from "sonner";
+import { Download, MoreHorizontal, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,6 +12,8 @@ import {
 
 interface PaymentActionItem {
   id: string;
+  studentId: string;
+  demonstrativoIrAno: number;
   student: string;
   description: string;
   amount: number;
@@ -52,6 +55,7 @@ interface PaymentsTableActionsProps<T extends PaymentActionItem> {
     amount: number;
   }) => void;
   onPrintReceipt?: (payment: T) => void;
+  onDemonstrativoIr?: (payment: T) => void;
 }
 
 function printReceipt(payment: PaymentActionItem, schoolName: string) {
@@ -121,6 +125,7 @@ export function PaymentsTableActions<T extends PaymentActionItem>({
   onSendReminder,
   onGenerateBoleto,
   onPrintReceipt,
+  onDemonstrativoIr,
 }: PaymentsTableActionsProps<T>) {
   const boletoUrl = payment.billingBankSlipUrl || payment.billingInvoiceUrl;
 
@@ -157,6 +162,13 @@ export function PaymentsTableActions<T extends PaymentActionItem>({
         <DropdownMenuItem onClick={() => onViewDetails?.(payment)}>
           Ver detalhes
         </DropdownMenuItem>
+
+        {onDemonstrativoIr ? (
+          <DropdownMenuItem onClick={() => onDemonstrativoIr(payment)}>
+            <Download className="mr-2 h-3.5 w-3.5" />
+            Demonstrativo IR
+          </DropdownMenuItem>
+        ) : null}
 
         {payment.status === "paid" && (
           <DropdownMenuItem onClick={handlePrintReceipt}>

@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, GraduationCap, BookOpen, UserCircle, DollarSign } from "lucide-react";
+import { Search, GraduationCap, BookOpen, UserCircle, DollarSign, FileText } from "lucide-react";
 import { isAiQuery } from "@/lib/search/is-ai-query";
 
 type SearchResult = {
   id: string;
-  type: "aluno" | "curso" | "professor" | "pagamento";
+  type: "aluno" | "curso" | "professor" | "pagamento" | "avaliacao";
   label: string;
   description?: string;
   href: string;
@@ -18,6 +18,7 @@ const TYPE_LABELS: Record<SearchResult["type"], string> = {
   curso: "Cursos",
   professor: "Professores",
   pagamento: "Pagamentos",
+  avaliacao: "Avaliações",
 };
 
 const TYPE_ICONS: Record<SearchResult["type"], React.ElementType> = {
@@ -25,9 +26,10 @@ const TYPE_ICONS: Record<SearchResult["type"], React.ElementType> = {
   curso: BookOpen,
   professor: UserCircle,
   pagamento: DollarSign,
+  avaliacao: FileText,
 };
 
-const TYPE_ORDER: SearchResult["type"][] = ["aluno", "curso", "professor", "pagamento"];
+const TYPE_ORDER: SearchResult["type"][] = ["aluno", "curso", "professor", "pagamento", "avaliacao"];
 
 function highlight(text: string, query: string) {
   if (!query.trim()) return <span>{text}</span>;
@@ -123,12 +125,18 @@ export function GlobalSearch() {
   }, [query]);
 
   const grouped = useMemo(() => {
-    const map: Record<SearchResult["type"], SearchResult[]> = { aluno: [], curso: [], professor: [], pagamento: [] };
+    const map: Record<SearchResult["type"], SearchResult[]> = { aluno: [], curso: [], professor: [], pagamento: [], avaliacao: [] };
     for (const r of results) map[r.type].push(r);
     return TYPE_ORDER.filter((t) => map[t].length > 0).map((t) => ({ type: t, label: TYPE_LABELS[t], items: map[t] }));
   }, [results]);
 
   const flat = useMemo(() => grouped.flatMap((g) => g.items), [grouped]);
+
+  const flatIndexByKey = useMemo(() => {
+    const m = new Map<string, number>();
+    flat.forEach((r, i) => m.set(`${r.type}-${r.id}`, i));
+    return m;
+  }, [flat]);
 
   function select(result: SearchResult) {
     router.push(result.href);
@@ -142,8 +150,6 @@ export function GlobalSearch() {
   }
 
   if (!open) return null;
-
-  let idx = -1;
 
   return (
     <div
@@ -165,7 +171,7 @@ export function GlobalSearch() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Buscar alunos, cursos, professores..."
+            placeholder="Buscar alunos, provas, questões, cursos, professores..."
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
           />
           <kbd className="hidden sm:inline-flex h-5 items-center rounded border border-border px-1.5 text-[10px] text-muted-foreground">
@@ -190,7 +196,7 @@ export function GlobalSearch() {
                   </p>
                   <div className="space-y-0.5">
                     {group.items.map((result) => {
-                      idx += 1;
+                      const idx = flatIndexByKey.get(`${result.type}-${result.id}`) ?? 0;
                       const isActive = activeIndex === idx;
                       const Icon = TYPE_ICONS[result.type];
                       return (

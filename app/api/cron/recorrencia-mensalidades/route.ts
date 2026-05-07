@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateNextMonthlyPayments } from "@/lib/services/payment-generator";
 import { logFinanceAuditEvent } from "@/lib/services/finance-audit";
+import { readCorrelationIdFromRequest } from "@/lib/observability/correlation";
+import { logStructured } from "@/lib/observability/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,11 +19,22 @@ function isAuthorizedCron(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const correlationId = readCorrelationIdFromRequest(request);
   try {
     const auth = isAuthorizedCron(request);
     if (!auth.ok) {
+      logStructured("warn", {
+        event: "cron_recorrencia_mensalidades_unauthorized",
+        correlationId,
+        reason: auth.reason,
+      });
       return NextResponse.json({ error: auth.reason }, { status: 401 });
     }
+
+    logStructured("info", {
+      event: "cron_recorrencia_mensalidades_start",
+      correlationId,
+    });
 
     const schools = await prisma.school.findMany({
       where: { ativo: true },

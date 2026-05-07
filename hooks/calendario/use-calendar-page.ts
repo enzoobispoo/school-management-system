@@ -164,7 +164,7 @@ export function useCalendarPage() {
 
   useEffect(() => {
     actions.fetchCalendar();
-  }, [actions.fetchCalendar]);
+  }, [actions]);
 
   return {
     referenceDate: state.referenceDate,

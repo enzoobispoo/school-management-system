@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, requireSchool } from "@/lib/auth";
+import { getCurrentUser, isAdmin, resolveSchoolScopeForRequest } from "@/lib/auth";
 import type { IncidentCategory, IncidentSeverity, IncidentStatus } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
-    const schoolGate = requireSchool(user);
+    const schoolGate = await resolveSchoolScopeForRequest(user, request);
     if (schoolGate instanceof NextResponse) return schoolGate;
     const { schoolId } = schoolGate;
 
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       prisma.operationalIncident.count({ where }),
       prisma.operationalIncident.findMany({
         where,
-        orderBy: [{ lastDetectedAt: "desc" }],
+        orderBy: [{ severity: "desc" }, { lastDetectedAt: "desc" }],
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
         page,
         pageSize,
         totalPages: Math.ceil(total / pageSize) || (total > 0 ? 1 : 0),
+        canDismissIncidents: isAdmin(user),
       },
     });
   } catch (error) {

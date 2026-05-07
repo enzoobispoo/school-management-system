@@ -66,6 +66,8 @@ export async function GET() {
       hasTwilioAuthToken: Boolean(settings.twilioAuthToken?.trim()),
       maskedTwilioAuthToken: maskTwilioToken(settings.twilioAuthToken),
       twilioWhatsAppFrom: settings.twilioWhatsAppFrom?.trim() || null,
+      aiEvalReviewEnforced: settings.aiEvalReviewEnforced,
+      aiEvalReviewMinScore: settings.aiEvalReviewMinScore,
     });
   } catch (e) {
     console.error("escola-ia GET", e);
@@ -110,6 +112,15 @@ export async function PUT(request: NextRequest) {
         } else if (Number.isFinite(n) && n > 0) {
           const cap = planDefaultAiMonthlyLimit(tier);
           data.aiMonthlyLimitOverride = Math.min(Math.floor(n), cap);
+        }
+      }
+      if ("aiEvalReviewEnforced" in body) {
+        data.aiEvalReviewEnforced = Boolean(body.aiEvalReviewEnforced);
+      }
+      if ("aiEvalReviewMinScore" in body) {
+        const n = Number(body.aiEvalReviewMinScore);
+        if (Number.isFinite(n)) {
+          data.aiEvalReviewMinScore = Math.max(0, Math.min(100, Math.floor(n)));
         }
       }
     }

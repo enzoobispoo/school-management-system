@@ -10,6 +10,8 @@ export type AuthenticatedUser = {
   role: string;
   ativo: boolean;
   schoolId: string | null;
+  professorId?: string | null;
+  avatarUrl?: string | null;
   openaiApiKey?: string | null;
   plan?: string;
   aiUsage?: number;
@@ -33,6 +35,8 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
         role: true,
         ativo: true,
         schoolId: true,
+        professorId: true,
+        avatarUrl: true,
         openaiApiKey: true,
         plan: true,
         aiUsage: true,
@@ -56,7 +60,19 @@ export async function getCurrentUserFromRequest(request: NextRequest): Promise<A
 
     const user = await prisma.user.findUnique({
       where: { id: session.userId },
-      select: { id: true, nome: true, email: true, role: true, ativo: true, schoolId: true, openaiApiKey: true, plan: true, aiUsage: true },
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        role: true,
+        ativo: true,
+        schoolId: true,
+        professorId: true,
+        avatarUrl: true,
+        openaiApiKey: true,
+        plan: true,
+        aiUsage: true,
+      },
     });
 
     if (!user || !user.ativo) return null;

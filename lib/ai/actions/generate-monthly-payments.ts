@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { AiActionResult } from "@/lib/ai/types";
 import { getFinanceSuggestions } from "@/lib/ai/suggestions";
+import { buildDueDateClamped } from "@/lib/finance/due-date";
 
 function getNextCompetence(month: number, year: number) {
   if (month === 12) {
@@ -8,17 +9,6 @@ function getNextCompetence(month: number, year: number) {
   }
 
   return { month: month + 1, year };
-}
-
-function getDefaultDueDate(
-  month: number,
-  year: number,
-  dueDay: number | null | undefined
-) {
-  const safeDay =
-    typeof dueDay === "number" && dueDay >= 1 && dueDay <= 28 ? dueDay : 10;
-
-  return new Date(year, month - 1, safeDay, 12, 0, 0);
 }
 
 export async function generateMonthlyPayments(
@@ -112,10 +102,12 @@ export async function generateMonthlyPayments(
         competenciaAno,
         descricao: `Mensalidade - ${matricula.turma.curso.nome}`,
         valor: matricula.turma.curso.valorMensal,
-        vencimento: getDefaultDueDate(
-          competenciaMes,
+        vencimento: buildDueDateClamped(
           competenciaAno,
-          settings?.diaVencimentoPadrao
+          competenciaMes - 1,
+          matricula.diaVencimentoMensal ??
+            settings?.diaVencimentoPadrao ??
+            10
         ),
         status: "PENDENTE",
       },
@@ -129,7 +121,7 @@ export async function generateMonthlyPayments(
       createdCount > 0
         ? `Mensalidades geradas com sucesso. Foram criadas ${createdCount} cobrança${
             createdCount === 1 ? "" : "s"
-          } nova${createdCount === 1 ? "" : "s"}. Vencimento padrão aplicado: dia ${
+          } nova${createdCount === 1 ? "" : "s"}. Vencimento por matrícula quando configurado; caso contrário, dia ${
             settings?.diaVencimentoPadrao ?? 10
           }.`
         : "Nenhuma nova mensalidade precisou ser gerada. Todas as matrículas ativas já possuem cobrança da próxima competência.",

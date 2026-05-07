@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,8 @@ interface MeResponse {
     email: string;
     role: "SUPER_ADMIN" | "ADMIN" | "FINANCEIRO" | "SECRETARIA" | "PROFESSOR";
     ativo: boolean;
+    avatarUrl?: string | null;
+    professorId?: string | null;
   };
   error?: string;
 }
@@ -55,32 +57,32 @@ export function HeaderProfileMenu() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<MeResponse["user"]>(undefined);
 
-  useEffect(() => {
-    async function loadCurrentUser() {
-      try {
-        setLoading(true);
+  const loadCurrentUser = useCallback(async () => {
+    try {
+      setLoading(true);
 
-        const response = await fetch("/api/auth/me", {
-          cache: "no-store",
-        });
+      const response = await fetch("/api/auth/me", {
+        cache: "no-store",
+      });
 
-        const result: MeResponse = await response.json();
+      const result: MeResponse = await response.json();
 
-        if (!response.ok || !result.user) {
-          setUser(undefined);
-          return;
-        }
-
-        setUser(result.user);
-      } catch {
+      if (!response.ok || !result.user) {
         setUser(undefined);
-      } finally {
-        setLoading(false);
+        return;
       }
-    }
 
-    loadCurrentUser();
+      setUser(result.user);
+    } catch {
+      setUser(undefined);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadCurrentUser();
+  }, [loadCurrentUser]);
 
   async function handleLogout() {
     try {
@@ -99,11 +101,14 @@ export function HeaderProfileMenu() {
   }, [user]);
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={(open) => open && void loadCurrentUser()}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-9 w-9 rounded-full">
           <Avatar className="h-9 w-9">
-            <AvatarImage src="/avatars/admin.jpg" alt={user?.nome || "Usuário"} />
+            <AvatarImage
+              src={user?.avatarUrl?.trim() || undefined}
+              alt={user?.nome || "Usuário"}
+            />
             <AvatarFallback className="bg-black text-sm font-medium text-white">
               {fallback}
             </AvatarFallback>
@@ -128,7 +133,7 @@ export function HeaderProfileMenu() {
 
         <DropdownMenuItem
           onClick={() => {
-            router.push("/");
+            router.push("/perfil");
           }}
         >
           Perfil

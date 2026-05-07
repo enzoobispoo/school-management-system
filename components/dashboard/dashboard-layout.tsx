@@ -1,27 +1,57 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { AiFloatingButton } from "@/components/dashboard/ai/ai-floating-button";
 import { NotificationsInboxProvider } from "@/components/providers/notifications-inbox-provider";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
+  /** Oculta o assistente (telas que não devem carregar o copiloto). */
+  hideAiAssistant?: boolean;
 }
 
-export function DashboardLayout({ children }: DashboardLayoutProps) {
+export function DashboardLayout({
+  children,
+  hideAiAssistant = false,
+}: DashboardLayoutProps) {
   return (
     <NotificationsInboxProvider>
-      <DashboardLayoutShell>{children}</DashboardLayoutShell>
+      <DashboardLayoutShell hideAiAssistant={hideAiAssistant}>
+        {children}
+      </DashboardLayoutShell>
     </NotificationsInboxProvider>
   );
 }
 
-function DashboardLayoutShell({ children }: { children: React.ReactNode }) {
+function DashboardLayoutShell({
+  children,
+  hideAiAssistant,
+}: {
+  children: React.ReactNode;
+  hideAiAssistant: boolean;
+}) {
+  const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(true);
+  const [professorRole, setProfessorRole] = useState(false);
+
+  const professorDocenteHub =
+    professorRole && pathname.startsWith("/docente");
+
+  useEffect(() => {
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.user?.role === "PROFESSOR") setProfessorRole(true);
+      })
+      .catch(() => {});
+  }, []);
+
+  const hideAi = hideAiAssistant;
 
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
+    <div className="min-h-screen bg-background text-foreground">
       <Sidebar
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed((prev) => !prev)}
@@ -35,7 +65,15 @@ function DashboardLayoutShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      <AiFloatingButton />
+      {!hideAi && pathname !== "/docente/eduia" ? (
+        <AiFloatingButton
+          forceFloatingDesktop={false}
+          visibility={professorDocenteHub ? "below-xl" : "below-lg"}
+          embeddedVariant={
+            professorDocenteHub ? "professor" : "executive"
+          }
+        />
+      ) : null}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SettingsFeedback } from "@/components/configuracoes/shared/settings-feedback";
@@ -130,10 +131,13 @@ export function SchoolSettingsSection() {
           <div className="mt-4 rounded-[20px] border border-border bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
             <div className="flex items-center gap-3">
               {form.logoUrl ? (
-                <img
+                <Image
                   src={form.logoUrl}
                   alt="Logo da escola"
+                  width={48}
+                  height={48}
                   className="h-12 w-12 rounded-2xl object-cover"
+                  unoptimized
                 />
               ) : (
                 <div

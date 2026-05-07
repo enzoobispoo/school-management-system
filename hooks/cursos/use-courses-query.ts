@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 interface ApiCourseResponse {
@@ -125,7 +125,7 @@ export function useCoursesQuery() {
     return "";
   }, [category]);
 
-  async function fetchCourses() {
+  const fetchCourses = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -154,15 +154,15 @@ export function useCoursesQuery() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [search, categoryQuery, selectedId]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      fetchCourses();
+      void fetchCourses();
     }, 300);
 
     return () => clearTimeout(timeout);
-  }, [search, categoryQuery, selectedId]);
+  }, [fetchCourses]);
 
   return {
     courses,

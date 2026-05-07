@@ -38,6 +38,7 @@ const tipoLabels: Record<string, string> = {
   MATRICULA_CANCELADA: "Matrícula cancelada",
   SISTEMA: "Sistema",
   PAGAMENTO: "Pagamento",
+  TROCA_PROFESSOR_SOLICITADA: "Convite — troca de turma",
 };
 
 function formatWhen(iso: string) {
@@ -168,7 +169,7 @@ export function NotificacoesPageClient() {
     <DashboardLayout>
       <Header
         title="Notificações"
-        description="Alertas da escola gerados pelo sistema e pelas rotinas financeiras."
+        description="Alertas da escola conforme seu perfil — secretaria, financeiro ou professor."
       />
 
       <div className="space-y-6 px-6 pb-10">
@@ -263,7 +264,7 @@ export function NotificacoesPageClient() {
                         size="sm"
                         className="rounded-full"
                       >
-                        <Link href={n.linkHref}>Ver registro</Link>
+                        <Link href={n.linkHref}>Ver detalhes</Link>
                       </Button>
                     ) : null}
                     {!n.lida ? (

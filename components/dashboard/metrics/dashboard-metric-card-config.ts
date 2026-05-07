@@ -37,6 +37,9 @@ export interface DashboardMetricsView {
   pagamentosAtrasados: string;
   quantidadePagamentosAtrasados: number;
   quantidadePagamentosPendentes: number;
+  /** Incidentes OPEN ou ACKNOWLEDGED */
+  incidentesOperacionaisAbertos: number;
+  incidentesOperacionaisCriticos: number;
   trocasProfessorNoMes: string;
   trocasProfessorVariacao: number;
   novosAlunosNoMes: string;

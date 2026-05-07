@@ -14,9 +14,7 @@ export function DashboardMainLayout({
       <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
         <div className="space-y-6">{children}</div>
 
-        <div className="hidden xl:block">
-          <div className="sticky top-24">{rightPanel}</div>
-        </div>
+        <div className="hidden min-h-0 xl:block">{rightPanel}</div>
       </div>
     </div>
   );

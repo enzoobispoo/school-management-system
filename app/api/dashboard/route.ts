@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, requireSchool } from "@/lib/auth";
+import {
+  canAccessExecutiveSchoolDashboard,
+  getCurrentUser,
+  jsonForbiddenRole,
+  requireSchool,
+} from "@/lib/auth";
 
 const MONTH_LABELS = [
   "Jan",
@@ -63,6 +68,7 @@ function buildDashboardInsights(params: {
   turmasComVagasOciosas: number;
   quantidadePagamentosAtrasados: number;
   notificacoesNaoLidas: number;
+  quantidadeIncidentesOperacionaisCriticos: number;
 }) {
   const insights: Array<{
     id: string;
@@ -74,6 +80,19 @@ function buildDashboardInsights(params: {
       href: string;
     };
   }> = [];
+
+  if (params.quantidadeIncidentesOperacionaisCriticos > 0) {
+    insights.push({
+      id: "operacao-criticos",
+      tone: "warning",
+      title: "Incidentes operacionais críticos",
+      description: `Há ${params.quantidadeIncidentesOperacionaisCriticos} alerta(s) crítico(s) em aberto na Central operacional.`,
+      action: {
+        label: "Central operacional",
+        href: "/operacao",
+      },
+    });
+  }
 
   if (params.receitaMensalVariacao > 0) {
     insights.push({
@@ -179,6 +198,13 @@ export async function GET(request: NextRequest) {
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
 
+    if (!canAccessExecutiveSchoolDashboard(user)) {
+      return jsonForbiddenRole(
+        "Painel executivo restrito à gestão da escola (administração, financeiro ou secretaria). Se você precisa dessa visão, peça para um administrador ajustar seu perfil.",
+        "FORBIDDEN_ROLE"
+      );
+    }
+
     const year = getYearFromSearchParams(request);
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
@@ -210,6 +236,8 @@ export async function GET(request: NextRequest) {
       trocasProfessorMesAnterior,
       professoresInativos,
       turmasAtivasComMatriculas,
+      incidentesOperacionaisAbertos,
+      incidentesOperacionaisCriticos,
     ] = await Promise.all([
       prisma.aluno.count(),
 
@@ -381,6 +409,21 @@ export async function GET(request: NextRequest) {
           },
         },
       }),
+
+      prisma.operationalIncident.count({
+        where: {
+          schoolId,
+          status: { in: ["OPEN", "ACKNOWLEDGED"] },
+        },
+      }),
+
+      prisma.operationalIncident.count({
+        where: {
+          schoolId,
+          status: { in: ["OPEN", "ACKNOWLEDGED"] },
+          severity: "CRITICAL",
+        },
+      }),
     ]);
 
     const recebidoNoMes = pagamentosRecebidosNoMes.reduce(
@@ -482,6 +525,7 @@ export async function GET(request: NextRequest) {
       turmasComVagasOciosas,
       quantidadePagamentosAtrasados: pagamentosAtrasados.length,
       notificacoesNaoLidas,
+      quantidadeIncidentesOperacionaisCriticos: incidentesOperacionaisCriticos,
     });
 
     return NextResponse.json({
@@ -504,6 +548,8 @@ export async function GET(request: NextRequest) {
         turmasComVagasOciosas,
         professoresInativos,
         notificacoesNaoLidas,
+        incidentesOperacionaisAbertos,
+        incidentesOperacionaisCriticos,
       },
       receitaAoLongoDoTempo: receitaPorMes,
       alunosPorCurso,

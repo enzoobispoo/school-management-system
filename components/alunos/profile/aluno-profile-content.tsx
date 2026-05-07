@@ -2,16 +2,18 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
-  ArrowLeft, Camera, FileText, History, HeartPulse,
+  ArrowLeft, Camera, Download, FileText, History, HeartPulse,
   Mail, Phone, Pencil, UserCircle, Ban, PauseCircle, Printer
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { StudentModal } from "@/components/alunos/student-modal";
+import { DemonstrativoIrModal } from "@/components/alunos/demonstrativo-ir-modal";
 import { StudentDocuments } from "@/components/alunos/table/student-documents";
 import { useRef } from "react";
 import {
@@ -159,7 +161,7 @@ function AlunoPhoto({ alunoId, initialUrl, onRefresh }: { alunoId: string; initi
         }}
       >
         {url ? (
-          <img src={url} alt="Foto" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          <Image src={url} alt="Foto" fill className="object-cover" unoptimized sizes="80px" />
         ) : (
           <div style={{ display: "flex", width: "100%", height: "100%", alignItems: "center", justifyContent: "center" }}>
             <Camera className="h-6 w-6 text-muted-foreground" />
@@ -337,6 +339,7 @@ export function AlunoProfileContent({ aluno: initial }: { aluno: Aluno }) {
   const [registroGravidade, setRegistroGravidade] = useState("");
   const [filtroTipo, setFiltroTipo] = useState<RegistroFiltroTipo>("TODOS");
   const [filtroGravidade, setFiltroGravidade] = useState<RegistroFiltroGravidade>("TODAS");
+  const [demonstrativoIrModalOpen, setDemonstrativoIrModalOpen] = useState(false);
 
   async function handleEdit(payload: Record<string, unknown>) {
     setEditLoading(true);
@@ -699,6 +702,29 @@ export function AlunoProfileContent({ aluno: initial }: { aluno: Aluno }) {
         </Card>
       )}
 
+      <Card className="rounded-2xl border-border/70 bg-card/80">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-3 text-base font-semibold">
+          <span className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            Demonstrativo IR
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-xl shrink-0"
+            onClick={() => setDemonstrativoIrModalOpen(true)}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Abrir
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-muted-foreground leading-snug">
+            Selecione anos-calendário, baixe PDF (vários anos em um único arquivo) e envie ao responsável por e-mail ou WhatsApp quando houver cadastro.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Matrículas */}
       <Card className="rounded-2xl border-border/70 bg-card/80">
         <CardHeader className="text-base font-semibold">
@@ -755,9 +781,9 @@ export function AlunoProfileContent({ aluno: initial }: { aluno: Aluno }) {
                       <p className="text-[11px] text-muted-foreground">{m.pagamentos.length} registro(s)</p>
                     </div>
                     {m.pagamentos.map((p) => (
-                      <div key={p.id} className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">{p.descricao}</span>
-                        <div className="flex items-center gap-3">
+                      <div key={p.id} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="min-w-0 truncate text-muted-foreground">{p.descricao}</span>
+                        <div className="flex shrink-0 items-center gap-3">
                           <span className="font-medium">{fmt(p.valor)}</span>
                           <span className={`text-xs font-medium ${statusPagamentoColor[p.status] ?? ""}`}>
                             {statusPagamentoLabel[p.status] ?? p.status}
@@ -898,6 +924,14 @@ export function AlunoProfileContent({ aluno: initial }: { aluno: Aluno }) {
           </CardContent>
         </Card>
       )}
+
+      <DemonstrativoIrModal
+        open={demonstrativoIrModalOpen}
+        onOpenChange={setDemonstrativoIrModalOpen}
+        alunoId={aluno.id}
+        alunoNome={aluno.nome}
+        initialSelectedYears={[new Date().getFullYear() - 1]}
+      />
 
       {/* Modal editar aluno */}
       <StudentModal

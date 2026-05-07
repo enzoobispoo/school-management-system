@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CalendarEvent, EventFilter } from "@/lib/calendario/calendar-types";
 import { fetchCalendarEvents } from "@/lib/calendario/calendar-api";
 import { formatDateInput } from "@/lib/calendario/calendar-utils";
@@ -51,7 +51,7 @@ export function useCalendarEventsPage() {
     );
   }, [events, search, eventFilter]);
 
-  async function fetchEvents() {
+  const fetchEvents = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -68,11 +68,11 @@ export function useCalendarEventsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [today, ninetyDaysLater]);
 
   useEffect(() => {
-    fetchEvents();
-  }, []);
+    void fetchEvents();
+  }, [fetchEvents]);
 
   return {
     events,

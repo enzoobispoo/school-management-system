@@ -40,6 +40,8 @@ export function EnrollmentModal({
     turmas,
     turmaId,
     setTurmaId,
+    diaVencimentoMensal,
+    setDiaVencimentoMensal,
     turmaSelecionada,
     loading,
     submitting,
@@ -98,6 +100,29 @@ export function EnrollmentModal({
                 Nenhuma turma com vaga disponível.
               </p>
             ) : null}
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Dia de vencimento das mensalidades</Label>
+            <Select
+              value={String(diaVencimentoMensal)}
+              onValueChange={(v) => setDiaVencimentoMensal(Number(v))}
+              disabled={loading || submitting}
+            >
+              <SelectTrigger className="rounded-2xl">
+                <SelectValue placeholder="Dia do mês" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[240px]">
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                  <SelectItem key={d} value={String(d)}>
+                    Dia {d}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Em meses com menos dias, o sistema usa o último dia do mês.
+            </p>
           </div>
 
           {turmaSelecionada ? (

@@ -50,8 +50,23 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
       const result = await response.json();
+      if (response.status === 429) {
+        throw new Error(
+          result.error ||
+            "Muitas tentativas de login. Aguarde alguns minutos e tente novamente."
+        );
+      }
       if (!response.ok) throw new Error(result.error || "Não foi possível fazer login.");
-      router.push("/");
+
+      const role = result?.user?.role as string | undefined;
+      const destination =
+        role === "SUPER_ADMIN"
+          ? "/admin"
+          : role === "PROFESSOR"
+            ? "/docente"
+            : "/";
+
+      router.push(destination);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível fazer login.");
@@ -70,8 +85,18 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: forgotEmail.trim() }),
       });
-      // independente do resultado, mostra mensagem genérica (segurança)
-      toast.success("Se esse e-mail estiver cadastrado, você receberá as instruções em breve.");
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 429) {
+        toast.error(
+          (data as { error?: string }).error ||
+            "Muitas solicitações. Aguarde um momento e tente novamente."
+        );
+        return;
+      }
+      // mensagem genérica (senão vaza se o e-mail existe)
+      toast.success(
+        "Se esse e-mail estiver cadastrado, você receberá as instruções em breve."
+      );
       setForgotOpen(false);
       setForgotEmail("");
     } catch {

@@ -37,8 +37,17 @@ export async function PUT(req: NextRequest) {
   const { schoolId } = result;
 
   const body = await req.json();
-  const temaPadrao = normalizeTheme(body.temaPadrao);
-  const densidade = normalizeDensity(body.densidade);
+  const existing = await prisma.escolaSettings.findUnique({
+    where: { schoolId },
+  });
+  const temaPadrao =
+    body.temaPadrao !== undefined && body.temaPadrao !== null ?
+      normalizeTheme(body.temaPadrao)
+    : normalizeTheme(existing?.temaPadrao);
+  const densidade =
+    body.densidade !== undefined && body.densidade !== null ?
+      normalizeDensity(body.densidade)
+    : normalizeDensity(existing?.densidade);
 
   const settings = await prisma.escolaSettings.upsert({
     where: { schoolId },

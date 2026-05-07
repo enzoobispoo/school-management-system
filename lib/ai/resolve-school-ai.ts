@@ -9,6 +9,8 @@ import { ensureSchoolAiUsageWindow } from "@/lib/ai/school-ai-settings";
 
 export type ResolvedSchoolAi = {
   tier: PlanTier;
+  /** Nome amigável da escola (configurações), para contextualizar a EduIA. */
+  schoolDisplayName: string;
   apiKey: string;
   monthlyLimit: number;
   usageCount: number;
@@ -49,9 +51,11 @@ export async function resolveSchoolAiForUser(user: {
   const useOpenAi = planAllowsOpenAi(tier);
   const apiKey = useOpenAi ? (settings.openaiApiKey?.trim() ?? "") : "";
   const limitExceeded = useOpenAi && monthlyLimit > 0 && usageCount >= monthlyLimit;
+  const schoolDisplayName = settings.nomeEscola?.trim() || "Escola";
 
   return {
     tier,
+    schoolDisplayName,
     apiKey,
     monthlyLimit,
     usageCount,

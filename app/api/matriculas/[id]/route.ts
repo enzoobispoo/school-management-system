@@ -45,6 +45,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       id: matricula.id,
       status: matricula.status,
       dataMatricula: matricula.dataMatricula,
+      diaVencimentoMensal: matricula.diaVencimentoMensal,
       dataCancelamento: matricula.dataCancelamento,
       motivoCancelamento: matricula.motivoCancelamento,
       observacoes: matricula.observacoes,
@@ -222,6 +223,9 @@ export async function PUT(request: NextRequest, context: RouteContext) {
           ? { observacoes: parsed.data.observacoes }
           : {}),
         ...(parsed.data.status ? { status: parsed.data.status } : {}),
+        ...(parsed.data.diaVencimentoMensal !== undefined
+          ? { diaVencimentoMensal: parsed.data.diaVencimentoMensal }
+          : {}),
       },
       include: {
         aluno: true,
@@ -252,6 +256,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       id: matricula.id,
       status: matricula.status,
       dataMatricula: matricula.dataMatricula,
+      diaVencimentoMensal: matricula.diaVencimentoMensal,
       dataCancelamento: matricula.dataCancelamento,
       motivoCancelamento: matricula.motivoCancelamento,
       observacoes: matricula.observacoes,

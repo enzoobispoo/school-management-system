@@ -52,6 +52,7 @@ interface PaymentsTableProps {
     amount: number;
   }) => void;
   onPrintReceipt?: (payment: PaymentTableItem) => void;
+  onDemonstrativoIr?: (payment: PaymentTableItem) => void;
   actionLoadingId?: string | null;
 }
 
@@ -64,6 +65,7 @@ export function PaymentsTable({
   onSendReminder,
   onGenerateBoleto,
   onPrintReceipt,
+  onDemonstrativoIr,
   actionLoadingId = null,
 }: PaymentsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("dueDate");
@@ -234,6 +236,7 @@ export function PaymentsTable({
                       onSendReminder={onSendReminder}
                       onGenerateBoleto={onGenerateBoleto}
                       onPrintReceipt={onPrintReceipt}
+                      onDemonstrativoIr={onDemonstrativoIr}
                     />
                   </TableCell>
                 </TableRow>

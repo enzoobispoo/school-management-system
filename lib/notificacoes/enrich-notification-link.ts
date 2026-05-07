@@ -1,4 +1,5 @@
 import type { Notificacao } from "@prisma/client";
+import { TipoNotificacao } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { notificationLinkHref } from "@/lib/notificacoes/notification-link-href";
 
@@ -25,14 +26,23 @@ export async function enrichNotificationsWithLinkHref(
     matriculaIdToAlunoId = new Map(matRows.map((r) => [r.id, r.alunoId]));
   }
 
-  return notificacoes.map((n) => ({
-    ...n,
-    linkHref: notificationLinkHref(
-      n.entidadeTipo,
-      n.entidadeId,
-      matriculaIdToAlunoId
-    ),
-  }));
+  return notificacoes.map((n) => {
+    const trocaHref =
+      n.tipo === TipoNotificacao.TROCA_PROFESSOR_SOLICITADA && n.entidadeId
+        ? `/docente/trocas?proposta=${encodeURIComponent(n.entidadeId)}`
+        : null;
+
+    return {
+      ...n,
+      linkHref:
+        trocaHref ??
+        notificationLinkHref(
+          n.entidadeTipo,
+          n.entidadeId,
+          matriculaIdToAlunoId
+        ),
+    };
+  });
 }
 
 export async function enrichNotificationWithLinkHref(

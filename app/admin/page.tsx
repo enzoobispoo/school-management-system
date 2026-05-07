@@ -161,6 +161,8 @@ export default function AdminDashboard() {
       setUserName(d.user.nome);
       load(period);
     });
+    // Bootstrap apenas — mudanças de período usam `changePeriod` → `load`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount-only bootstrap
   }, []);
 
   function changePeriod(p: Period) {

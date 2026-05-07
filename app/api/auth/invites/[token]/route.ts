@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { hashInviteToken } from "@/lib/auth/invite-token";
 import { getOrCreateSchoolSetting } from "@/lib/school";
+import { resolveProfessorIdForProfessorInvite } from "@/lib/auth/invite-professor-link";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -154,6 +155,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
       where: { email: invite.email },
     });
 
+    if (existingUser?.ativo) {
+      return NextResponse.json(
+        { error: "Já existe um usuário ativo com este e-mail." },
+        { status: 400 }
+      );
+    }
+
     const targetSchoolId = invite.schoolId ?? "default_school";
     await getOrCreateSchoolSetting(targetSchoolId);
 
@@ -167,46 +175,51 @@ export async function POST(request: NextRequest, context: RouteContext) {
       },
     });
 
-    let user;
+    const user = await prisma.$transaction(async (tx) => {
+      const professorId = await resolveProfessorIdForProfessorInvite(tx, {
+        schoolId: invite.schoolId,
+        role: invite.role,
+        email: invite.email,
+        excludeUserId: existingUser?.id ?? null,
+      });
 
-    if (existingUser) {
-      if (existingUser.ativo) {
-        return NextResponse.json(
-          { error: "Já existe um usuário ativo com este e-mail." },
-          { status: 400 }
-        );
+      let u;
+      if (existingUser) {
+        u = await tx.user.update({
+          where: { id: existingUser.id },
+          data: {
+            nome,
+            username,
+            passwordHash,
+            role: invite.role,
+            ativo: true,
+            schoolId: targetSchoolId,
+            ...(professorId ? { professorId } : {}),
+          },
+        });
+      } else {
+        u = await tx.user.create({
+          data: {
+            nome,
+            username,
+            email: invite.email,
+            passwordHash,
+            role: invite.role,
+            ativo: true,
+            schoolId: targetSchoolId,
+            ...(professorId ? { professorId } : {}),
+          },
+        });
       }
 
-      user = await prisma.user.update({
-        where: { id: existingUser.id },
+      await tx.userInvite.update({
+        where: { id: invite.id },
         data: {
-          nome,
-          username,
-          passwordHash,
-          role: invite.role,
-          ativo: true,
-          schoolId: targetSchoolId,
+          usedAt: new Date(),
         },
       });
-    } else {
-      user = await prisma.user.create({
-        data: {
-          nome,
-          username,
-          email: invite.email,
-          passwordHash,
-          role: invite.role,
-          ativo: true,
-          schoolId: targetSchoolId,
-        },
-      });
-    }
 
-    await prisma.userInvite.update({
-      where: { id: invite.id },
-      data: {
-        usedAt: new Date(),
-      },
+      return u;
     });
 
     return NextResponse.json({

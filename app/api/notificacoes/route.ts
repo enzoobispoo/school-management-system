@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { Prisma } from "@prisma/client"
+import { Prisma, TipoNotificacao } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import {
   createNotificacaoSchema,
@@ -7,6 +7,11 @@ import {
 } from "@/lib/validations/notificacao"
 import { getCurrentUser, requireSchool } from "@/lib/auth"
 import { enrichNotificationsWithLinkHref } from "@/lib/notificacoes/enrich-notification-link"
+import { buildScopedNotificationWhere } from "@/lib/notificacoes/scoped-notification-where"
+import {
+  isPrismaSchemaDriftError,
+  PRISMA_MIGRATE_HINT_PT,
+} from "@/lib/prisma/known-request"
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,17 +30,26 @@ export async function GET(request: NextRequest) {
     )
     const page = Math.max(Number(searchParams.get("page") || "1"), 1)
 
-    const where: Prisma.NotificacaoWhereInput = {
+    const scopeWhere = await buildScopedNotificationWhere({
       schoolId,
+      role: user.role,
+      professorId: user.professorId ?? null,
+      userId: user.id,
+    })
+
+    const filterWhere: Prisma.NotificacaoWhereInput = {
       ...(lida !== null ? { lida: lida === "true" } : {}),
-      ...(tipo ? { tipo: tipo as never } : {}),
+      ...(tipo ? { tipo: tipo as TipoNotificacao } : {}),
+    }
+
+    const where: Prisma.NotificacaoWhereInput = {
+      AND: [scopeWhere, filterWhere],
     }
 
     const [total, unreadCount, notificacoes] = await Promise.all([
       prisma.notificacao.count({ where }),
       prisma.notificacao.count({
-        where: {
-          schoolId, lida: false },
+        where: { AND: [scopeWhere, { lida: false }] },
       }),
       prisma.notificacao.findMany({
         where,
@@ -59,6 +73,12 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error("Erro ao buscar notificações:", error)
+    if (isPrismaSchemaDriftError(error)) {
+      return NextResponse.json(
+        { error: PRISMA_MIGRATE_HINT_PT },
+        { status: 503 }
+      )
+    }
     return NextResponse.json(
       { error: "Erro ao buscar notificações" },
       { status: 500 }
@@ -79,8 +99,14 @@ export async function POST(request: NextRequest) {
     const markAllParsed = markAllAsReadSchema.safeParse(body)
 
     if (markAllParsed.success) {
+      const scopeWhere = await buildScopedNotificationWhere({
+        schoolId,
+        role: user.role,
+        professorId: user.professorId ?? null,
+        userId: user.id,
+      })
       const result = await prisma.notificacao.updateMany({
-        where: { lida: false, schoolId },
+        where: { AND: [scopeWhere, { lida: false }] },
         data: { lida: true },
       })
 
@@ -109,6 +135,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(notificacao, { status: 201 })
   } catch (error) {
     console.error("Erro ao criar/atualizar notificações:", error)
+    if (isPrismaSchemaDriftError(error)) {
+      return NextResponse.json(
+        { error: PRISMA_MIGRATE_HINT_PT },
+        { status: 503 }
+      )
+    }
     return NextResponse.json(
       { error: "Erro ao processar notificações" },
       { status: 500 }

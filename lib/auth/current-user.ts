@@ -19,6 +19,8 @@ export async function getCurrentUserFromRequest(request: NextRequest) {
         role: true,
         ativo: true,
         schoolId: true,
+        professorId: true,
+        avatarUrl: true,
         openaiApiKey: true,
         plan: true,
         aiUsage: true,

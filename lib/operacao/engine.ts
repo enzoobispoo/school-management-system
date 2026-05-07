@@ -24,7 +24,6 @@ export async function ensureDefaultOperationalPlaybooks(): Promise<void> {
       },
       update: {
         name: row.name,
-        active: true,
         definitionJson: row.definition as unknown as Prisma.InputJsonValue,
       },
     });

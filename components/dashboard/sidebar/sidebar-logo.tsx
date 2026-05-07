@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { GraduationCap } from "lucide-react";
 
@@ -16,10 +17,16 @@ export function SidebarLogo({ collapsed = false }: SidebarLogoProps) {
   const [school, setSchool] = useState<SchoolData>({ nomeEscola: "EduGestão", logoUrl: null });
 
   useEffect(() => {
-    fetch("/api/settings/escola", { cache: "no-store" })
+    fetch("/api/schools", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
-        if (d.nomeEscola) setSchool({ nomeEscola: d.nomeEscola, logoUrl: d.logoUrl });
+        const s = d.schools?.[0];
+        if (s) {
+          setSchool({
+            nomeEscola: s.nomeEscola ?? s.nome ?? "EduGestão",
+            logoUrl: s.logoUrl ?? null,
+          });
+        }
       })
       .catch(() => {});
   }, []);
@@ -39,7 +46,14 @@ export function SidebarLogo({ collapsed = false }: SidebarLogoProps) {
         style={{ backgroundColor: "var(--brand-primary)" }}
       >
         {school.logoUrl ? (
-          <img src={school.logoUrl} alt="Logo" className="h-full w-full object-cover" />
+          <Image
+            src={school.logoUrl}
+            alt="Logo"
+            width={32}
+            height={32}
+            className="h-full w-full object-cover"
+            unoptimized
+          />
         ) : initials ? (
           <span className="text-[11px] font-bold text-white">{initials}</span>
         ) : (

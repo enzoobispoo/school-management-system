@@ -6,6 +6,9 @@ import {
   TipoNotificacao,
 } from "@prisma/client";
 import { logFinanceAuditEvent } from "@/lib/services/finance-audit";
+import { readCorrelationIdFromRequest } from "@/lib/observability/correlation";
+import { logStructured } from "@/lib/observability/logger";
+import { revalidateTag } from "next/cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,11 +73,15 @@ function safeEqual(a: string, b: string) {
 }
 
 export async function POST(request: NextRequest) {
+  const correlationId = readCorrelationIdFromRequest(request);
   try {
     const expectedToken = process.env.ASAAS_WEBHOOK_TOKEN?.trim();
 
     if (!expectedToken) {
-      console.error("ASAAS_WEBHOOK_TOKEN não configurado.");
+      logStructured("error", {
+        event: "asaas_webhook_config_missing",
+        correlationId,
+      });
       return NextResponse.json(
         { error: "Webhook não configurado." },
         { status: 500 }
@@ -85,6 +92,10 @@ export async function POST(request: NextRequest) {
       request.headers.get("asaas-access-token")?.trim() || "";
 
     if (!receivedToken || !safeEqual(receivedToken, expectedToken)) {
+      logStructured("warn", {
+        event: "asaas_webhook_unauthorized",
+        correlationId,
+      });
       return NextResponse.json(
         { error: "Token de webhook inválido." },
         { status: 401 }
@@ -97,6 +108,13 @@ export async function POST(request: NextRequest) {
     const asaasStatus = body.payment?.status;
     const paymentDate =
       body.payment?.paymentDate || body.payment?.clientPaymentDate || null;
+
+    logStructured("info", {
+      event: "asaas_webhook_received",
+      correlationId,
+      asaasEvent: body.event ?? null,
+      paymentId: paymentId ?? null,
+    });
 
     if (!paymentId) {
       return NextResponse.json(
@@ -123,12 +141,25 @@ export async function POST(request: NextRequest) {
     });
 
     if (!pagamento) {
+      logStructured("info", {
+        event: "asaas_webhook_payment_not_found",
+        correlationId,
+        paymentId,
+      });
       return NextResponse.json({
         success: true,
         ignored: true,
         message: "Pagamento não encontrado.",
       });
     }
+
+    logStructured("info", {
+      event: "asaas_webhook_payment_resolved",
+      correlationId,
+      schoolId: pagamento.schoolId,
+      pagamentoId: pagamento.id,
+      statusIncoming: asaasStatus ?? null,
+    });
 
     const mappedStatus = mapAsaasStatusToLocalStatus(asaasStatus);
 
@@ -194,6 +225,12 @@ export async function POST(request: NextRequest) {
       data: dataToUpdate,
     });
 
+    try {
+      revalidateTag(`school-dashboard-${pagamento.schoolId}`, "max");
+    } catch {
+      // Next cache pode não estar disponível em todos os runtimes de teste
+    }
+
     await logFinanceAuditEvent({
       schoolId: pagamento.schoolId,
       eventType: "ASAAS_WEBHOOK_PROCESSED",
@@ -229,7 +266,14 @@ export async function POST(request: NextRequest) {
       localStatus: updated.status,
     });
   } catch (error) {
-    console.error("Erro no webhook do Asaas:", error);
+    logStructured("error", {
+      event: "asaas_webhook_failed",
+      correlationId,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Erro ao processar webhook do Asaas.",
+    });
 
     return NextResponse.json(
       {

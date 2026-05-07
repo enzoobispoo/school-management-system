@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useDebouncedValue } from "@/hooks/shared/use-debounced-value";
 
@@ -74,6 +74,9 @@ interface PagamentosResponse {
 
 export interface PaymentTableItem {
   id: string;
+  studentId: string;
+  /** Ano-sugestão para o demonstrativo IR (ano-calendário da baixa ou da competência). */
+  demonstrativoIrAno: number;
   student: string;
   studentInitials: string;
   description: string;
@@ -196,8 +199,14 @@ function normalizePayments(
         !payment.metodoPagamento &&
         payment.billingStatus === "RECEIVED";
 
+      const demonstrativoIrAno = payment.dataPagamento
+        ? new Date(payment.dataPagamento).getFullYear()
+        : payment.competenciaAno;
+
       return {
         id: payment.id,
+        studentId: payment.matricula.aluno.id,
+        demonstrativoIrAno,
         student: payment.matricula.aluno.nome,
         studentInitials: getInitials(payment.matricula.aluno.nome),
         description: payment.descricao,
@@ -363,7 +372,7 @@ export function useFinancialQuery() {
     taxaInadimplencia: 0,
   }, [financialTotals]);
 
-  async function fetchPayments() {
+  const fetchPayments = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -398,9 +407,9 @@ export function useFinancialQuery() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [page, debouncedSearch, statusQuery, monthQuery, paymentId]);
 
-  async function fetchFinancialTotals() {
+  const fetchFinancialTotals = useCallback(async () => {
     try {
       setLoadingTotals(true);
       const response = await fetch("/api/financeiro/metricas", {
@@ -419,15 +428,15 @@ export function useFinancialQuery() {
     } finally {
       setLoadingTotals(false);
     }
-  }
-
-  useEffect(() => {
-    fetchPayments();
-  }, [page, debouncedSearch, statusQuery, month, paymentId]);
-
-  useEffect(() => {
-    fetchFinancialTotals();
   }, []);
+
+  useEffect(() => {
+    void fetchPayments();
+  }, [fetchPayments]);
+
+  useEffect(() => {
+    void fetchFinancialTotals();
+  }, [fetchFinancialTotals]);
 
   return {
     payments,

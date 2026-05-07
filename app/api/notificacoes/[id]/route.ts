@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { updateNotificacaoSchema } from "@/lib/validations/notificacao"
 import { getCurrentUser, requireSchool } from "@/lib/auth";
 import { enrichNotificationWithLinkHref } from "@/lib/notificacoes/enrich-notification-link";
+import { buildScopedNotificationWhere } from "@/lib/notificacoes/scoped-notification-where";
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -17,8 +18,15 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     const { schoolId } = _school;
     const { id } = await context.params
 
+    const scopeWhere = await buildScopedNotificationWhere({
+      schoolId,
+      role: user.role,
+      professorId: user.professorId ?? null,
+      userId: user.id,
+    });
+
     const notificacao = await prisma.notificacao.findFirst({
-      where: { id, schoolId },
+      where: { AND: [{ id }, scopeWhere] },
     })
 
     if (!notificacao) {
@@ -61,8 +69,15 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       )
     }
 
+    const scopeWhere = await buildScopedNotificationWhere({
+      schoolId,
+      role: user.role,
+      professorId: user.professorId ?? null,
+      userId: user.id,
+    });
+
     const notificacaoExistente = await prisma.notificacao.findFirst({
-      where: { id, schoolId },
+      where: { AND: [{ id }, scopeWhere] },
       select: { id: true },
     })
 
@@ -98,8 +113,15 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     const { schoolId } = _school;
     const { id } = await context.params
 
+    const scopeWhere = await buildScopedNotificationWhere({
+      schoolId,
+      role: user.role,
+      professorId: user.professorId ?? null,
+      userId: user.id,
+    });
+
     const notificacao = await prisma.notificacao.findFirst({
-      where: { id, schoolId },
+      where: { AND: [{ id }, scopeWhere] },
       select: { id: true },
     })
 

@@ -28,5 +28,7 @@ export function notificationLinkHref(
       return `/cursos/${entidadeId}`;
     case "SISTEMA":
       return null;
+    case "CHAT_THREAD":
+      return `/mensagens?thread=${encodeURIComponent(entidadeId)}`;
   }
 }

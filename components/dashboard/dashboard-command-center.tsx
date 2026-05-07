@@ -3,6 +3,7 @@
 import type { ComponentType } from "react";
 import Link from "next/link";
 import {
+  Activity,
   AlertTriangle,
   BarChart3,
   ClipboardCheck,
@@ -91,6 +92,8 @@ export function DashboardCommandCenter({ metrics, loading }: DashboardCommandCen
   const novos = parseCount(metrics.novosAlunosNoMes);
   const lotadas = parseCount(metrics.turmasLotadas);
   const ociosas = parseCount(metrics.turmasComVagasOciosas);
+  const incAbertos = metrics.incidentesOperacionaisAbertos ?? 0;
+  const incCrit = metrics.incidentesOperacionaisCriticos ?? 0;
 
   return (
     <section className="rounded-2xl border border-border/70 bg-card/60 p-4 shadow-sm">
@@ -109,6 +112,21 @@ export function DashboardCommandCenter({ metrics, loading }: DashboardCommandCen
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <OpTile
+          href="/operacao"
+          title="Central operacional"
+          description="Alertas automáticos: financeiro, acadêmico e matrícula."
+          icon={Activity}
+          badge={
+            incAbertos > 0
+              ? incCrit > 0
+                ? `${incAbertos} aberto(s) · ${incCrit} crítico(s)`
+                : `${incAbertos} em aberto`
+              : "Sem alertas"
+          }
+          emphasize={incCrit > 0}
+          loading={loading}
+        />
         <OpTile
           href="/financeiro?tab=overdue"
           title="Inadimplência"

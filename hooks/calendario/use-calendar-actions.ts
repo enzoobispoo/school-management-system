@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import type { CalendarEventPayload } from "@/lib/calendario/calendar-types";
 import {
   createCalendarEvent,
@@ -63,10 +63,13 @@ export function useCalendarActions({
     [fetchCalendar]
   );
 
-  return {
-    fetchCalendar,
-    handleCreateEvent,
-    handleUpdateEvent,
-    handleDeleteEvent,
-  };
+  return useMemo(
+    () => ({
+      fetchCalendar,
+      handleCreateEvent,
+      handleUpdateEvent,
+      handleDeleteEvent,
+    }),
+    [fetchCalendar, handleCreateEvent, handleUpdateEvent, handleDeleteEvent]
+  );
 }

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Suspense } from "react";
+import { PASSWORD_MIN_LENGTH } from "@/lib/validations/password-policy";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -13,7 +14,6 @@ function ResetPasswordForm() {
 
   const [validating, setValidating] = useState(true);
   const [valid, setValid] = useState(false);
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,12 +21,25 @@ function ResetPasswordForm() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    if (!token) { setValidating(false); return; }
-    fetch(`/api/auth/reset-password?token=${token}`)
-      .then((r) => r.json())
+    if (!token) {
+      setValidating(false);
+      return;
+    }
+    setError("");
+    fetch(`/api/auth/reset-password?token=${encodeURIComponent(token)}`)
+      .then((r) => {
+        if (r.status === 429) {
+          setValid(false);
+          setError(
+            "Muitas tentativas de validação. Aguarde alguns minutos e abra o link do e-mail novamente."
+          );
+          return null;
+        }
+        return r.json();
+      })
       .then((d) => {
-        setValid(d.valid);
-        if (d.email) setEmail(d.email);
+        if (!d) return;
+        setValid(Boolean(d.valid));
       })
       .finally(() => setValidating(false));
   }, [token]);
@@ -34,7 +47,12 @@ function ResetPasswordForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (password.length < 6) { setError("A senha deve ter pelo menos 6 caracteres."); return; }
+    if (password.length < PASSWORD_MIN_LENGTH) {
+      setError(
+        `A senha deve ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres.`
+      );
+      return;
+    }
     if (password !== confirm) { setError("As senhas não coincidem."); return; }
 
     setLoading(true);
@@ -45,6 +63,12 @@ function ResetPasswordForm() {
         body: JSON.stringify({ token, password }),
       });
       const data = await res.json();
+      if (res.status === 429) {
+        throw new Error(
+          data.error ||
+            "Muitas tentativas. Aguarde alguns minutos e tente novamente."
+        );
+      }
       if (!res.ok) throw new Error(data.error || "Erro ao redefinir senha.");
       setDone(true);
       setTimeout(() => router.push("/login"), 3000);
@@ -65,7 +89,8 @@ function ResetPasswordForm() {
     return (
       <div className="space-y-4">
         <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
-          Este link é inválido ou já expirou. Solicite um novo na tela de login.
+          {error ||
+            "Este link é inválido ou já expirou. Solicite um novo na tela de login."}
         </div>
         <Button className="w-full rounded-2xl" onClick={() => router.push("/login")}>
           Voltar ao login
@@ -86,19 +111,13 @@ function ResetPasswordForm() {
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-3">
-      {email && (
-        <p className="text-[13px] text-muted-foreground">
-          Redefinindo senha para <strong className="text-foreground">{email}</strong>
-        </p>
-      )}
-
       <div className="grid gap-1.5">
         <label className="text-[13px] font-medium text-foreground">Nova senha</label>
         <Input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Mínimo 6 caracteres"
+          placeholder={`Mínimo ${PASSWORD_MIN_LENGTH} caracteres`}
           className="h-11 rounded-2xl"
           autoFocus
         />

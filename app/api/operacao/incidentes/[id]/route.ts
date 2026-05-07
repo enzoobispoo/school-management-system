@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, requireSchool } from "@/lib/auth";
+import { getCurrentUser, isAdmin, resolveSchoolScopeForRequest } from "@/lib/auth";
 import { patchOperationalIncidentSchema } from "@/lib/validations/operacao-incident";
 
 interface RouteContext {
@@ -11,7 +11,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
-    const schoolGate = requireSchool(user);
+    const schoolGate = await resolveSchoolScopeForRequest(user, request);
     if (schoolGate instanceof NextResponse) return schoolGate;
     const { schoolId } = schoolGate;
 
@@ -39,6 +39,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const userId = user.id;
 
     let data: Parameters<typeof prisma.operationalIncident.update>[0]["data"];
+
+    if (parsed.data.action === "dismiss" && !isAdmin(user)) {
+      return NextResponse.json(
+        { error: "Apenas administradores podem dispensar incidentes." },
+        { status: 403 }
+      );
+    }
 
     switch (parsed.data.action) {
       case "acknowledge":

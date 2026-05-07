@@ -38,6 +38,15 @@ model School {
   alunoRegistros         AlunoRegistro[]
   operationalIncidents    OperationalIncident[]
   operationalPlaybookRuns OperationalPlaybookRun[]
+  materiaisDidaticos      MaterialDidatico[]
+  trocaProfessorPropostas TrocaProfessorProposta[]
+  schoolChatThreads       SchoolChatThread[]
+  docenteDashboardConfigs DocenteDashboardConfig[]
+  avaliacoesQuestoes      AvaliacaoQuestao[]
+  avaliacoesAlternativas  AvaliacaoAlternativa[]
+  jogoSessoes             JogoSessao[]
+  jogoParticipantes       JogoParticipante[]
+  jogoRespostas           JogoResposta[]
 
   @@index([slug])
   @@index([ativo])
@@ -184,7 +193,13 @@ model Professor {
   turmas          Turma[]
   cursos          ProfessorCurso[]
   historicoTurmas TurmaProfessorHistorico[]
-  avaliacoes      Avaliacao[]
+  avaliacoes       Avaliacao[]
+  linkedUser       User?
+  materiaisDidaticos MaterialDidatico[]
+  registrosPedagogicos AlunoRegistro[]
+  notificacoesDirigidas Notificacao[]
+  trocaPropostasRecebidas TrocaProfessorProposta[] @relation("TrocaProfessorAlvo")
+  trocaPropostasComoSaida TrocaProfessorProposta[] @relation("TrocaProfessorAnterior")
 
   @@unique([schoolId, email])
   @@index([schoolId])
@@ -211,8 +226,10 @@ model Turma {
   horarios             TurmaHorario[]
   historicoProfessores TurmaProfessorHistorico[]
   disciplinas         TurmaDisciplina[]
-  avaliacoes          Avaliacao[]
-  aulas               AulaRegistro[]
+  avaliacoes              Avaliacao[]
+  aulas                   AulaRegistro[]
+  materiaisDidaticos      MaterialDidatico[]
+  trocaProfessorPropostas TrocaProfessorProposta[]
 
   @@unique([schoolId, cursoId, nome])
   @@index([schoolId])
@@ -236,11 +253,13 @@ model TurmaHorario {
 }
 
 model Matricula {
-  id                 String          @id @default(cuid())
-  schoolId           String
-  alunoId            String
-  turmaId            String
-  dataMatricula      DateTime        @default(now())
+  id                   String          @id @default(cuid())
+  schoolId             String
+  alunoId              String
+  turmaId              String
+  dataMatricula        DateTime        @default(now())
+  /// Dia do mês (1–31) para vencimento das mensalidades desta matrícula; meses curtos são ajustados ao último dia.
+  diaVencimentoMensal   Int?
   dataCancelamento   DateTime?
   motivoCancelamento String?
   observacoes        String?
@@ -299,6 +318,7 @@ model Pagamento {
   @@index([status])
   @@index([vencimento])
   @@index([competenciaAno, competenciaMes])
+  @@index([schoolId, status, dataPagamento])
 }
 
 model CobrancaLote {
@@ -402,16 +422,24 @@ model Notificacao {
   lida         Boolean             @default(false)
   entidadeTipo EntidadeNotificacao @default(SISTEMA)
   entidadeId   String?
+  /** Se preenchido, apenas esse professor (conta vinculada) deve ver na área do docente. */
+  destinatarioProfessorId String?
+  /** Se preenchido, só esse usuário vê (ex.: alerta de mensagem no chat escolar). */
+  destinatarioUserId String?
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school                School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  destinatarioProfessor Professor? @relation(fields: [destinatarioProfessorId], references: [id], onDelete: SetNull)
+  destinatarioUser    User?      @relation("NotificacaoParaUsuario", fields: [destinatarioUserId], references: [id], onDelete: SetNull)
 
   @@index([schoolId])
   @@index([tipo])
   @@index([lida])
   @@index([createdAt])
   @@index([entidadeTipo, entidadeId])
+  @@index([destinatarioProfessorId])
+  @@index([destinatarioUserId])
 }
 
 model User {
@@ -432,6 +460,8 @@ model User {
   densidade                  String?   @default("comfortable")
   telefone                   String?
   temaPreferido              String?   @default("light")
+  /** URL pública da foto de perfil (mensagens, cabeçalhos). */
+  avatarUrl                  String?
   dashboardCards             Json?
   dashboardCardsOrder        Json?
   dashboardInsightsFrequency String?   @default("weekly")
@@ -442,6 +472,13 @@ model User {
   school         School?         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   aiAuditLogs    AiAuditLog[]
   aiChatSessions AiChatSession[]
+  professorId    String?    @unique
+  professor      Professor? @relation(fields: [professorId], references: [id], onDelete: SetNull)
+
+  schoolChatParticipants SchoolChatParticipant[]
+  schoolChatMessagesSent SchoolChatMessage[]    @relation("SchoolChatMessageSender")
+  schoolChatGroupsOwned  SchoolChatThread[]     @relation("SchoolChatThreadOwner")
+  notificacoesRecebidas  Notificacao[]          @relation("NotificacaoParaUsuario")
 
   @@index([schoolId])
   @@index([email])
@@ -484,6 +521,53 @@ model TurmaProfessorHistorico {
   @@index([dataFim])
 }
 
+model TrocaProfessorProposta {
+  id                  String                       @id @default(cuid())
+  schoolId            String
+  turmaId             String
+  professorAnteriorId String
+  professorAlvoId     String
+  motivoTroca         String?
+  observacoes         String?
+  dataInicioPrevista  DateTime
+  resumoTurma         String?
+  resumoHorarios      String?
+  status              TrocaProfessorPropostaStatus @default(PENDENTE)
+  respondidoEm        DateTime?
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+
+  school            School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  turma             Turma     @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  professorAnterior Professor @relation("TrocaProfessorAnterior", fields: [professorAnteriorId], references: [id], onDelete: Restrict)
+  professorAlvo     Professor @relation("TrocaProfessorAlvo", fields: [professorAlvoId], references: [id], onDelete: Restrict)
+
+  @@index([schoolId])
+  @@index([turmaId])
+  @@index([professorAlvoId, status])
+  @@index([status])
+}
+
+model DocenteDashboardConfig {
+  id                    String   @id @default(cuid())
+  schoolId              String
+  role                  UserRole @default(PROFESSOR)
+  minAttendancePercent  Int      @default(75)
+  minAttendanceSamples  Int      @default(4)
+  minGrade              Decimal  @default(6.0) @db.Decimal(4, 2)
+  minGradeSamples       Int      @default(2)
+  weeklyCallsTarget     Int?
+  weeklyAssessmentsTarget Int?
+  weeklyGradesTarget    Int?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, role])
+  @@index([schoolId])
+}
+
 model SystemSetting {
   id             String         @id @default("default")
   aiProviderMode AiProviderMode @default(PLATFORM)
@@ -515,16 +599,22 @@ model UserInvite {
 }
 
 model AiAuditLog {
-  id        String   @id @default(cuid())
-  userId    String
-  message   String
-  intent    String
-  response  String
-  executed  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  userId         String
+  schoolId       String?
+  correlationId  String?
+  message        String
+  intent         String
+  response       String
+  executed       Boolean  @default(false)
+  /** Resumo das invocações de tools (nome, duração, erro opcional). */
+  toolRuns       Json?
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([schoolId])
+  @@index([correlationId])
   @@index([intent])
   @@index([createdAt])
 }
@@ -587,9 +677,10 @@ model Disciplina {
   updatedAt DateTime @updatedAt
 
   school     School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  turmas     TurmaDisciplina[]
-  avaliacoes Avaliacao[]
-  aulas      AulaRegistro[]
+  turmas              TurmaDisciplina[]
+  avaliacoes          Avaliacao[]
+  aulas               AulaRegistro[]
+  materiaisDidaticos  MaterialDidatico[]
 
   @@unique([schoolId, nome])
   @@index([schoolId])
@@ -619,10 +710,12 @@ model Avaliacao {
   turmaId      String
   disciplinaId String
   professorId  String?
+  formato      FormatoAvaliacao @default(CLASSICA)
   titulo       String
   descricao    String?
   peso         Decimal? @db.Decimal(5, 2)
   dataAvaliacao DateTime
+  deletedAt    DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -631,11 +724,114 @@ model Avaliacao {
   disciplina Disciplina  @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
   professor  Professor?  @relation(fields: [professorId], references: [id], onDelete: SetNull)
   notas      NotaAvaliacao[]
+  questoes   AvaliacaoQuestao[]
+  jogoSessoes JogoSessao[]
 
   @@index([schoolId])
+  @@index([schoolId, deletedAt])
   @@index([turmaId])
   @@index([disciplinaId])
   @@index([dataAvaliacao])
+}
+
+model AvaliacaoQuestao {
+  id          String   @id @default(cuid())
+  schoolId    String
+  avaliacaoId String
+  ordem       Int
+  enunciado   String
+  explicacao  String?
+  pontos      Decimal? @db.Decimal(5, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school      School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  avaliacao   Avaliacao  @relation(fields: [avaliacaoId], references: [id], onDelete: Cascade)
+  alternativas AvaliacaoAlternativa[]
+  respostas    JogoResposta[]
+
+  @@index([schoolId])
+  @@index([avaliacaoId, ordem])
+}
+
+model AvaliacaoAlternativa {
+  id          String   @id @default(cuid())
+  schoolId    String
+  questaoId   String
+  ordem       Int
+  texto       String
+  correta     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school      School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  questao     AvaliacaoQuestao  @relation(fields: [questaoId], references: [id], onDelete: Cascade)
+  respostas   JogoResposta[]
+
+  @@index([schoolId])
+  @@index([questaoId, ordem])
+}
+
+model JogoSessao {
+  id                       String           @id @default(cuid())
+  schoolId                 String
+  avaliacaoId              String
+  pin                      String           @unique
+  status                   JogoSessaoStatus @default(LOBBY)
+  questaoAtualOrdem        Int              @default(1)
+  tempoPorQuestaoSegundos  Int?
+  questaoDeadlineAt        DateTime?
+  createdByProfessorId     String?
+  startedAt                DateTime?
+  finishedAt               DateTime?
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+
+  school                School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  avaliacao             Avaliacao        @relation(fields: [avaliacaoId], references: [id], onDelete: Cascade)
+  participants          JogoParticipante[]
+
+  @@index([schoolId])
+  @@index([avaliacaoId, createdAt])
+}
+
+model JogoParticipante {
+  id            String        @id @default(cuid())
+  schoolId      String
+  sessaoId      String
+  nome          String
+  avatarEmoji   String        @default("🎓")
+  score         Decimal       @default(0) @db.Decimal(10, 2)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  school        School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  sessao        JogoSessao    @relation(fields: [sessaoId], references: [id], onDelete: Cascade)
+  respostas     JogoResposta[]
+
+  @@index([schoolId])
+  @@index([sessaoId, createdAt])
+}
+
+model JogoResposta {
+  id             String               @id @default(cuid())
+  schoolId       String
+  participanteId String
+  questaoId      String
+  alternativaId  String?
+  correta        Boolean
+  pontos         Decimal              @default(0) @db.Decimal(10, 2)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  school         School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  participante   JogoParticipante     @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+  questao        AvaliacaoQuestao     @relation(fields: [questaoId], references: [id], onDelete: Cascade)
+  alternativa    AvaliacaoAlternativa? @relation(fields: [alternativaId], references: [id], onDelete: SetNull)
+
+  @@unique([participanteId, questaoId])
+  @@index([schoolId])
+  @@index([questaoId, createdAt])
 }
 
 model NotaAvaliacao {
@@ -739,6 +935,8 @@ model EscolaSettings {
   aiMonthlyLimitOverride    Int?
   aiUsageCount              Int      @default(0)
   aiUsageResetAt           DateTime @default(now())
+  aiEvalReviewEnforced     Boolean  @default(false)
+  aiEvalReviewMinScore     Int      @default(70)
   twilioAccountSid         String?
   twilioAuthToken          String?
   twilioWhatsAppFrom       String?
@@ -797,6 +995,17 @@ enum ChatMessageRole {
   SYSTEM
 }
 
+enum SchoolChatThreadKind {
+  DIRECT
+  GROUP
+}
+
+/** Em grupos: todos escrevem ou apenas quem criou (gestor). */
+enum SchoolChatWritePolicy {
+  ALL_MEMBERS
+  OWNER_ONLY
+}
+
 enum TipoNotificacao {
   NOVO_ALUNO
   NOVA_MATRICULA
@@ -805,6 +1014,17 @@ enum TipoNotificacao {
   MATRICULA_CANCELADA
   SISTEMA
   PAGAMENTO
+  /** Convite para assumir titularidade de turma — ver fluxo em /docente/trocas */
+  TROCA_PROFESSOR_SOLICITADA
+  /** Mensagem direta no chat interno da escola (/mensagens) */
+  NOVA_MENSAGEM_CHAT
+}
+
+enum TrocaProfessorPropostaStatus {
+  PENDENTE
+  ACEITA
+  RECUSADA
+  CANCELADA
 }
 
 enum TipoAlunoRegistro {
@@ -821,6 +1041,7 @@ enum EntidadeNotificacao {
   CURSO
   PROFESSOR
   SISTEMA
+  CHAT_THREAD
 }
 
 enum UserRole {
@@ -829,6 +1050,17 @@ enum UserRole {
   SECRETARIA
   PROFESSOR
   SUPER_ADMIN
+}
+
+enum FormatoAvaliacao {
+  CLASSICA
+  JOGO
+}
+
+enum JogoSessaoStatus {
+  LOBBY
+  RUNNING
+  FINISHED
 }
 
 enum AiProviderMode {
@@ -866,21 +1098,62 @@ model AlunoStatusHistorico {
 }
 
 model AlunoRegistro {
-  id        String            @id @default(cuid())
-  schoolId  String
-  alunoId   String
-  tipo      TipoAlunoRegistro
-  titulo    String
-  descricao String?
-  gravidade String?
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
+  id          String            @id @default(cuid())
+  schoolId    String
+  alunoId     String
+  professorId String?
+  tipo        TipoAlunoRegistro
+  titulo      String
+  descricao   String?
+  gravidade   String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  aluno  Aluno  @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  school    School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  aluno     Aluno      @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  professor Professor? @relation(fields: [professorId], references: [id], onDelete: SetNull)
 
   @@index([schoolId])
   @@index([alunoId])
+  @@index([professorId])
+  @@index([tipo])
+  @@index([createdAt])
+}
+
+enum TipoMaterialDidatico {
+  SLIDE
+  ATIVIDADE_IMPRESSAO
+  PROVA_IMPRESSAO
+  PLANO_AULA
+  REFERENCIA
+  OUTRO
+}
+
+model MaterialDidatico {
+  id           String               @id @default(cuid())
+  schoolId     String
+  professorId  String
+  turmaId      String?
+  disciplinaId String?
+  tipo         TipoMaterialDidatico @default(OUTRO)
+  titulo       String
+  descricao    String?
+  arquivoUrl   String
+  arquivoNome  String
+  mimeType     String?
+  tamanhoBytes Int?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  school     School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  professor  Professor   @relation(fields: [professorId], references: [id], onDelete: Cascade)
+  turma      Turma?      @relation(fields: [turmaId], references: [id], onDelete: SetNull)
+  disciplina Disciplina? @relation(fields: [disciplinaId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId])
+  @@index([professorId])
+  @@index([turmaId])
+  @@index([disciplinaId])
   @@index([tipo])
   @@index([createdAt])
 }
@@ -970,6 +1243,74 @@ model OperationalPlaybookRun {
   @@index([schoolId])
   @@index([playbookId])
   @@index([createdAt])
+}
+
+model SchoolChatThread {
+  id            String    @id @default(cuid())
+  schoolId      String
+  kind          SchoolChatThreadKind   @default(DIRECT)
+  /** Par ordenado userId:userId para DM na mesma escola (único por escola). */
+  dmKey         String?
+  /** Nome do grupo (obrigatório quando kind = GROUP). */
+  title         String?
+  /** Criador do grupo (gestor); mensagens “somente gestor” usam esta referência. */
+  ownerUserId   String?
+  writePolicy   SchoolChatWritePolicy @default(ALL_MEMBERS)
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  school       School                  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  owner        User?                   @relation("SchoolChatThreadOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  participants SchoolChatParticipant[]
+  messages     SchoolChatMessage[]
+
+  @@unique([schoolId, dmKey])
+  @@index([schoolId, lastMessageAt])
+  @@index([schoolId, kind])
+}
+
+model SchoolChatParticipant {
+  id         String    @id @default(cuid())
+  threadId   String
+  userId     String
+  lastReadAt DateTime?
+  /** Fixação só para este usuário; conversas fixadas sobem na lista. */
+  pinnedAt   DateTime?
+  /** Ocultar conversa só para este usuário (estilo “apagar pra mim”). Nova mensagem reabre para os destinatários. */
+  hiddenAt   DateTime?
+  /** IDs de mensagens ocultas só para este usuário (“apagar mensagem para mim”). */
+  hiddenMessageIds String[] @default([])
+  createdAt  DateTime  @default(now())
+
+  thread SchoolChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, userId])
+  @@index([userId])
+  @@index([userId, pinnedAt])
+  @@index([userId, hiddenAt])
+}
+
+model SchoolChatMessage {
+  id             String    @id @default(cuid())
+  threadId       String
+  senderUserId   String
+  body           String    @db.Text
+  attachmentUrl  String?
+  attachmentName String?
+  editedAt       DateTime?
+  /** Mensagem fixada na conversa (visível para todos). */
+  pinnedAt       DateTime?
+  /** Apagada para todos os participantes (conteúdo removido). */
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  thread SchoolChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender User             @relation("SchoolChatMessageSender", fields: [senderUserId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+  @@index([threadId, pinnedAt])
 }
 
 model PasswordResetToken {

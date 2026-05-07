@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { Camera, UserRound } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { SettingsFeedback } from "@/components/configuracoes/shared/settings-feedback";
 import { useAccountSettings } from "@/hooks/configuracoes/use-account-settings";
+import { cn } from "@/lib/utils";
 
 function maskPhone(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -18,9 +22,26 @@ function maskPhone(value: string) {
     .replace(/(\d{5})(\d)/, "$1-$2");
 }
 
+function initialsFromNome(nome: string) {
+  const p = nome.trim().split(/\s+/).filter(Boolean);
+  if (!p.length) return "?";
+  if (p.length === 1) return p[0].slice(0, 2).toUpperCase();
+  return (p[0][0] + p[p.length - 1][0]).toUpperCase();
+}
+
 export function AccountSettingsSection() {
-  const { form, loading, saving, success, error, updateField, handleSave } =
-    useAccountSettings();
+  const {
+    form,
+    loading,
+    saving,
+    success,
+    error,
+    updateField,
+    handleSave,
+    avatarPreviewSrc,
+    pickAvatarFile,
+    markRemoveAvatar,
+  } = useAccountSettings();
 
   const [showPasswordFields, setShowPasswordFields] = useState(false);
   const [senhaAtual, setSenhaAtual] = useState("");
@@ -67,10 +88,81 @@ export function AccountSettingsSection() {
   return (
     <div className="grid gap-6">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">Conta</h2>
+        <h2 className="text-lg font-semibold text-foreground">Conta e perfil</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Atualize seus dados de acesso e perfil.
+          Nome, foto, telefone e e-mail são usados nas mensagens internas e cabeçalhos da escola.
         </p>
+      </div>
+
+      <div className="rounded-[24px] border border-border bg-muted/25 p-5 dark:bg-muted/15">
+        <p className="text-sm font-medium text-foreground">Foto do perfil</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Envie uma imagem (até 4MB) ou cole uma URL https pública. JPG, PNG, WebP ou GIF.
+        </p>
+        <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start">
+          <Avatar className={cn("size-24 shrink-0 ring-2 ring-border/70")}>
+            {avatarPreviewSrc ? (
+              <AvatarImage src={avatarPreviewSrc} alt="" className="object-cover" />
+            ) : null}
+            <AvatarFallback className="text-lg font-semibold">
+              {form.nome.trim() ?
+                initialsFromNome(form.nome)
+              : <UserRound className="h-10 w-10 opacity-40" aria-hidden />}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <div className="grid gap-2">
+              <Label htmlFor="avatar-url">URL da foto (opcional)</Label>
+              <Input
+                id="avatar-url"
+                value={form.avatarUrl}
+                onChange={(e) => {
+                  pickAvatarFile(null);
+                  updateField("avatarUrl", e.target.value);
+                }}
+                placeholder="https://…"
+                className="h-11 rounded-2xl font-mono text-[13px]"
+                disabled={loading}
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-xl gap-2"
+                disabled={loading}
+                onClick={() =>
+                  document.getElementById("avatar-file-input")?.click()
+                }
+              >
+                <Camera className="h-4 w-4" />
+                Escolher arquivo
+              </Button>
+              <input
+                id="avatar-file-input"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  pickAvatarFile(f ?? null);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="rounded-xl text-muted-foreground"
+                disabled={loading}
+                onClick={() => markRemoveAvatar()}
+              >
+                Remover foto
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -112,7 +204,7 @@ export function AccountSettingsSection() {
           disabled={saving || loading}
           className="h-8 rounded-md px-4"
         >
-          {saving ? "Salvando..." : "Salvar alterações"}
+          {saving ? "Salvando..." : "Salvar perfil"}
         </Button>
       </div>
 

@@ -1,12 +1,12 @@
-import { NextResponse } from "next/server";
-import { getCurrentUser, requireSchool } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser, resolveSchoolScopeForRequest } from "@/lib/auth";
 import { evaluateOperationalIncidentsForSchool } from "@/lib/operacao/engine";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
-    const schoolGate = requireSchool(user);
+    const schoolGate = await resolveSchoolScopeForRequest(user, request);
     if (schoolGate instanceof NextResponse) return schoolGate;
     const { schoolId } = schoolGate;
 

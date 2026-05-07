@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -58,23 +58,7 @@ export function ChargeStudentsModal() {
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  useEffect(() => {
-    function handleOpen() {
-      setOpen(true);
-      setSelectedIds([]);
-      setSuccessMessage("");
-      setErrorMessage("");
-      fetchPayments();
-    }
-
-    window.addEventListener("openChargeStudentsModal", handleOpen);
-
-    return () => {
-      window.removeEventListener("openChargeStudentsModal", handleOpen);
-    };
-  }, []);
-
-  async function fetchPayments() {
+  const fetchPayments = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -108,7 +92,23 @@ export function ChargeStudentsModal() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    function handleOpen() {
+      setOpen(true);
+      setSelectedIds([]);
+      setSuccessMessage("");
+      setErrorMessage("");
+      void fetchPayments();
+    }
+
+    window.addEventListener("openChargeStudentsModal", handleOpen);
+
+    return () => {
+      window.removeEventListener("openChargeStudentsModal", handleOpen);
+    };
+  }, [fetchPayments]);
 
   const competenceOptions = useMemo(() => {
     const map = new Map();

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Resend } from "resend";
 import crypto from "crypto";
+import { hashPasswordResetToken } from "@/lib/security/reset-token-hash";
+import { getClientIp } from "@/lib/security/request-ip";
+import { rateLimitOrFail } from "@/lib/security/rate-limit";
+import { jsonTooManyRequests } from "@/lib/security/rate-limit-http";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -10,8 +14,25 @@ export async function POST(request: NextRequest) {
     const { email } = await request.json();
     if (!email?.trim()) return NextResponse.json({ ok: true });
 
+    const ip = getClientIp(request);
+    const ipLimit = rateLimitOrFail(`auth:forgot:${ip}`, 10, 60 * 60 * 1000);
+    if (!ipLimit.ok) {
+      return jsonTooManyRequests(ipLimit);
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const emailLimit = rateLimitOrFail(
+      `auth:forgot:email:${normalizedEmail}`,
+      5,
+      60 * 60 * 1000
+    );
+    if (!emailLimit.ok) {
+      return jsonTooManyRequests(emailLimit);
+    }
+
     const user = await prisma.user.findUnique({
-      where: { email: email.trim().toLowerCase() },
+      where: { email: normalizedEmail },
       select: { id: true, nome: true, email: true, ativo: true },
     });
 
@@ -19,14 +40,15 @@ export async function POST(request: NextRequest) {
       // invalida tokens anteriores do mesmo email
       await prisma.passwordResetToken.deleteMany({ where: { email: user.email } });
 
-      const token = crypto.randomBytes(32).toString("hex");
+      const rawToken = crypto.randomBytes(32).toString("hex");
+      const tokenHash = hashPasswordResetToken(rawToken);
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1h
 
       await prisma.passwordResetToken.create({
-        data: { token, email: user.email, expiresAt },
+        data: { token: tokenHash, email: user.email, expiresAt },
       });
 
-      const resetLink = `${process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/redefinir-senha?token=${token}`;
+      const resetLink = `${process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/redefinir-senha?token=${encodeURIComponent(rawToken)}`;
       const from = process.env.INVITE_FROM_EMAIL;
 
       if (from && process.env.RESEND_API_KEY) {

@@ -18,13 +18,17 @@ export const createNotificacaoSchema = z.object({
   mensagem: z
     .string({ required_error: "Mensagem é obrigatória" })
     .min(3, "Mensagem deve ter pelo menos 3 caracteres")
-    .max(500, "Mensagem deve ter no máximo 500 caracteres"),
+    .max(2000, "Mensagem deve ter no máximo 2000 caracteres"),
   lida: z.coerce.boolean().optional().default(false),
   entidadeTipo: z
     .nativeEnum(EntidadeNotificacao)
     .optional()
     .default(EntidadeNotificacao.SISTEMA),
   entidadeId: emptyToUndefined(z.string().cuid("Entidade inválida")),
+  destinatarioProfessorId: emptyToUndefined(
+    z.string().cuid("Professor destinatário inválido")
+  ),
+  destinatarioUserId: emptyToUndefined(z.string().cuid("Usuário destinatário inválido")),
 })
 
 export const updateNotificacaoSchema = z.object({
@@ -39,7 +43,7 @@ export const updateNotificacaoSchema = z.object({
     z
       .string()
       .min(3, "Mensagem deve ter pelo menos 3 caracteres")
-      .max(500, "Mensagem deve ter no máximo 500 caracteres")
+      .max(2000, "Mensagem deve ter no máximo 2000 caracteres")
   ),
 })
 

@@ -16,6 +16,7 @@ export interface OperationalIncidentRow {
   impactHint: string | null;
   contextJson: unknown;
   lastDetectedAt: string;
+  createdAt: string;
   dismissReason: string | null;
 }
 
@@ -24,21 +25,39 @@ interface Meta {
   page: number;
   pageSize: number;
   totalPages: number;
+  canDismissIncidents: boolean;
 }
 
-export function useOperacaoPage() {
+export interface UseOperacaoPageOptions {
+  /** Para SUPER_ADMIN: sempre enviar o escopo explicitamente nas chamadas. */
+  scopedSchoolId?: string | null;
+  fetchEnabled?: boolean;
+}
+
+export function useOperacaoPage(options?: UseOperacaoPageOptions) {
+  const scopedSchoolId = options?.scopedSchoolId ?? null;
+  const fetchEnabled = options?.fetchEnabled ?? true;
+
   const [incidents, setIncidents] = useState<OperationalIncidentRow[]>([]);
   const [meta, setMeta] = useState<Meta>({
     total: 0,
     page: 1,
     pageSize: 20,
     totalPages: 0,
+    canDismissIncidents: false,
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(fetchEnabled);
   const [evaluating, setEvaluating] = useState(false);
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
+
+  const appendSchoolScope = useCallback(
+    (params: URLSearchParams) => {
+      if (scopedSchoolId) params.set("schoolId", scopedSchoolId);
+    },
+    [scopedSchoolId]
+  );
 
   const fetchIncidents = useCallback(async () => {
     try {
@@ -48,6 +67,7 @@ export function useOperacaoPage() {
       params.set("page", String(page));
       params.set("pageSize", "20");
       if (statusFilter) params.set("status", statusFilter);
+      appendSchoolScope(params);
 
       const res = await fetch(`/api/operacao/incidentes?${params}`, {
         cache: "no-store",
@@ -55,24 +75,35 @@ export function useOperacaoPage() {
       if (!res.ok) throw new Error("Falha ao carregar");
       const json = await res.json();
       setIncidents(json.data);
-      setMeta(json.meta);
+      setMeta({
+        ...json.meta,
+        canDismissIncidents: Boolean(json.meta?.canDismissIncidents),
+      });
     } catch {
       setError("Não foi possível carregar a central operacional.");
       setIncidents([]);
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter]);
+  }, [page, statusFilter, appendSchoolScope]);
 
   useEffect(() => {
+    if (!fetchEnabled) {
+      setLoading(false);
+      setIncidents([]);
+      return;
+    }
     fetchIncidents();
-  }, [fetchIncidents]);
+  }, [fetchEnabled, fetchIncidents]);
 
   const evaluateNow = useCallback(async (): Promise<boolean> => {
     try {
       setEvaluating(true);
       setError("");
-      const res = await fetch("/api/operacao/avaliar", { method: "POST" });
+      const qs = scopedSchoolId
+        ? `?schoolId=${encodeURIComponent(scopedSchoolId)}`
+        : "";
+      const res = await fetch(`/api/operacao/avaliar${qs}`, { method: "POST" });
       if (!res.ok) throw new Error();
       await fetchIncidents();
       return true;
@@ -82,7 +113,7 @@ export function useOperacaoPage() {
     } finally {
       setEvaluating(false);
     }
-  }, [fetchIncidents]);
+  }, [fetchIncidents, scopedSchoolId]);
 
   const patchIncident = useCallback(
     async (
@@ -90,7 +121,10 @@ export function useOperacaoPage() {
       action: "acknowledge" | "resolve" | "dismiss",
       dismissReason?: string
     ) => {
-      const res = await fetch(`/api/operacao/incidentes/${id}`, {
+      const qs = scopedSchoolId
+        ? `?schoolId=${encodeURIComponent(scopedSchoolId)}`
+        : "";
+      const res = await fetch(`/api/operacao/incidentes/${id}${qs}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, dismissReason }),
@@ -101,12 +135,13 @@ export function useOperacaoPage() {
       }
       await fetchIncidents();
     },
-    [fetchIncidents]
+    [fetchIncidents, scopedSchoolId]
   );
 
   return {
     incidents,
     meta,
+    canDismissIncidents: meta.canDismissIncidents,
     loading,
     evaluating,
     error,

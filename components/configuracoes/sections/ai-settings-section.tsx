@@ -28,6 +28,8 @@ type EscolaIaPayload = {
   hasTwilioAuthToken: boolean;
   maskedTwilioAuthToken: string | null;
   twilioWhatsAppFrom: string | null;
+  aiEvalReviewEnforced: boolean;
+  aiEvalReviewMinScore: number;
 };
 
 const TIER_LABEL: Record<string, string> = {
@@ -74,6 +76,8 @@ export function AiSettingsSection() {
   const [twilioSid, setTwilioSid] = useState("");
   const [twilioToken, setTwilioToken] = useState("");
   const [twilioFrom, setTwilioFrom] = useState("");
+  const [evalReviewEnforced, setEvalReviewEnforced] = useState(false);
+  const [evalReviewMinScore, setEvalReviewMinScore] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,6 +92,8 @@ export function AiSettingsSection() {
       setTwilioSid(j.twilioAccountSid ?? "");
       setTwilioToken("");
       setTwilioFrom(j.twilioWhatsAppFrom ?? "");
+      setEvalReviewEnforced(Boolean(j.aiEvalReviewEnforced));
+      setEvalReviewMinScore(String(j.aiEvalReviewMinScore ?? 70));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao carregar.");
     } finally {
@@ -109,6 +115,8 @@ export function AiSettingsSection() {
         if (openaiKey.trim()) body.openaiApiKey = openaiKey.trim();
         if (limitOverride.trim() === "") body.aiMonthlyLimitOverride = null;
         else body.aiMonthlyLimitOverride = Number(limitOverride.replace(",", "."));
+        body.aiEvalReviewEnforced = evalReviewEnforced;
+        body.aiEvalReviewMinScore = Number(evalReviewMinScore || "70");
       }
       if (data?.allowCustomTwilio) {
         body.twilioAccountSid = twilioSid.trim() || null;
@@ -218,6 +226,29 @@ export function AiSettingsSection() {
                 </span>
               )}
             </p>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+            <label className="flex items-center justify-between gap-3 text-sm">
+              <span className="font-medium text-foreground">
+                Exigir revisão IA antes de criar avaliação
+              </span>
+              <input
+                type="checkbox"
+                checked={evalReviewEnforced}
+                onChange={(e) => setEvalReviewEnforced(e.target.checked)}
+                className="h-4 w-4"
+              />
+            </label>
+            <div className="mt-2">
+              <Label htmlFor="so-eval-min">Nota mínima de qualidade (0-100)</Label>
+              <Input
+                id="so-eval-min"
+                inputMode="numeric"
+                value={evalReviewMinScore}
+                onChange={(e) => setEvalReviewMinScore(e.target.value)}
+                className="mt-1 h-9 max-w-[160px]"
+              />
+            </div>
           </div>
         </IntegrationCard>
       )}

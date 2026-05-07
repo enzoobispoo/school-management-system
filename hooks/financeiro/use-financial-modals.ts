@@ -24,6 +24,12 @@ export function useFinancialModals() {
   const [selectedPaymentForReceipt, setSelectedPaymentForReceipt] =
     useState<PaymentTableItem | null>(null);
 
+  const [demonstrativoIrTarget, setDemonstrativoIrTarget] = useState<{
+    alunoId: string;
+    studentName: string;
+    defaultYears: number[];
+  } | null>(null);
+
   const [selectedPayment, setSelectedPayment] = useState<{
     id: string;
     student: string;
@@ -101,6 +107,18 @@ export function useFinancialModals() {
     setSelectedPaymentForReceipt(null);
   }
 
+  function openDemonstrativoIr(payment: PaymentTableItem) {
+    setDemonstrativoIrTarget({
+      alunoId: payment.studentId,
+      studentName: payment.student,
+      defaultYears: [payment.demonstrativoIrAno],
+    });
+  }
+
+  function closeDemonstrativoIr() {
+    setDemonstrativoIrTarget(null);
+  }
+
   return {
     detailsOpen,
     setDetailsOpen,
@@ -134,5 +152,8 @@ export function useFinancialModals() {
     closeGenerateBoleto,
     openReceipt,
     closeReceipt,
+    demonstrativoIrTarget,
+    openDemonstrativoIr,
+    closeDemonstrativoIr,
   };
 }

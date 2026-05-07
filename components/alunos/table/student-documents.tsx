@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FileText, Trash2, Upload, ExternalLink } from "lucide-react";
 
 const tipoLabel: Record<string, string> = {
@@ -48,7 +48,7 @@ export function StudentDocuments({ alunoId }: StudentDocumentsProps) {
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  async function fetchDocs() {
+  const fetchDocs = useCallback(async () => {
     try {
       const res = await fetch(`/api/alunos/documentos?alunoId=${alunoId}`, { cache: "no-store" });
       const data = await res.json();
@@ -56,9 +56,11 @@ export function StudentDocuments({ alunoId }: StudentDocumentsProps) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [alunoId]);
 
-  useEffect(() => { fetchDocs(); }, [alunoId]);
+  useEffect(() => {
+    void fetchDocs();
+  }, [fetchDocs]);
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();

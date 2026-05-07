@@ -13,12 +13,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     }
 
-    if (user.role === "ADMIN" && user.schoolId) {
+    if (user.schoolId) {
       const school = await prisma.school.findFirst({
         where: { id: user.schoolId, ativo: true },
-        select: { id: true, nome: true, slug: true },
+        select: {
+          id: true,
+          nome: true,
+          slug: true,
+          escolaSettings: {
+            select: { nomeEscola: true, logoUrl: true },
+          },
+        },
       });
-      return NextResponse.json({ schools: school ? [school] : [] });
+      return NextResponse.json({
+        schools: school
+          ? [
+              {
+                id: school.id,
+                nome: school.nome,
+                slug: school.slug,
+                nomeEscola:
+                  school.escolaSettings?.nomeEscola ?? school.nome,
+                logoUrl: school.escolaSettings?.logoUrl ?? null,
+              },
+            ]
+          : [],
+        role: user.role,
+      });
     }
 
     if (user.role !== "SUPER_ADMIN") {
@@ -31,7 +52,7 @@ export async function GET(request: NextRequest) {
       orderBy: { nome: "asc" },
     });
 
-    return NextResponse.json({ schools });
+    return NextResponse.json({ schools, role: user.role });
   } catch (error) {
     console.error("Erro ao listar escolas:", error);
     return NextResponse.json({ error: "Erro ao listar escolas." }, { status: 500 });

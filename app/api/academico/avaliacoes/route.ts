@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
         schoolId,
         turmaId,
         disciplinaId,
+        deletedAt: null,
         ...(startDate || endDate
           ? {
               dataAvaliacao: {

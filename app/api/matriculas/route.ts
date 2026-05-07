@@ -3,29 +3,7 @@ import { Prisma, StatusMatricula } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { createMatriculaSchema } from "@/lib/validations/matricula"
 import { getCurrentUser, requireSchool } from "@/lib/auth"
-
-const QUANTIDADE_MENSALIDADES_INICIAIS = 3
-const DIA_VENCIMENTO_PADRAO = 10
-
-function addMonths(date: Date, months: number) {
-  const next = new Date(date)
-  next.setMonth(next.getMonth() + months)
-  return next
-}
-
-function calcularPrimeiroVencimento(dataBaseMatricula: Date) {
-  const vencimento = new Date(
-    dataBaseMatricula.getFullYear(),
-    dataBaseMatricula.getMonth(),
-    DIA_VENCIMENTO_PADRAO
-  )
-
-  if (dataBaseMatricula.getDate() > DIA_VENCIMENTO_PADRAO) {
-    vencimento.setMonth(vencimento.getMonth() + 1)
-  }
-
-  return vencimento
-}
+import { createMatriculaWithInitialPayments } from "@/lib/matricula/bootstrap-enrollment"
 
 export async function GET(request: NextRequest) {
   try {
@@ -91,6 +69,7 @@ export async function GET(request: NextRequest) {
       id: matricula.id,
       status: matricula.status,
       dataMatricula: matricula.dataMatricula,
+      diaVencimentoMensal: matricula.diaVencimentoMensal,
       dataCancelamento: matricula.dataCancelamento,
       motivoCancelamento: matricula.motivoCancelamento,
       observacoes: matricula.observacoes,
@@ -174,9 +153,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { alunoId, turmaId, dataMatricula, observacoes, status } = parsed.data
+    const { alunoId, turmaId, dataMatricula, observacoes, status, diaVencimentoMensal } =
+      parsed.data
 
-    const [aluno, turma] = await Promise.all([
+    const [aluno, turma, escolaSettings] = await Promise.all([
       prisma.aluno.findUnique({
         where: {
           schoolId, id: alunoId },
@@ -193,6 +173,10 @@ export async function POST(request: NextRequest) {
             select: { id: true },
           },
         },
+      }),
+      prisma.escolaSettings.findUnique({
+        where: { schoolId },
+        select: { diaVencimentoPadrao: true },
       }),
     ])
 
@@ -240,71 +224,27 @@ export async function POST(request: NextRequest) {
     }
 
     const dataBaseMatricula = dataMatricula ?? new Date()
+    const fallbackDueDay = escolaSettings?.diaVencimentoPadrao ?? 10
 
-    const result = await prisma.$transaction(async (tx) => {
-      const matricula = await tx.matricula.create({
-        data: {
-          schoolId,
-          alunoId,
-          turmaId,
-          dataMatricula: dataBaseMatricula,
-          observacoes,
-          status,
-        },
-        include: {
-          aluno: true,
-          turma: {
-            include: {
-              curso: true,
-              professor: true,
-              horarios: true,
-            },
-          },
-        },
-      })
-
-      const primeiroVencimento = calcularPrimeiroVencimento(dataBaseMatricula)
-
-const pagamentos = await Promise.all(
-  Array.from({ length: QUANTIDADE_MENSALIDADES_INICIAIS }).map((_, index) => {
-    const vencimento = addMonths(primeiroVencimento, index)
-    const competenciaMes = vencimento.getMonth() + 1
-    const competenciaAno = vencimento.getFullYear()
-
-    return tx.pagamento.create({
-      data: {
+    const result = await prisma.$transaction((tx) =>
+      createMatriculaWithInitialPayments(tx, {
         schoolId,
-        matriculaId: matricula.id,
-        competenciaMes,
-        competenciaAno,
-        descricao: `Mensalidade ${String(competenciaMes).padStart(2, "0")}/${competenciaAno} - ${matricula.turma.curso.nome}`,
-        valor: matricula.turma.curso.valorMensal,
-        vencimento,
-        status: "PENDENTE",
-      },
-    })
-  })
-)
-
-      await tx.notificacao.create({
-        data: {
-          schoolId,
-          tipo: "NOVA_MATRICULA",
-          titulo: "Nova matrícula realizada",
-          mensagem: `${matricula.aluno.nome} foi matriculado na turma ${matricula.turma.nome} (${matricula.turma.curso.nome}).`,
-          entidadeTipo: "MATRICULA",
-          entidadeId: matricula.id,
-        },
+        alunoId,
+        turmaId,
+        dataMatricula: dataBaseMatricula,
+        observacoes,
+        status,
+        diaVencimentoMensal: diaVencimentoMensal ?? null,
+        fallbackDueDay,
       })
-
-      return { matricula, pagamentos }
-    })
+    )
 
     return NextResponse.json(
       {
         id: result.matricula.id,
         status: result.matricula.status,
         dataMatricula: result.matricula.dataMatricula,
+        diaVencimentoMensal: result.matricula.diaVencimentoMensal,
         observacoes: result.matricula.observacoes,
         createdAt: result.matricula.createdAt,
         updatedAt: result.matricula.updatedAt,

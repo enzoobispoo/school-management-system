@@ -7,7 +7,7 @@ import { isAiQuery } from "@/lib/search/is-ai-query";
 
 type SearchResult = {
   id: string;
-  type: "aluno" | "curso" | "professor" | "pagamento";
+  type: "aluno" | "curso" | "professor" | "pagamento" | "avaliacao";
   label: string;
   description?: string;
   href: string;
@@ -18,6 +18,7 @@ const TYPE_LABELS: Record<SearchResult["type"], string> = {
   curso: "Cursos",
   professor: "Professores",
   pagamento: "Pagamentos",
+  avaliacao: "Avaliações",
 };
 
 const TYPE_ORDER: SearchResult["type"][] = [
@@ -25,6 +26,7 @@ const TYPE_ORDER: SearchResult["type"][] = [
   "curso",
   "professor",
   "pagamento",
+  "avaliacao",
 ];
 
 function highlightText(text: string, query: string) {
@@ -66,6 +68,7 @@ export function HeaderSearch() {
       curso: [],
       professor: [],
       pagamento: [],
+      avaliacao: [],
     };
 
     for (const result of results) {
@@ -82,6 +85,12 @@ export function HeaderSearch() {
   const flatResults = useMemo(() => {
     return groupedResults.flatMap((group) => group.items);
   }, [groupedResults]);
+
+  const flatIndexByKey = useMemo(() => {
+    const m = new Map<string, number>();
+    flatResults.forEach((r, i) => m.set(`${r.type}-${r.id}`, i));
+    return m;
+  }, [flatResults]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -161,8 +170,6 @@ export function HeaderSearch() {
     }
   }
 
-  let runningIndex = -1;
-
   return (
     <div ref={containerRef} className="relative">
       <div className="relative">
@@ -173,7 +180,7 @@ export function HeaderSearch() {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => results.length > 0 && setOpen(true)}
-          placeholder="Buscar..."
+          placeholder="Buscar alunos, provas, questões..."
           className="
             h-9 w-64 rounded-md border border-transparent
             bg-muted/50 pl-9 pr-3 text-sm
@@ -200,8 +207,8 @@ export function HeaderSearch() {
 
                   <div className="space-y-1">
                     {group.items.map((result) => {
-                      runningIndex += 1;
-                      const isActive = activeIndex === runningIndex;
+                      const flatIdx = flatIndexByKey.get(`${result.type}-${result.id}`) ?? 0;
+                      const isActive = activeIndex === flatIdx;
 
                       return (
                         <button

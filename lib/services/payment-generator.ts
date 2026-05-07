@@ -1,19 +1,14 @@
-import { prisma } from "@/lib/prisma"
-import { StatusMatricula, StatusPagamento } from "@prisma/client"
+import { prisma } from "@/lib/prisma";
+import { StatusMatricula, StatusPagamento } from "@prisma/client";
 import { createBoleto } from "@/lib/billing/provider";
-
-function addMonths(date: Date, months: number) {
-  const next = new Date(date)
-  next.setMonth(next.getMonth() + months)
-  return next
-}
-
-function buildDueDate(year: number, monthIndexZeroBased: number, dueDay = 10) {
-  return new Date(year, monthIndexZeroBased, dueDay)
-}
+import {
+  addCalendarMonths,
+  buildDueDateClamped,
+  calcularPrimeiroVencimentoMensal,
+} from "@/lib/finance/due-date";
 
 function formatDateToYMD(date: Date) {
-  return date.toISOString().slice(0, 10)
+  return date.toISOString().slice(0, 10);
 }
 
 export async function generateNextMonthlyPayments(schoolId: string) {
@@ -27,13 +22,13 @@ export async function generateNextMonthlyPayments(schoolId: string) {
       multaAtrasoPercentual: true,
       jurosMensalPercentual: true,
     },
-  })
+  });
 
-  const dueDay = schoolSettings?.diaVencimentoPadrao ?? 10
+  const schoolDueFallback = schoolSettings?.diaVencimentoPadrao ?? 10;
   const shouldAutoGenerateBoleto =
     Boolean(schoolSettings?.billingEnabled) &&
     schoolSettings?.billingProvider === "asaas" &&
-    Boolean(schoolSettings?.autoGenerateBoleto)
+    Boolean(schoolSettings?.autoGenerateBoleto);
 
   const matriculas = await prisma.matricula.findMany({
     where: {
@@ -54,42 +49,36 @@ export async function generateNextMonthlyPayments(schoolId: string) {
         ],
       },
     },
-  })
+  });
 
-  let generatedCount = 0
-  let boletoGeneratedCount = 0
-  let boletoErrorCount = 0
+  let generatedCount = 0;
+  let boletoGeneratedCount = 0;
+  let boletoErrorCount = 0;
 
   for (const matricula of matriculas) {
-    const ultimoPagamento = matricula.pagamentos[0]
+    const ultimoPagamento = matricula.pagamentos[0];
 
-    let proximoMes: number
-    let proximoAno: number
+    const dueDay =
+      matricula.diaVencimentoMensal ?? schoolDueFallback;
+
+    let proximoMes: number;
+    let proximoAno: number;
 
     if (ultimoPagamento) {
-      const baseDate = buildDueDate(
+      const nextComp = addCalendarMonths(
         ultimoPagamento.competenciaAno,
-        ultimoPagamento.competenciaMes - 1,
-        dueDay
-      )
-      const nextDate = addMonths(baseDate, 1)
-      proximoMes = nextDate.getMonth() + 1
-      proximoAno = nextDate.getFullYear()
+        ultimoPagamento.competenciaMes,
+        1
+      );
+      proximoMes = nextComp.month1based;
+      proximoAno = nextComp.year;
     } else {
-      const dataBase = matricula.dataMatricula
-
-      const primeiroVencimento = new Date(
-        dataBase.getFullYear(),
-        dataBase.getMonth(),
+      const primeiro = calcularPrimeiroVencimentoMensal(
+        matricula.dataMatricula,
         dueDay
-      )
-
-      if (dataBase.getDate() > dueDay) {
-        primeiroVencimento.setMonth(primeiroVencimento.getMonth() + 1)
-      }
-
-      proximoMes = primeiroVencimento.getMonth() + 1
-      proximoAno = primeiroVencimento.getFullYear()
+      );
+      proximoMes = primeiro.getMonth() + 1;
+      proximoAno = primeiro.getFullYear();
     }
 
     const pagamentoExistente = await prisma.pagamento.findFirst({
@@ -99,13 +88,13 @@ export async function generateNextMonthlyPayments(schoolId: string) {
         competenciaAno: proximoAno,
       },
       select: { id: true },
-    })
+    });
 
     if (pagamentoExistente) {
-      continue
+      continue;
     }
 
-    const vencimento = buildDueDate(proximoAno, proximoMes - 1, dueDay)
+    const vencimento = buildDueDateClamped(proximoAno, proximoMes - 1, dueDay);
 
     const pagamento = await prisma.pagamento.create({
       data: {
@@ -118,17 +107,17 @@ export async function generateNextMonthlyPayments(schoolId: string) {
         vencimento,
         status: StatusPagamento.PENDENTE,
       },
-    })
+    });
 
-    generatedCount++
+    generatedCount++;
 
     if (!shouldAutoGenerateBoleto) {
-      continue
+      continue;
     }
 
     try {
-      const aluno = matricula.aluno
-    
+      const aluno = matricula.aluno;
+
       const boleto = await createBoleto({
         studentName: aluno.responsavelNome || aluno.nome,
         studentEmail: aluno.responsavelEmail || aluno.email,
@@ -144,8 +133,8 @@ export async function generateNextMonthlyPayments(schoolId: string) {
         finePercentage: schoolSettings?.multaAtrasoPercentual
           ? Number(schoolSettings.multaAtrasoPercentual)
           : 0,
-      })
-    
+      });
+
       await prisma.pagamento.update({
         where: { id: pagamento.id },
         data: {
@@ -156,16 +145,16 @@ export async function generateNextMonthlyPayments(schoolId: string) {
           billingStatus: boleto.status,
           boletoGeradoEm: new Date(),
         },
-      })
-    
-      boletoGeneratedCount++
+      });
+
+      boletoGeneratedCount++;
     } catch (error) {
-      boletoErrorCount++
-    
+      boletoErrorCount++;
+
       console.error(
         `Erro ao gerar boleto automático para o pagamento ${pagamento.id}:`,
         error
-      )
+      );
     }
   }
 
@@ -174,5 +163,5 @@ export async function generateNextMonthlyPayments(schoolId: string) {
     generatedCount,
     boletoGeneratedCount,
     boletoErrorCount,
-  }
+  };
 }

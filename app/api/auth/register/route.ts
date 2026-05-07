@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { AUTH_COOKIE_NAME, signAuthToken } from "@/lib/auth/session";
+import { PASSWORD_MIN_LENGTH } from "@/lib/validations/password-policy";
+import { getClientIp } from "@/lib/security/request-ip";
+import { rateLimitOrFail } from "@/lib/security/rate-limit";
+import { jsonTooManyRequests } from "@/lib/security/rate-limit-http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,6 +33,12 @@ async function uniqueSlug(base: string) {
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request);
+    const regLimit = rateLimitOrFail(`auth:register:${ip}`, 10, 60 * 60 * 1000);
+    if (!regLimit.ok) {
+      return jsonTooManyRequests(regLimit);
+    }
+
     const body = await request.json();
 
     const nomeEscola = String(body?.nomeEscola ?? "").trim();
@@ -41,8 +51,13 @@ export async function POST(request: NextRequest) {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ error: "E-mail inválido." }, { status: 400 });
     }
-    if (password.length < 8) {
-      return NextResponse.json({ error: "A senha deve ter pelo menos 8 caracteres." }, { status: 400 });
+    if (password.length < PASSWORD_MIN_LENGTH) {
+      return NextResponse.json(
+        {
+          error: `A senha deve ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres.`,
+        },
+        { status: 400 }
+      );
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email } });

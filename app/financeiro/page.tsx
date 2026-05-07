@@ -5,6 +5,7 @@ import { Header } from "@/components/dashboard/header";
 import { FinancialPageContent } from "@/components/financeiro/financial-page-content";
 import { FinancialModals } from "@/components/financeiro/financial-modals";
 import { GenerateBoletoModal } from "@/components/financeiro/modals/generate-boleto-modal";
+import { DemonstrativoIrModal } from "@/components/alunos/demonstrativo-ir-modal";
 import { useFinancialPage } from "@/hooks/financeiro/use-financial-page";
 import type { PaymentTableItem } from "@/hooks/financeiro/use-financial-query";
 
@@ -45,6 +46,7 @@ export default function FinanceiroPage() {
   onDeletePayment={financialPage.openDeletePayment}
   onGenerateBoleto={financialPage.generateBoleto}
   onPrintReceipt={financialPage.openReceipt}
+  onDemonstrativoIr={financialPage.openDemonstrativoIr}
 />
 
       <FinancialModals
@@ -64,6 +66,18 @@ export default function FinanceiroPage() {
         onCloseReceipt={financialPage.closeReceipt}
         selectedPaymentForReceipt={financialPage.selectedPaymentForReceipt}
       />
+
+      {financialPage.demonstrativoIrTarget ? (
+        <DemonstrativoIrModal
+          open
+          onOpenChange={(next) => {
+            if (!next) financialPage.closeDemonstrativoIr();
+          }}
+          alunoId={financialPage.demonstrativoIrTarget.alunoId}
+          alunoNome={financialPage.demonstrativoIrTarget.studentName}
+          initialSelectedYears={financialPage.demonstrativoIrTarget.defaultYears}
+        />
+      ) : null}
 
       <GenerateBoletoModal
         open={financialPage.generateBoletoOpen}

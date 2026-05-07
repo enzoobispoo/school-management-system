@@ -14,6 +14,8 @@ interface DashboardResponse {
     valoresAtrasados: number;
     quantidadePagamentosPendentes: number;
     quantidadePagamentosAtrasados: number;
+    incidentesOperacionaisAbertos: number;
+    incidentesOperacionaisCriticos: number;
     trocasProfessorNoMes: number;
     turmasAtivas: number;
     turmasLotadas: number;
@@ -124,11 +126,24 @@ export function useDashboardPage() {
         cache: "no-store",
       });
 
-      if (!response.ok) {
-        throw new Error("Falha ao carregar dashboard");
+      let body: unknown;
+      try {
+        body = await response.json();
+      } catch {
+        body = null;
       }
 
-      const result: DashboardResponse = await response.json();
+      if (!response.ok) {
+        const msg =
+          typeof (body as { error?: unknown })?.error === "string"
+            ? (body as { error: string }).error
+            : response.status === 403
+              ? "Você não tem permissão para ver este painel executivo."
+              : "Falha ao carregar dashboard.";
+        throw new Error(msg);
+      }
+
+      const result = body as DashboardResponse;
       setData(result);
     } catch (err) {
       console.error(err);
@@ -158,6 +173,9 @@ export function useDashboardPage() {
       metricas?.quantidadePagamentosAtrasados ?? 0,
     quantidadePagamentosPendentes:
       metricas?.quantidadePagamentosPendentes ?? 0,
+    incidentesOperacionaisAbertos: metricas?.incidentesOperacionaisAbertos ?? 0,
+    incidentesOperacionaisCriticos:
+      metricas?.incidentesOperacionaisCriticos ?? 0,
     trocasProfessorNoMes: loading
       ? "..."
       : String(metricas?.trocasProfessorNoMes ?? 0),

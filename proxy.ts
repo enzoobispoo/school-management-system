@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AUTH_COOKIE_NAME, verifyAuthToken } from "@/lib/auth/session";
+import {
+  continueRequestWithCorrelation,
+  readCorrelationIdFromRequest,
+  withCorrelationHeader,
+} from "@/lib/observability/correlation";
 
-const PUBLIC_PATHS = ["/login", "/redefinir-senha", "/cadastro"];
+const PUBLIC_PATHS = ["/login", "/redefinir-senha", "/cadastro", "/jogo"];
 const PUBLIC_API_PREFIXES = [
   "/api/auth/login",
   "/api/auth/logout",
@@ -12,6 +17,10 @@ const PUBLIC_API_PREFIXES = [
   "/api/webhooks/asaas",
   "/api/cron/cobrancas-atrasadas",
   "/api/cron/operational-incidents",
+  "/api/cron/recorrencia-mensalidades",
+  "/api/jogo/join",
+  "/api/jogo/state",
+  "/api/jogo/responder",
 ];
 
 type UserRole =
@@ -24,6 +33,7 @@ type UserRole =
 function isPublicPath(pathname: string) {
   return (
     PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "?")) ||
+    pathname.startsWith("/jogo/") ||
     pathname.startsWith("/ativar-conta/")
   );
 }
@@ -46,14 +56,25 @@ function isStaticAsset(pathname: string) {
   );
 }
 
-// Rotas exclusivas de SUPER_ADMIN
+// Rotas exclusivas de SUPER_ADMIN (não use prefixo `/api/users` — bloquearia `/api/users/me/*`)
 const SUPER_ADMIN_ONLY = [
-  "/api/users",
   "/api/settings/ia",
   "/api/settings/financeiro",
   "/api/configuracoes/ia",
   "/configuracoes/usuarios",
 ];
+
+/** Gestão de usuários da plataforma (/api/users, /api/users/[id]) — não inclui /api/users/me/... */
+function isCrossTenantUsersManagementRoute(pathname: string): boolean {
+  if (!pathname.startsWith("/api/users")) return false;
+  if (
+    pathname === "/api/users/me" ||
+    pathname.startsWith("/api/users/me/")
+  ) {
+    return false;
+  }
+  return true;
+}
 
 // Rotas que FINANCEIRO pode acessar (além das compartilhadas)
 const FINANCEIRO_ROUTES = [
@@ -84,25 +105,76 @@ const SECRETARIA_ROUTES = [
 // Rotas compartilhadas por todos os usuários autenticados
 const SHARED_ROUTES = [
   "/api/dashboard",
+  "/api/schools",
   "/api/notificacoes",
   "/api/search",
   "/api/settings/escola",
   "/api/settings/aparencia",
   "/api/settings/me",
+  "/api/auth/me",
+  "/api/users/me",
   "/api/settings/notificacoes",
   "/api/settings/escola-ia",
   "/api/ai",
   "/api/calendario",
   "/api/eventos",
   "/calendario",
+  "/docente",
+  "/api/docente",
   "/configuracoes/aparencia",
   "/configuracoes/conta",
   "/configuracoes/notificacoes",
   "/configuracoes/ia",
   "/admin",
   "/api/admin",
+  "/mensagens",
+  "/api/school-chat",
   "/",
 ];
+
+/** Rotas permitidas ao perfil PROFESSOR: sem dashboard executivo, sem EduIA global, sem busca escolar ampla. */
+function professorMayAccess(pathname: string): boolean {
+  if (pathname === "/") return false;
+
+  if (
+    pathname.startsWith("/api/users/me/dashboard-cards") ||
+    pathname.startsWith("/api/users/me/dashboard-insights")
+  ) {
+    return false;
+  }
+
+  const prefixes = [
+    "/docente",
+    "/api/docente",
+    "/professores",
+    "/api/professores",
+    "/notificacoes",
+    "/api/notificacoes",
+    "/calendario",
+    "/api/calendario",
+    "/api/eventos",
+    "/api/schools",
+    "/api/navigation/sidebar-badges",
+    "/api/settings/me",
+    "/api/settings/aparencia",
+    "/api/settings/notificacoes",
+    "/api/users/me",
+    "/api/auth/me",
+    "/configuracoes/conta",
+    "/configuracoes/aparencia",
+    "/configuracoes/notificacoes",
+    "/mensagens",
+    "/api/school-chat",
+  ];
+
+  if (
+    prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+  ) {
+    return true;
+  }
+
+  return pathname === "/configuracoes";
+}
 
 function hasAccessByRole(pathname: string, role: UserRole) {
   if (role === "SUPER_ADMIN") return true;
@@ -114,12 +186,16 @@ function hasAccessByRole(pathname: string, role: UserRole) {
     return true;
   }
 
+  if (isCrossTenantUsersManagementRoute(pathname)) return false;
+
   if (SUPER_ADMIN_ONLY.some((p) => pathname.startsWith(p))) return false;
 
   if (role === "ADMIN") return true;
 
-  if (SHARED_ROUTES.some((p) => pathname === p || pathname.startsWith(p))) {
-    return true;
+  if (role !== "PROFESSOR") {
+    if (SHARED_ROUTES.some((p) => pathname === p || pathname.startsWith(p))) {
+      return true;
+    }
   }
 
   if (role === "FINANCEIRO") {
@@ -134,10 +210,7 @@ function hasAccessByRole(pathname: string, role: UserRole) {
   }
 
   if (role === "PROFESSOR") {
-    return (
-      pathname.startsWith("/api/professores") ||
-      pathname.startsWith("/professores")
-    );
+    return professorMayAccess(pathname);
   }
 
   return false;
@@ -145,32 +218,45 @@ function hasAccessByRole(pathname: string, role: UserRole) {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const correlationId = readCorrelationIdFromRequest(request);
 
   if (isStaticAsset(pathname)) {
-    return NextResponse.next();
+    return continueRequestWithCorrelation(request, correlationId);
   }
 
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
 
   if (isPublicPath(pathname)) {
     if (!token || pathname.startsWith("/ativar-conta/")) {
-      return NextResponse.next();
+      return continueRequestWithCorrelation(request, correlationId);
     }
 
     try {
       await verifyAuthToken(token);
-      return NextResponse.redirect(new URL("/", request.url));
+      return withCorrelationHeader(
+        NextResponse.redirect(new URL("/", request.url)),
+        correlationId
+      );
     } catch {
-      return NextResponse.next();
+      return continueRequestWithCorrelation(request, correlationId);
     }
   }
 
-  // Redirect SUPER_ADMIN away from school dashboard to /admin
+  // SUPER_ADMIN → /admin; PROFESSOR → painel docente (sem dashboard executivo)
   if (pathname === "/" && token) {
     try {
       const session = await verifyAuthToken(token);
       if (session.role === "SUPER_ADMIN") {
-        return NextResponse.redirect(new URL("/admin", request.url));
+        return withCorrelationHeader(
+          NextResponse.redirect(new URL("/admin", request.url)),
+          correlationId
+        );
+      }
+      if (session.role === "PROFESSOR") {
+        return withCorrelationHeader(
+          NextResponse.redirect(new URL("/docente", request.url)),
+          correlationId
+        );
       }
     } catch {
       // ignore
@@ -178,15 +264,21 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isPublicApi(pathname)) {
-    return NextResponse.next();
+    return continueRequestWithCorrelation(request, correlationId);
   }
 
   if (!token) {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+      return withCorrelationHeader(
+        NextResponse.json({ error: "Não autenticado." }, { status: 401 }),
+        correlationId
+      );
     }
 
-    return NextResponse.redirect(new URL("/login", request.url));
+    return withCorrelationHeader(
+      NextResponse.redirect(new URL("/login", request.url)),
+      correlationId
+    );
   }
 
   try {
@@ -195,19 +287,33 @@ export async function proxy(request: NextRequest) {
 
     if (!hasAccessByRole(pathname, role)) {
       if (pathname.startsWith("/api/")) {
-        return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+        return withCorrelationHeader(
+          NextResponse.json({ error: "Acesso negado." }, { status: 403 }),
+          correlationId
+        );
       }
 
-      return NextResponse.redirect(new URL("/", request.url));
+      const fallback =
+        role === "PROFESSOR" ? "/docente" : "/";
+      return withCorrelationHeader(
+        NextResponse.redirect(new URL(fallback, request.url)),
+        correlationId
+      );
     }
 
-    return NextResponse.next();
+    return continueRequestWithCorrelation(request, correlationId);
   } catch {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Sessão inválida." }, { status: 401 });
+      return withCorrelationHeader(
+        NextResponse.json({ error: "Sessão inválida." }, { status: 401 }),
+        correlationId
+      );
     }
 
-    return NextResponse.redirect(new URL("/login", request.url));
+    return withCorrelationHeader(
+      NextResponse.redirect(new URL("/login", request.url)),
+      correlationId
+    );
   }
 }
 

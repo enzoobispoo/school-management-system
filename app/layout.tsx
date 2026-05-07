@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { prisma } from "@/lib/prisma";
+import { getCachedLayoutBrandPrimary } from "@/lib/theme/cached-layout-brand";
 import { getServerAppearance } from "@/lib/theme/get-server-appearance";
 import { Inter, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
@@ -47,10 +47,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const { theme, density } = await getServerAppearance();
-  // For SUPER_ADMIN or unauthenticated, use system defaults
-  const settings = await prisma.escolaSettings.findFirst().catch(() => null);
-
-  const primary = settings?.corPrimaria || "#111111";
+  const primary = await getCachedLayoutBrandPrimary();
 
   return (
     <html

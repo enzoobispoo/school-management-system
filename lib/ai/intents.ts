@@ -1,14 +1,18 @@
-import { AiIntent } from "@/lib/ai/types";
+import type { AiIntent } from "@/lib/ai/types";
 
+/** Lista completa para classificação (OpenAI + fallback local). */
 export const AI_INTENTS: AiIntent[] = [
   "TOTAL_STUDENTS",
+  "TOTAL_ACTIVE_STUDENTS",
   "TOTAL_ACTIVE_ENROLLMENTS",
   "TOTAL_OVERDUE_PAYMENTS",
   "TOTAL_PENDING_PAYMENTS",
   "MONTHLY_REVENUE",
+  "MONTHLY_FINANCIAL_SUMMARY",
   "TOP_COURSES",
   "UPCOMING_EVENTS",
   "LIST_OVERDUE_STUDENTS",
+  "LIST_OVERDUE_PAYMENTS",
   "GENERATE_MONTHLY_PAYMENTS",
   "MARK_PAYMENT_PAID",
   "CHAT",

@@ -45,6 +45,20 @@ export function planDefaultAiMonthlyLimit(tier: PlanTier): number {
 }
 
 /** Limite efetivo: padrão do plano, ou menor se a escola tiver override válido (nunca acima do teto do plano). */
+/** Rótulo curto do plano para prompts da EduIA (PT-BR). */
+export function planTierDisplayLabelPt(tier: PlanTier): string {
+  switch (tier) {
+    case "starter":
+      return "Starter (EduIA integrada ao sistema, sem OpenAI)";
+    case "basic":
+      return "Basic (EduIA com OpenAI)";
+    case "full":
+      return "Full (EduIA com OpenAI — máximo de automação permitida pelo produto)";
+    default:
+      return tier;
+  }
+}
+
 export function effectiveAiMonthlyLimit(
   tier: PlanTier,
   override: number | null | undefined

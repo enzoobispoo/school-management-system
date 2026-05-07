@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 export type StudentPaymentStatus = "paid" | "pending" | "overdue";
@@ -290,7 +290,7 @@ export function useStudentsQuery() {
     }
   }, [statusFromUrl]);
 
-  async function fetchStudents() {
+  const fetchStudents = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -324,14 +324,14 @@ export function useStudentsQuery() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [page, search, statusQuery, courseId, turmaId, selectedId, matriculaStatus, recent]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      fetchStudents();
+      void fetchStudents();
     }, 350);
     return () => clearTimeout(timeout);
-  }, [page, search, statusQuery, courseId, turmaId, selectedId, matriculaStatus, recent]);
+  }, [fetchStudents]);
 
   return {
     students,

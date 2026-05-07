@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Mail, Phone, ShieldAlert, HeartPulse, Camera, History, Info } from "lucide-react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { StudentCpfField } from "@/components/alunos/table/student-cpf-field";
@@ -161,7 +162,7 @@ function StudentPhoto({ alunoId, initialUrl, onRefresh }: { alunoId: string; ini
         title="Clique para alterar a foto"
       >
         {url ? (
-          <img src={url} alt="Foto do aluno" className="h-full w-full object-cover" />
+          <Image src={url} alt="Foto do aluno" fill className="object-cover" unoptimized sizes="80px" />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
             <Camera className="h-6 w-6 text-muted-foreground" />

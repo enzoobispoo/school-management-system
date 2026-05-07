@@ -9,6 +9,7 @@ import { SidebarLogo } from "@/components/dashboard/sidebar/sidebar-logo";
 import { SidebarMobileToggle } from "@/components/dashboard/sidebar/sidebar-mobile-toggle";
 import { SidebarNavigation } from "@/components/dashboard/sidebar/sidebar-navigation";
 import { useNotificationsInbox } from "@/components/providers/notifications-inbox-provider";
+import { useSidebarBadges } from "@/hooks/dashboard/use-sidebar-badges";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -18,6 +19,7 @@ interface SidebarProps {
 export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { unreadCount } = useNotificationsInbox();
+  const { badges } = useSidebarBadges();
 
   return (
     <>
@@ -36,12 +38,12 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col border-r border-sidebar-border/60 bg-sidebar/95 backdrop-blur-xl transition-all duration-300 ease-in-out lg:z-40 lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex min-h-0 flex-col overflow-hidden border-r border-sidebar-border/60 bg-sidebar/95 backdrop-blur-xl transition-all duration-300 ease-in-out lg:z-40 lg:translate-x-0",
           collapsed ? "w-[68px]" : "w-[236px]",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex shrink-0 items-center justify-between px-4 py-4">
           <SidebarLogo collapsed={collapsed} />
 
           <Button
@@ -62,9 +64,12 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
           collapsed={collapsed}
           onNavigate={() => setMobileMenuOpen(false)}
           unreadCount={unreadCount}
+          routeBadges={badges}
         />
 
-        <SidebarFooter collapsed={collapsed} />
+        <div className="shrink-0">
+          <SidebarFooter collapsed={collapsed} />
+        </div>
       </aside>
     </>
   );

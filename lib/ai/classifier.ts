@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { AI_INTENTS } from "@/lib/ai/intents";
-import { AiClassificationResult } from "@/lib/ai/types";
+import type { AiClassificationResult } from "@/lib/ai/types";
+import { EDUIA_PRODUCT_CONTEXT } from "@/lib/ai/product-domain";
 
 export function classifyIntentLocally(message: string): AiClassificationResult {
   const msg = message.toLowerCase().trim();
@@ -143,17 +144,33 @@ export async function classifyIntent(
         {
           role: "system",
           content: `
-Você classifica intenções para um sistema de gestão escolar.
+Você classifica a intenção da mensagem do usuário para rotear comandos rápidos da EduIA (copiloto escolar — respostas objetivas, dados reais).
 
-Intenções válidas:
+${EDUIA_PRODUCT_CONTEXT}
+
+Intenções válidas (escolha exatamente uma):
 ${AI_INTENTS.join("\n")}
 
+Guia rápido:
+- TOTAL_STUDENTS — total de alunos cadastrados (todos os status, salvo se pedirem só ativos).
+- TOTAL_ACTIVE_STUDENTS — alunos com status ATIVO.
+- TOTAL_ACTIVE_ENROLLMENTS — quantidade de matrículas ATIVAS.
+- TOTAL_OVERDUE_PAYMENTS — quantos pagamentos estão ATRASADOS e soma (visão agregada).
+- TOTAL_PENDING_PAYMENTS — quantos PENDENTES e soma agregada.
+- MONTHLY_REVENUE — quanto já foi recebido no mês corrente (pagamentos PAGO).
+- MONTHLY_FINANCIAL_SUMMARY — panorama financeiro do mês (receita, pendências, atrasos, etc.).
+- TOP_COURSES — cursos com mais alunos / ranking.
+- UPCOMING_EVENTS — próximos eventos agendados.
+- LIST_OVERDUE_STUDENTS — quem está inadimplente / em atraso (foco em alunos).
+- LIST_OVERDUE_PAYMENTS — listagem ou detalhe de cobranças atrasadas (não só número total).
+- GENERATE_MONTHLY_PAYMENTS — pedido para gerar mensalidades (geração em lote).
+- MARK_PAYMENT_PAID — registrar ou dar baixa em pagamento de aluno.
+- CHAT — conversa ampla, como fazer algo na UI, dúvidas gerais, ou quando precisar de modo exploratório com várias fontes.
+
 Regras:
-- Retorne apenas JSON válido.
-- Formato:
-{"intent":"CHAT","confidence":0.95}
-- Use CHAT quando a frase for ampla, ambígua ou não corresponder claramente a uma ação/consulta estruturada.
-- Confidence deve ser um número entre 0 e 1.
+- Retorne apenas JSON válido no formato: {"intent":"CHAT","confidence":0.95}
+- Confidence entre 0 e 1.
+- Prefira intenções específicas quando o usuário pedir claramente número, lista ou ação acima; use CHAT para perguntas abertas ou explicações longas.
 `,
         },
         {

@@ -150,6 +150,35 @@ export function AiChatMessage({
           ))}
         </div>
       ) : null}
+
+      {!isUser &&
+      animationFinished &&
+      (message.meta?.toolsUsed?.length || message.meta?.correlationId) ? (
+        <div className="max-w-[90%] rounded-xl border border-dashed border-border/70 bg-muted/30 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+          <span className="font-medium text-foreground/80">Transparência · </span>
+          Recomendações com base nos dados consultados no sistema (não são garantias).
+          {message.meta?.toolsUsed && message.meta.toolsUsed.length > 0 ? (
+            <>
+              {" "}
+              Fontes:{" "}
+              <span className="font-mono text-[10px] text-foreground/70">
+                {message.meta.toolsUsed.join(", ")}
+              </span>
+              .
+            </>
+          ) : null}
+          {message.meta?.correlationId ? (
+            <>
+              {" "}
+              Correlação para suporte:{" "}
+              <span className="break-all font-mono text-[10px] text-foreground/70">
+                {message.meta.correlationId}
+              </span>
+              .
+            </>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

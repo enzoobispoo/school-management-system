@@ -52,6 +52,7 @@ export function useEnrollment({
 }: UseEnrollmentParams) {
   const [turmas, setTurmas] = useState<TurmasResponse["data"]>([]);
   const [turmaId, setTurmaId] = useState("");
+  const [diaVencimentoMensal, setDiaVencimentoMensal] = useState(10);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -85,6 +86,17 @@ export function useEnrollment({
 
     if (open) {
       fetchTurmas();
+      void (async () => {
+        try {
+          const response = await fetch("/api/settings/escola", { cache: "no-store" });
+          if (!response.ok) return;
+          const data = await response.json();
+          const d = Number(data.diaVencimentoPadrao ?? 10);
+          if (d >= 1 && d <= 31) setDiaVencimentoMensal(d);
+        } catch {
+          /* mantém padrão */
+        }
+      })();
     } else {
       resetState();
     }
@@ -97,6 +109,7 @@ export function useEnrollment({
 
   function resetState() {
     setTurmaId("");
+    setDiaVencimentoMensal(10);
     setError("");
     setTurmas([]);
   }
@@ -124,6 +137,7 @@ export function useEnrollment({
         body: JSON.stringify({
           alunoId: aluno.id,
           turmaId,
+          diaVencimentoMensal,
         }),
       });
 
@@ -156,6 +170,8 @@ export function useEnrollment({
     turmas,
     turmaId,
     setTurmaId,
+    diaVencimentoMensal,
+    setDiaVencimentoMensal,
     turmaSelecionada,
     loading,
     submitting,

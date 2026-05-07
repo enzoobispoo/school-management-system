@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { PASSWORD_MIN_LENGTH } from "@/lib/validations/password-policy";
 
 export default function CadastroPage() {
   const router = useRouter();
@@ -20,6 +21,13 @@ export default function CadastroPage() {
 
     if (form.password !== form.confirmPassword) {
       setError("As senhas não coincidem.");
+      return;
+    }
+
+    if (form.password.length < PASSWORD_MIN_LENGTH) {
+      setError(
+        `A senha deve ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres.`
+      );
       return;
     }
 

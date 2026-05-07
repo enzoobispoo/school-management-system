@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface ReportsResponse {
   insights: {
@@ -35,7 +35,7 @@ export function useReportsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  async function fetchReports() {
+  const fetchReports = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -61,11 +61,11 @@ export function useReportsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [year, category]);
 
   useEffect(() => {
-    fetchReports();
-  }, [year, category]);
+    void fetchReports();
+  }, [fetchReports]);
 
   return {
     year,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Header } from "@/components/dashboard/header";
 
@@ -46,7 +46,7 @@ export function AcademicoPageClient() {
     [turmas, selectedTurmaId]
   );
 
-  async function loadTurmas() {
+  const loadTurmas = useCallback(async () => {
     setLoading(true);
     setMessage("");
     try {
@@ -58,15 +58,15 @@ export function AcademicoPageClient() {
 
       const last = typeof window !== "undefined" ? window.localStorage.getItem("academico:lastTurmaId") : "";
       const next = data.find((t) => t.id === last)?.id || data[0]?.id || "";
-      if (!selectedTurmaId && next) setSelectedTurmaId(next);
+      setSelectedTurmaId((prev) => (!prev && next ? next : prev));
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Erro ao carregar turmas.");
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  async function loadData(turmaId: string) {
+  const loadData = useCallback(async (turmaId: string) => {
     if (!turmaId) return;
     setLoading(true);
     setMessage("");
@@ -102,15 +102,15 @@ export function AcademicoPageClient() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [periodoInicio, periodoFim]);
 
   useEffect(() => {
     loadTurmas();
-  }, []);
+  }, [loadTurmas]);
 
   useEffect(() => {
     if (selectedTurmaId) loadData(selectedTurmaId);
-  }, [selectedTurmaId, periodoInicio, periodoFim]);
+  }, [selectedTurmaId, loadData]);
 
   useEffect(() => {
     if (!boletimMatriculaId && selectedTurma?.matriculas[0]?.id) {

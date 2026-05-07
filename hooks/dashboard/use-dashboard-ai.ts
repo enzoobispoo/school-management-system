@@ -15,6 +15,8 @@ export interface AiMessage {
     confidence?: number;
     executed?: boolean;
     conversationContext?: Record<string, unknown>;
+    correlationId?: string;
+    toolsUsed?: string[];
   };
 }
 
@@ -44,10 +46,20 @@ function getLatestConversationContext(messages: AiMessage[]) {
   return null;
 }
 
+async function resolveAiEndpoint(): Promise<string> {
+  const res = await fetch("/api/auth/me", { cache: "no-store" });
+  const data = (await res.json()) as { user?: { role?: string } };
+  return data.user?.role === "PROFESSOR" ?
+      "/api/ai/docente"
+    : "/api/ai/dashboard";
+}
+
 export function useDashboardAi() {
   const controllerRef = useRef<AbortController | null>(null);
+  const correlationRef = useRef<string | null>(null);
   const typingRef = useRef(false);
   const stoppedRef = useRef(false);
+  const endpointCacheRef = useRef<string | null>(null);
 
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [input, setInput] = useState("");
@@ -79,10 +91,18 @@ export function useDashboardAi() {
       controllerRef.current = controller;
 
       try {
-        const response = await fetch("/api/ai/dashboard", {
+        if (!endpointCacheRef.current) {
+          endpointCacheRef.current = await resolveAiEndpoint();
+        }
+        const endpoint = endpointCacheRef.current;
+
+        const response = await fetch(endpoint, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            ...(correlationRef.current
+              ? { "x-correlation-id": correlationRef.current }
+              : {}),
           },
           signal: controller.signal,
           body: JSON.stringify({
@@ -99,6 +119,9 @@ export function useDashboardAi() {
         }
 
         if (!response.ok) {
+          if (response.status === 403 || response.status === 401) {
+            endpointCacheRef.current = null;
+          }
           throw new Error(
             result?.error || "Não foi possível obter uma resposta da EduIA."
           );
@@ -161,6 +184,8 @@ export function useDashboardAi() {
     stoppedRef.current = false;
     controllerRef.current?.abort();
     controllerRef.current = null;
+    correlationRef.current = null;
+    endpointCacheRef.current = null;
 
     setMessages([]);
     typingRef.current = false;

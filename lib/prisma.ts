@@ -14,6 +14,12 @@ if (!connectionString) {
 
 const pool = new pg.Pool({
   connectionString,
+  ...(process.env.NODE_ENV === "development" ?
+    {
+      /** Em dev, reduz picos de conexão quando várias rotas compilam em paralelo. */
+      max: 5,
+    }
+  : {}),
 })
 
 const adapter = new PrismaPg(pool)
