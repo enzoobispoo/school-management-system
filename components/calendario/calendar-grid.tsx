@@ -1,7 +1,12 @@
 "use client";
 
 import { CalendarEvent } from "@/lib/calendario/calendar-types";
-import { HOURS, WEEK_DAYS, isSameDay } from "@/lib/calendario/calendar-utils";
+import {
+  HOURS,
+  WEEK_DAYS,
+  isSameDay,
+  layoutTimedEventsForDay,
+} from "@/lib/calendario/calendar-utils";
 import { CalendarEventCard } from "./calendar-event-card";
 
 interface Props {
@@ -66,10 +71,12 @@ export function CalendarGrid({
             return isSameDay(start, day) && !event.allDay;
           });
 
+          const layouts = layoutTimedEventsForDay(dayEvents);
+
           return (
             <div
               key={day.toISOString()}
-              className="relative border-r border-border last:border-r-0"
+              className="relative isolate border-r border-border last:border-r-0"
               style={{ height: `${HOURS.length * 80}px` }}
             >
               {HOURS.map((hour) => (
@@ -84,6 +91,7 @@ export function CalendarGrid({
                 <CalendarEventCard
                   key={event.id}
                   event={event}
+                  layout={layouts.get(event.id)}
                   onClick={onEventClick}
                 />
               ))}

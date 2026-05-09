@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, requireSchool } from "@/lib/auth";
+import { blockProfessorWhenPortalDisabled } from "@/lib/docente/professor-portal-policy";
 import { isSchoolChatPeerRole } from "@/lib/school-chat/peers";
 
 export const runtime = "nodejs";
@@ -16,12 +17,17 @@ export async function GET() {
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
 
+    const portalDenied = await blockProfessorWhenPortalDisabled(user);
+    if (portalDenied) return portalDenied;
+
     const rows = await prisma.user.findMany({
       where: {
         schoolId,
         ativo: true,
         id: { not: user.id },
-        role: { in: ["PROFESSOR", "ADMIN", "SECRETARIA", "FINANCEIRO"] },
+        role: {
+          in: ["PROFESSOR", "ADMIN", "SECRETARIA", "SECRETARIA_FINANCEIRA", "FINANCEIRO"],
+        },
       },
       select: {
         id: true,

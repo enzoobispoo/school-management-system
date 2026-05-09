@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
-import { Header } from "@/components/dashboard/header";
+import { ResourcePageHeader } from "@/components/dashboard/resource-page-header";
 import { TeacherProfileContent } from "@/components/professores/profile/teacher-profile-content";
 import { prisma } from "@/lib/prisma";
 
@@ -72,7 +72,7 @@ export default async function ProfessorPage({ params }: PageProps) {
 
   return (
     <DashboardLayout>
-      <Header title={professor.nome} description="Perfil do professor" />
+      <ResourcePageHeader title={professor.nome} variant="teacher" />
       <TeacherProfileContent professor={data} />
     </DashboardLayout>
   );

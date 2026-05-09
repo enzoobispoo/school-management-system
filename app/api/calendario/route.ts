@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { DiaSemana, TipoEvento } from "@prisma/client"
 import { getCurrentUser, requireSchool } from "@/lib/auth"
+import { blockProfessorWhenPortalDisabled } from "@/lib/docente/professor-portal-policy"
 
 const DAY_INDEX_TO_ENUM: Record<number, DiaSemana> = {
   0: "DOMINGO",
@@ -58,6 +59,9 @@ export async function GET(request: NextRequest) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const portalDenied = await blockProfessorWhenPortalDisabled(user);
+    if (portalDenied) return portalDenied;
 
     const { searchParams } = new URL(request.url)
 

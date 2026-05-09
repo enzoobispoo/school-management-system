@@ -39,6 +39,8 @@ export function notificacaoWhereForUser(params: {
           OR: [
             { destinatarioProfessorId: null },
             ...(professorId ? [{ destinatarioProfessorId: professorId }] : []),
+            /** Convites dirigidos ao usuário mesmo sem vínculo professorId na conta. */
+            { destinatarioUserId: userId },
           ],
         },
       ],

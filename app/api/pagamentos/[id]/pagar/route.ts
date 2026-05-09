@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, requireSchool } from "@/lib/auth";
+import {
+  assertCoreFinanceWrite,
+  getCurrentUser,
+  requireSchool,
+} from "@/lib/auth";
+import { logSchoolAudit } from "@/lib/audit/school-audit-log";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -18,6 +23,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const deniedWrite = assertCoreFinanceWrite(user);
+    if (deniedWrite) return deniedWrite;
+
     const { id } = await context.params;
     const body = await request.json().catch(() => ({}));
 
@@ -80,6 +89,20 @@ export async function POST(request: NextRequest, context: RouteContext) {
         mensagem: `${pagamento.matricula.aluno.nome} pagou ${pagamento.matricula.turma.curso.nome}.`,
         entidadeTipo: "PAGAMENTO",
         entidadeId: pagamento.id,
+      },
+    });
+
+    void logSchoolAudit({
+      schoolId,
+      userId: user.id,
+      role: user.role,
+      domain: "finance",
+      action: "PAYMENT_MARK_PAID",
+      resourceId: pagamento.id,
+      summary: `Baixa manual: ${pagamento.descricao} — ${pagamento.matricula.aluno.nome}`,
+      payload: {
+        valor: Number(pagamento.valor),
+        metodoPagamento,
       },
     });
 

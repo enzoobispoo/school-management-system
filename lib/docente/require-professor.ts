@@ -1,14 +1,23 @@
 import { NextResponse } from "next/server";
 import type { AuthenticatedUser } from "@/lib/auth/get-current-user";
+import { blockProfessorWhenPortalDisabled } from "@/lib/docente/professor-portal-policy";
 
 /** Escola + professor vinculado ou resposta de erro. */
-export function requireProfessorContext(user: AuthenticatedUser): {
-  schoolId: string;
-  professorId: string;
-} | NextResponse {
+export async function requireProfessorContext(
+  user: AuthenticatedUser
+): Promise<
+  { schoolId: string; professorId: string } | NextResponse
+> {
   if (user.role !== "PROFESSOR") {
-    return NextResponse.json({ error: "Acesso restrito a professores." }, { status: 403 });
+    return NextResponse.json(
+      { error: "Acesso restrito a professores." },
+      { status: 403 }
+    );
   }
+
+  const portalDenied = await blockProfessorWhenPortalDisabled(user);
+  if (portalDenied) return portalDenied;
+
   const schoolResult =
     user.schoolId ?
       { schoolId: user.schoolId }

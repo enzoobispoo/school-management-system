@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { AiFloatingButton } from "@/components/dashboard/ai/ai-floating-button";
 import { NotificationsInboxProvider } from "@/components/providers/notifications-inbox-provider";
+import { DashboardSessionProvider } from "@/components/providers/dashboard-session-provider";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -18,9 +19,11 @@ export function DashboardLayout({
 }: DashboardLayoutProps) {
   return (
     <NotificationsInboxProvider>
-      <DashboardLayoutShell hideAiAssistant={hideAiAssistant}>
-        {children}
-      </DashboardLayoutShell>
+      <DashboardSessionProvider>
+        <DashboardLayoutShell hideAiAssistant={hideAiAssistant}>
+          {children}
+        </DashboardLayoutShell>
+      </DashboardSessionProvider>
     </NotificationsInboxProvider>
   );
 }
@@ -39,6 +42,11 @@ function DashboardLayoutShell({
   const professorDocenteHub =
     professorRole && pathname.startsWith("/docente");
 
+  const hideFloatingAiChrome =
+    pathname === "/eduia" ||
+    pathname.startsWith("/financeiro/eduia") ||
+    pathname === "/docente/eduia";
+
   useEffect(() => {
     fetch("/api/auth/me", { cache: "no-store" })
       .then((r) => r.json())
@@ -48,7 +56,7 @@ function DashboardLayoutShell({
       .catch(() => {});
   }, []);
 
-  const hideAi = hideAiAssistant;
+  const hideAi = hideAiAssistant || hideFloatingAiChrome;
 
   return (
     <div className="min-h-screen bg-background text-foreground">

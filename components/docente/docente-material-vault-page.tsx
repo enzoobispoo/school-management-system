@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { ArrowLeft, FileUp, Loader2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, FileUp, Loader2, Presentation } from "lucide-react";
 import { toast } from "sonner";
 import type { TipoMaterialDidatico } from "@prisma/client";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
@@ -33,8 +33,9 @@ type MaterialRow = {
   titulo: string;
   tipo: string;
   descricao: string | null;
-  arquivoUrl: string;
-  arquivoNome: string;
+  arquivoUrl: string | null;
+  arquivoNome: string | null;
+  slideDeckJson?: unknown | null;
   createdAt: string;
   turma: { id: string; nome: string } | null;
   disciplina: { id: string; nome: string } | null;
@@ -60,11 +61,10 @@ const VAULT_COPY: Record<TipoMaterialDidatico, VaultCopy> = {
   SLIDE: {
     title: "Apresentações — seu arquivo",
     description:
-      "Guarde PDFs e apresentações que você produz para usar com suas turmas. Tudo fica na sua biblioteca pessoal.",
+      "Crie slides no próprio sistema (visual tipo telas fixas) ou envie PDF/PowerPoint exportados.",
     uploadHint:
       "Ideal para slides exportados (PDF ou PowerPoint). Associe a uma turma só se quiser organizar.",
-    futureBlurb:
-      "Em breve: montar roteiros de aula direto aqui (sem substituir este arquivo).",
+    futureBlurb: "",
   },
   PROVA_IMPRESSAO: {
     title: "Provas impressas — seu arquivo",
@@ -109,6 +109,7 @@ export function DocenteMaterialVaultPage(props: {
 }) {
   const { fixedTipo } = props;
   const copy = VAULT_COPY[fixedTipo];
+  const router = useRouter();
   const searchParams = useSearchParams();
   const turmaIdFromUrl = searchParams.get("turmaId") || "";
 
@@ -126,6 +127,7 @@ export function DocenteMaterialVaultPage(props: {
   const [disciplinasTurma, setDisciplinasTurma] = useState<
     { id: string; nome: string }[]
   >([]);
+  const [creatingDeck, setCreatingDeck] = useState(false);
 
   const loadOverview = useCallback(async () => {
     const res = await fetch("/api/docente/overview", { cache: "no-store" });
@@ -229,6 +231,32 @@ export function DocenteMaterialVaultPage(props: {
     }
   }
 
+  async function handleCreateDeck() {
+    if (needsLink) return;
+    try {
+      setCreatingDeck(true);
+      const res = await fetch("/api/docente/materiais/slide-deck", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          titulo: titulo.trim() || "Nova apresentação",
+          ...(descricao.trim() ? { descricao: descricao.trim() } : {}),
+          ...(turmaId ? { turmaId } : {}),
+          ...(turmaId && disciplinaId ? { disciplinaId } : {}),
+        }),
+      });
+      const json = (await res.json()) as { id?: string; error?: string };
+      if (!res.ok) throw new Error(json.error || "Erro ao criar apresentação.");
+      if (!json.id) throw new Error("Resposta inválida.");
+      toast.success("Abrindo editor…");
+      router.push(`/docente/materiais/apresentacoes/editor/${json.id}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao criar.");
+    } finally {
+      setCreatingDeck(false);
+    }
+  }
+
   return (
     <DashboardLayout>
       <Header title={copy.title} description={copy.description} />
@@ -250,7 +278,33 @@ export function DocenteMaterialVaultPage(props: {
             </p>
           ) : null}
 
-          {copy.futureBlurb ? (
+          {fixedTipo === "SLIDE" ?
+            <Card className="rounded-2xl border-border/60 bg-muted/10 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Presentation className="h-5 w-5 text-primary" />
+                  Criar no editor (tipo Canva simplificado)
+                </CardTitle>
+                <CardDescription className="text-sm">
+                  Slides com título, subtítulo e marcadores; salvamento automático. Não substitui um
+                  editor de design completo, mas cobre aulas rápidas sem sair da escola.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <Button
+                  type="button"
+                  className="rounded-xl gap-2"
+                  disabled={creatingDeck || needsLink}
+                  onClick={() => void handleCreateDeck()}
+                >
+                  {creatingDeck ?
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  : <Presentation className="h-4 w-4" />}
+                  Nova apresentação no editor
+                </Button>
+              </CardContent>
+            </Card>
+          : copy.futureBlurb ?
             <Card className="rounded-2xl border-dashed border-primary/25 bg-primary/[0.03] shadow-none">
               <CardHeader className="py-3">
                 <CardTitle className="text-sm font-medium">
@@ -259,7 +313,7 @@ export function DocenteMaterialVaultPage(props: {
                 <CardDescription className="text-xs">{copy.futureBlurb}</CardDescription>
               </CardHeader>
             </Card>
-          ) : null}
+          : null}
 
           <Card className="rounded-2xl border-border/60 shadow-sm">
             <CardHeader>
@@ -373,14 +427,23 @@ export function DocenteMaterialVaultPage(props: {
                 <ul className="divide-y divide-border/60 rounded-xl border border-border/50">
                   {filteredList.map((m) => (
                     <li key={m.id} className="px-3 py-3 text-sm">
-                      <a
-                        href={m.arquivoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {m.titulo}
-                      </a>
+                      {m.slideDeckJson ?
+                        <Link
+                          href={`/docente/materiais/apresentacoes/editor/${m.id}`}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {m.titulo}
+                        </Link>
+                      : m.arquivoUrl ?
+                        <a
+                          href={m.arquivoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {m.titulo}
+                        </a>
+                      : <span className="font-medium text-foreground">{m.titulo}</span>}
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {TIPO_LABEL[m.tipo as TipoMaterialDidatico] ?? m.tipo}
                         {m.turma?.nome ? ` · ${m.turma.nome}` : ""}

@@ -9,6 +9,10 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import {
+  dashboardLocaleTag,
+  useDashboardLanguage,
+} from "@/lib/i18n/dashboard-language";
 
 interface RevenueChartProps {
   data: Array<{
@@ -18,26 +22,33 @@ interface RevenueChartProps {
   loading?: boolean;
 }
 
-function formatCurrency(value: number) {
-  return `R$ ${value.toLocaleString("pt-BR", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  })}`;
-}
-
 export function RevenueChart({ data, loading = false }: RevenueChartProps) {
+  const { t, language } = useDashboardLanguage();
+  const localeTag = dashboardLocaleTag(language);
+
+  function formatCurrency(value: number) {
+    return value.toLocaleString(localeTag, {
+      style: "currency",
+      currency: "BRL",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+  }
+
+  const seriesLabel = t("chart.revenue.series");
+
   return (
     <div className="rounded-xl border border-border/60 bg-card p-5">
       <div className="mb-4">
-        <p className="text-[13px] text-muted-foreground">Receita</p>
+        <p className="text-[13px] text-muted-foreground">{t("chart.revenue.eyebrow")}</p>
         <h3 className="mt-0.5 text-lg font-semibold tracking-tight text-foreground">
-          Receita ao longo do tempo
+          {t("chart.revenue.title")}
         </h3>
       </div>
 
       {loading ? (
         <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
-          Carregando...
+          {t("chart.revenue.loading")}
         </div>
       ) : (
         <div className="h-[280px]">
@@ -73,7 +84,7 @@ export function RevenueChart({ data, loading = false }: RevenueChartProps) {
               />
 
               <Tooltip
-                formatter={(value: number) => [formatCurrency(value), "Receita"]}
+                formatter={(value: number) => [formatCurrency(value), seriesLabel]}
                 contentStyle={{
                   borderRadius: 10,
                   border: "1px solid var(--border)",

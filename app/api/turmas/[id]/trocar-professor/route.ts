@@ -16,7 +16,12 @@ interface RouteContext {
   }>;
 }
 
-const ROLES_DESCOBERTOS = new Set(["ADMIN", "SECRETARIA", "SUPER_ADMIN"]);
+const ROLES_DESCOBERTOS = new Set([
+  "ADMIN",
+  "SECRETARIA",
+  "SECRETARIA_FINANCEIRA",
+  "SUPER_ADMIN",
+]);
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
   try {
@@ -203,6 +208,15 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
           "Abra as solicitações em /docente/trocas para aceitar ou recusar.",
         ].filter(Boolean);
 
+        const professorAlvoUser = await tx.user.findFirst({
+          where: {
+            professorId: novoProfessorId,
+            role: "PROFESSOR",
+            ativo: true,
+          },
+          select: { id: true },
+        });
+
         await tx.notificacao.create({
           data: {
             schoolId,
@@ -212,6 +226,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
             entidadeTipo: "SISTEMA",
             entidadeId: p.id,
             destinatarioProfessorId: novoProfessorId,
+            destinatarioUserId: professorAlvoUser?.id ?? null,
           },
         });
 

@@ -4,8 +4,8 @@ import { AiSettingsSection } from "@/components/configuracoes/sections/ai-settin
 export default function ConfiguracoesIAPage() {
   return (
     <SettingsShell
-      title="Configurações"
-      description="Chaves OpenAI, Twilio e limites conforme o plano da sua escola."
+      titleKey="settings.shell.title"
+      descriptionKey="settings.shell.desc.ai"
     >
       <AiSettingsSection />
     </SettingsShell>

@@ -1,6 +1,9 @@
 import OpenAI from "openai";
 import type { PlanTier } from "@/lib/school-plan";
-import { aiToolDefinitions } from "@/lib/ai/tool-definitions";
+import {
+  aiToolDefinitionsForRole,
+  FINANCEIRO_ALLOWED_AI_TOOLS,
+} from "@/lib/ai/tool-definitions";
 import { queryStudents } from "@/lib/ai/tools/query-students";
 import { queryCourses } from "@/lib/ai/tools/query-courses";
 import { queryTeachers } from "@/lib/ai/tools/query-teachers";
@@ -60,6 +63,16 @@ type ToolName =
   | "create_enrollment";
 
 async function runTool(name: ToolName, rawArgs: string, ctx: AiToolRunContext) {
+  if (
+    ctx.role === "FINANCEIRO" &&
+    !FINANCEIRO_ALLOWED_AI_TOOLS.has(String(name))
+  ) {
+    return {
+      error:
+        "Esta ação não está disponível para o perfil financeiro. Use consultas de cobrança, resumo do painel ou notificações.",
+    };
+  }
+
   let args: Record<string, unknown> = {};
   try {
     const parsed: unknown = rawArgs ? JSON.parse(rawArgs) : {};
@@ -184,6 +197,17 @@ ${params.operatorBriefing.trim()}
 `
     : "";
 
+  const financeRoleBlock =
+    params.role === "FINANCEIRO" ?
+      `
+Perfil financeiro (obrigatório):
+- Use apenas as ferramentas expostas ao modelo (cobranças, resumo agregado do painel, notificações). Não ofereça cadastrar alunos, turmas, professores, cursos, matrículas nem incidentes operacionais pela IA.
+- Para lentidão ou travamentos no computador do usuário, sugira passos práticos: fechar abas que não usa, um único painel da escola aberto, atualizar a página (⌘R / F5), testar outra rede ou janela anônima, limpar cache só se souber o que faz — e escalar ao administrador da escola ou ao suporte se o problema for generalizado. Não invente métricas do servidor.
+`
+    : "";
+
+  const toolsForRole = aiToolDefinitionsForRole(params.role);
+
   let response = await params.client.responses.create({
     model: "gpt-5.4-mini",
     input: [
@@ -193,6 +217,7 @@ ${params.operatorBriefing.trim()}
 Você é a EduIA — copiloto escolar da equipe de gestão: antecipa necessidades, cruza dados e orienta ação na plataforma (sem inventar fatos).
 ${EDUIA_PRODUCT_CONTEXT}
 ${briefingBlock}
+${financeRoleBlock}
 Regras:
 - Responda em português do Brasil, com clareza para gestão escolar (direção, financeiro, secretaria).
 - Para qualquer dado da escola (números, nomes, listas, turmas, incidentes, pagamentos), chame as tools adequadas. Não invente valores.
@@ -215,7 +240,7 @@ Pergunta atual:
 ${params.message}`,
       },
     ],
-    tools: aiToolDefinitions as unknown as OpenAI.Responses.Tool[],
+    tools: toolsForRole as unknown as OpenAI.Responses.Tool[],
     store: false,
   });
 
@@ -268,7 +293,7 @@ ${params.message}`,
       model: "gpt-5.4-mini",
       previous_response_id: response.id,
       input: toolOutputs,
-      tools: aiToolDefinitions as unknown as OpenAI.Responses.Tool[],
+      tools: toolsForRole as unknown as OpenAI.Responses.Tool[],
       store: false,
     });
   }

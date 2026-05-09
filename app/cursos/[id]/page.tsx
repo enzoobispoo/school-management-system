@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
-import { Header } from "@/components/dashboard/header";
+import { ResourcePageHeader } from "@/components/dashboard/resource-page-header";
 import {
   CursoProfileContent,
   type CursoProfileData,
@@ -72,7 +72,7 @@ export default async function CursoProfilePage({ params }: PageProps) {
 
   return (
     <DashboardLayout>
-      <Header title={curso.nome} description="Curso · visão geral e turmas" />
+      <ResourcePageHeader title={curso.nome} variant="course" />
       <CursoProfileContent curso={data} />
     </DashboardLayout>
   );

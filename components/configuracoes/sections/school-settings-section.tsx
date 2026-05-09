@@ -1,10 +1,13 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { SettingsFeedback } from "@/components/configuracoes/shared/settings-feedback";
 import { useSchoolSettings } from "@/hooks/configuracoes/use-school-settings";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 function maskPhone(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -14,15 +17,30 @@ function maskPhone(value: string) {
 }
 
 export function SchoolSettingsSection() {
+  const { t } = useDashboardLanguage();
+  const [portalEditable, setPortalEditable] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setPortalEditable(d.user?.role === "ADMIN"))
+      .catch(() => setPortalEditable(false));
+  }, []);
+
   const { form, loading, saving, success, error, updateField, handleSave } =
-    useSchoolSettings();
+    useSchoolSettings(portalEditable);
+
+  const successLabel =
+    success && success.startsWith("settings.") ? t(success) : success;
 
   return (
     <div className="grid gap-4">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">Escola</h2>
+        <h2 className="text-lg font-semibold text-foreground">
+          {t("settings.school.title")}
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Defina os dados principais da sua instituição.
+          {t("settings.school.subtitle")}
         </p>
       </div>
 
@@ -30,7 +48,7 @@ export function SchoolSettingsSection() {
         <div className="grid gap-4 md:grid-cols-2">
           <div className="grid gap-2">
             <label className="text-sm font-medium text-foreground">
-              Nome da escola
+              {t("settings.school.fieldSchoolName")}
             </label>
             <Input
               value={form.nomeEscola}
@@ -41,7 +59,9 @@ export function SchoolSettingsSection() {
           </div>
 
           <div className="grid gap-2">
-            <label className="text-sm font-medium text-foreground">CNPJ</label>
+            <label className="text-sm font-medium text-foreground">
+              {t("settings.school.fieldCnpj")}
+            </label>
             <Input
               value={form.cnpj}
               onChange={(e) => updateField("cnpj", e.target.value)}
@@ -51,7 +71,9 @@ export function SchoolSettingsSection() {
           </div>
 
           <div className="grid gap-2">
-            <label className="text-sm font-medium text-foreground">E-mail</label>
+            <label className="text-sm font-medium text-foreground">
+              {t("settings.school.fieldEmail")}
+            </label>
             <Input
               value={form.email}
               onChange={(e) => updateField("email", e.target.value)}
@@ -61,22 +83,13 @@ export function SchoolSettingsSection() {
           </div>
 
           <div className="grid gap-2">
-            <label className="text-sm font-medium text-foreground">Telefone</label>
+            <label className="text-sm font-medium text-foreground">
+              {t("settings.school.fieldPhone")}
+            </label>
             <Input
               value={form.telefone}
               onChange={(e) => updateField("telefone", maskPhone(e.target.value))}
-              placeholder="(00) 00000-0000"
-              className="h-11 rounded-2xl"
-              disabled={loading}
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <label className="text-sm font-medium text-foreground">WhatsApp</label>
-            <Input
-              value={form.whatsapp}
-              onChange={(e) => updateField("whatsapp", maskPhone(e.target.value))}
-              placeholder="(00) 00000-0000"
+              placeholder={t("settings.school.phonePlaceholder")}
               className="h-11 rounded-2xl"
               disabled={loading}
             />
@@ -84,7 +97,20 @@ export function SchoolSettingsSection() {
 
           <div className="grid gap-2">
             <label className="text-sm font-medium text-foreground">
-              Cor principal
+              {t("settings.school.fieldWhatsapp")}
+            </label>
+            <Input
+              value={form.whatsapp}
+              onChange={(e) => updateField("whatsapp", maskPhone(e.target.value))}
+              placeholder={t("settings.school.phonePlaceholder")}
+              className="h-11 rounded-2xl"
+              disabled={loading}
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <label className="text-sm font-medium text-foreground">
+              {t("settings.school.fieldPrimaryColor")}
             </label>
             <div className="flex gap-2">
               <Input
@@ -104,18 +130,22 @@ export function SchoolSettingsSection() {
           </div>
 
           <div className="grid gap-2 md:col-span-2">
-            <label className="text-sm font-medium text-foreground">Logo URL</label>
+            <label className="text-sm font-medium text-foreground">
+              {t("settings.school.fieldLogoUrl")}
+            </label>
             <Input
               value={form.logoUrl}
               onChange={(e) => updateField("logoUrl", e.target.value)}
-              placeholder="https://..."
+              placeholder={t("settings.school.logoPlaceholder")}
               className="h-11 rounded-2xl"
               disabled={loading}
             />
           </div>
 
           <div className="grid gap-2 md:col-span-2">
-            <label className="text-sm font-medium text-foreground">Endereço</label>
+            <label className="text-sm font-medium text-foreground">
+              {t("settings.school.fieldAddress")}
+            </label>
             <Input
               value={form.endereco}
               onChange={(e) => updateField("endereco", e.target.value)}
@@ -123,17 +153,40 @@ export function SchoolSettingsSection() {
               disabled={loading}
             />
           </div>
+
+          {portalEditable ? (
+            <div className="flex flex-col gap-2 rounded-2xl border border-border/80 bg-muted/20 px-4 py-3 md:col-span-2">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0 space-y-0.5">
+                  <p className="text-sm font-medium text-foreground">
+                    {t("settings.school.professorPortal")}
+                  </p>
+                  <p className="text-[13px] text-muted-foreground">
+                    {t("settings.school.professorPortalHint")}
+                  </p>
+                </div>
+                <Switch
+                  checked={form.professorPortalEnabled}
+                  onCheckedChange={(v) => updateField("professorPortalEnabled", v)}
+                  disabled={loading || saving}
+                  aria-label={t("settings.school.professorPortalAria")}
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="rounded-[24px] border border-border bg-muted/30 p-5">
-          <p className="text-sm font-medium text-foreground">Prévia da identidade</p>
+          <p className="text-sm font-medium text-foreground">
+            {t("settings.school.previewTitle")}
+          </p>
 
           <div className="mt-4 rounded-[20px] border border-border bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
             <div className="flex items-center gap-3">
               {form.logoUrl ? (
                 <Image
                   src={form.logoUrl}
-                  alt="Logo da escola"
+                  alt={t("settings.school.previewSchoolLogoAlt")}
                   width={48}
                   height={48}
                   className="h-12 w-12 rounded-2xl object-cover"
@@ -144,16 +197,17 @@ export function SchoolSettingsSection() {
                   className="flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-semibold text-white"
                   style={{ backgroundColor: form.corPrimaria || "#111111" }}
                 >
-                  {form.nomeEscola?.slice(0, 2).toUpperCase() || "EG"}
+                  {form.nomeEscola?.slice(0, 2).toUpperCase() ||
+                    t("settings.school.previewFallbackInitials")}
                 </div>
               )}
 
               <div>
                 <p className="font-semibold text-foreground">
-                  {form.nomeEscola || "Nome da escola"}
+                  {form.nomeEscola || t("settings.school.previewSchoolNamePlaceholder")}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Identidade visual da plataforma
+                  {t("settings.school.previewSubtitle")}
                 </p>
               </div>
             </div>
@@ -162,7 +216,7 @@ export function SchoolSettingsSection() {
               className="mt-5 rounded-2xl px-4 py-3 text-sm font-medium text-white"
               style={{ backgroundColor: form.corPrimaria || "#111111" }}
             >
-              Cor principal aplicada
+              {t("settings.school.previewChip")}
             </div>
           </div>
         </div>
@@ -174,11 +228,11 @@ export function SchoolSettingsSection() {
           disabled={saving || loading}
           className="h-8 rounded-md px-4"
         >
-          {saving ? "Salvando..." : "Salvar alterações"}
+          {saving ? t("settings.school.saving") : t("settings.school.save")}
         </Button>
       </div>
 
-      <SettingsFeedback error={error} success={success} />
+      <SettingsFeedback error={error} success={successLabel} />
     </div>
   );
 }

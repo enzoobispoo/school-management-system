@@ -21,7 +21,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     if (!user) {
       return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     }
-    const ctx = requireProfessorContext(user);
+    const ctx = await requireProfessorContext(user);
     if (ctx instanceof NextResponse) return ctx;
     const { schoolId } = ctx;
 
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (!user) {
       return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     }
-    const ctx = requireProfessorContext(user);
+    const ctx = await requireProfessorContext(user);
     if (ctx instanceof NextResponse) return ctx;
     const { schoolId, professorId } = ctx;
 

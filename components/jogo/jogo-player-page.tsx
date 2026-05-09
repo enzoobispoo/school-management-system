@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { JOGO_AVATAR_EMOJIS } from "@/lib/jogo/jogo-avatars";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 type RankingRow = {
   posicao: number;
@@ -41,6 +42,7 @@ type PlayerState = {
 };
 
 export function JogoPlayerPage({ pin }: { pin: string }) {
+  const { t } = useDashboardLanguage();
   const [nome, setNome] = useState("");
   const [avatarEmoji, setAvatarEmoji] = useState<string>(JOGO_AVATAR_EMOJIS[0] ?? "🎓");
   const [participantId, setParticipantId] = useState<string | null>(null);
@@ -54,9 +56,9 @@ export function JogoPlayerPage({ pin }: { pin: string }) {
     const params = new URLSearchParams({ pin, participantId });
     const res = await fetch(`/api/jogo/state?${params.toString()}`, { cache: "no-store" });
     const json = await res.json();
-    if (!res.ok) throw new Error(json.error || "Falha ao carregar estado.");
+    if (!res.ok) throw new Error(json.error || t("game.player.loadStateFail"));
     setState(json as PlayerState);
-  }, [participantId, pin]);
+  }, [participantId, pin, t]);
 
   useEffect(() => {
     if (!participantId) return;
@@ -96,14 +98,20 @@ export function JogoPlayerPage({ pin }: { pin: string }) {
       const json = await res.json();
       if (!res.ok) {
         timeoutHandledRef.current = null;
-        throw new Error(json.error || "Erro ao registrar tempo esgotado.");
+        throw new Error(json.error || t("game.player.timeoutRegisterFail"));
       }
-      toast.message("Tempo esgotado — registramos sua rodada.");
+      toast.message(t("game.player.timeUpToast"));
       await load();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro.");
+      toast.error(e instanceof Error ? e.message : t("common.errorShort"));
     }
-  }, [load, participantId, state?.sessao.questaoAtual, state?.participante?.jaRespondeu]);
+  }, [
+    load,
+    participantId,
+    state?.sessao.questaoAtual,
+    state?.participante?.jaRespondeu,
+    t,
+  ]);
 
   useEffect(() => {
     if (!participantId || !state?.sessao.questaoDeadlineAt) return;
@@ -131,11 +139,11 @@ export function JogoPlayerPage({ pin }: { pin: string }) {
         body: JSON.stringify({ pin, nome, avatarEmoji }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Não foi possível entrar.");
+      if (!res.ok) throw new Error(json.error || t("game.player.joinFail"));
       setParticipantId(json.participantId as string);
       setState(json as PlayerState);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro.");
+      toast.error(e instanceof Error ? e.message : t("common.errorShort"));
     }
   }
 
@@ -153,11 +161,15 @@ export function JogoPlayerPage({ pin }: { pin: string }) {
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Erro ao responder.");
-      toast.success(json.correta ? `Correta! +${json.pontos} ponto(s)` : "Resposta enviada.");
+      if (!res.ok) throw new Error(json.error || t("game.player.answerFail"));
+      toast.success(
+        json.correta ?
+          t("game.player.correctPoints", { points: String(json.pontos ?? 0) })
+        : t("game.player.answerSent")
+      );
       await load();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro.");
+      toast.error(e instanceof Error ? e.message : t("common.errorShort"));
     } finally {
       setSending(false);
     }
@@ -195,11 +207,11 @@ export function JogoPlayerPage({ pin }: { pin: string }) {
     return (
       <main className="mx-auto max-w-md p-6">
         <div className="rounded-2xl border border-border/60 bg-card/60 p-5">
-          <p className="text-xs text-muted-foreground">Entrar na sala</p>
+          <p className="text-xs text-muted-foreground">{t("game.player.enterRoom")}</p>
           <p className="mt-1 text-2xl font-semibold tracking-widest">{pin}</p>
           <div className="mt-4 space-y-3">
             <div>
-              <p className="mb-2 text-xs text-muted-foreground">Escolha um avatar</p>
+              <p className="mb-2 text-xs text-muted-foreground">{t("game.player.pickAvatar")}</p>
               <div className="grid grid-cols-8 gap-1.5">
                 {JOGO_AVATAR_EMOJIS.map((em) => (
                   <button
@@ -211,7 +223,7 @@ export function JogoPlayerPage({ pin }: { pin: string }) {
                       : "border-border/60 bg-muted/20 hover:bg-muted/40"
                     }`}
                     onClick={() => setAvatarEmoji(em)}
-                    aria-label={`Avatar ${em}`}
+                    aria-label={t("game.player.avatarAria", { emoji: em })}
                   >
                     {em}
                   </button>
@@ -219,16 +231,16 @@ export function JogoPlayerPage({ pin }: { pin: string }) {
               </div>
             </div>
             <div>
-              <p className="mb-1 text-xs text-muted-foreground">Apelido no placar</p>
+              <p className="mb-1 text-xs text-muted-foreground">{t("game.player.nicknameLabel")}</p>
               <Input
-                placeholder="Como quer aparecer?"
+                placeholder={t("game.player.nicknamePlaceholder")}
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 className="rounded-xl"
               />
             </div>
             <Button className="w-full rounded-xl" disabled={!nome.trim()} onClick={() => void join()}>
-              Entrar no jogo
+              {t("game.player.joinGame")}
             </Button>
           </div>
         </div>
@@ -243,8 +255,14 @@ export function JogoPlayerPage({ pin }: { pin: string }) {
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{state?.sessao.avaliacao.titulo}</p>
           <p className="text-xs text-muted-foreground">
-            {state?.participante?.nome} · Questão {state?.sessao.questaoAtualOrdem}/
-            {state?.sessao.avaliacao.totalQuestoes} · Score: {state?.participante?.score ?? 0}
+            {state ?
+              t("game.player.metaLine", {
+                name: state.participante?.nome ?? "",
+                current: String(state.sessao.questaoAtualOrdem),
+                total: String(state.sessao.avaliacao.totalQuestoes),
+                score: String(state.participante?.score ?? 0),
+              })
+            : null}
           </p>
         </div>
       </div>
@@ -252,7 +270,7 @@ export function JogoPlayerPage({ pin }: { pin: string }) {
       {countdownLabel ?
         <div className="rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
           <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-            <span>Tempo na rodada</span>
+            <span>{t("game.player.roundTime")}</span>
             <span className="tabular-nums text-foreground">{countdownLabel}</span>
           </div>
           <Progress value={countdownPct} className="mt-2 h-2" />
@@ -261,13 +279,13 @@ export function JogoPlayerPage({ pin }: { pin: string }) {
 
       <div className="rounded-2xl border border-border/60 bg-card/60 p-5">
         {state?.sessao.status === "LOBBY" ?
-          <p className="text-sm text-muted-foreground">Aguardando o professor iniciar a sessão…</p>
+          <p className="text-sm text-muted-foreground">{t("game.player.waitTeacher")}</p>
         : state?.sessao.status === "FINISHED" ?
-          <p className="text-sm text-muted-foreground">Sessão finalizada. Obrigado por participar!</p>
+          <p className="text-sm text-muted-foreground">{t("game.player.sessionDone")}</p>
         : !state?.sessao.questaoAtual ?
-          <p className="text-sm text-muted-foreground">Carregando questão…</p>
+          <p className="text-sm text-muted-foreground">{t("game.player.loadingQuestion")}</p>
         : state?.participante?.jaRespondeu ?
-          <p className="text-sm text-muted-foreground">Resposta enviada! Aguardando próxima rodada.</p>
+          <p className="text-sm text-muted-foreground">{t("game.player.answerSentWait")}</p>
         : (
           <div className="space-y-3">
             <p className="font-medium">{state.sessao.questaoAtual.enunciado}</p>
@@ -288,7 +306,7 @@ export function JogoPlayerPage({ pin }: { pin: string }) {
       </div>
 
       <div className="rounded-2xl border border-border/60 bg-card/60 p-5">
-        <p className="text-sm font-semibold">Placar</p>
+        <p className="text-sm font-semibold">{t("game.player.leaderboard")}</p>
         <div className="mt-2 space-y-2">
           {(state?.sessao.ranking ?? []).slice(0, 10).map((r) => (
             <div
@@ -299,7 +317,9 @@ export function JogoPlayerPage({ pin }: { pin: string }) {
               <span className="flex-1 truncate">
                 {r.posicao}. {r.nome}
               </span>
-              <span className="tabular-nums text-muted-foreground">{r.score} pts</span>
+              <span className="tabular-nums text-muted-foreground">
+                {t("game.player.points", { score: String(r.score) })}
+              </span>
             </div>
           ))}
         </div>

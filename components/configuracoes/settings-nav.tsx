@@ -4,29 +4,41 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 type CurrentUserRole =
   | "SUPER_ADMIN"
   | "ADMIN"
   | "FINANCEIRO"
   | "SECRETARIA"
+  | "SECRETARIA_FINANCEIRA"
   | "PROFESSOR";
 
 const baseItems = [
-  { href: "/configuracoes/conta", label: "Conta" },
-  { href: "/configuracoes/dashboard", label: "Dashboard" },
-  { href: "/configuracoes/escola", label: "Escola" },
-  { href: "/configuracoes/notificacoes", label: "Notificações" },
+  { href: "/configuracoes/conta", labelKey: "settings.nav.account" },
+  { href: "/configuracoes/dashboard", labelKey: "settings.nav.dashboardPrefs" },
+  { href: "/configuracoes/escola", labelKey: "settings.nav.school" },
+  { href: "/configuracoes/notificacoes", labelKey: "settings.nav.notifications" },
+];
+
+const financeiroItems = [
+  { href: "/configuracoes/conta", labelKey: "settings.nav.account" },
+  { href: "/configuracoes/aparencia", labelKey: "settings.nav.appearance" },
+  { href: "/configuracoes/notificacoes", labelKey: "settings.nav.notifications" },
 ];
 
 const superAdminItems = [
-  { href: "/configuracoes/financeiro", label: "Financeiro" },
-  { href: "/configuracoes/usuarios", label: "Usuários" },
+  { href: "/configuracoes/financeiro", labelKey: "settings.nav.financial" },
+  { href: "/configuracoes/usuarios", labelKey: "settings.nav.users" },
 ];
 
-const adminItems = [{ href: "/configuracoes/ia", label: "IA e integrações" }];
+const adminItems = [
+  { href: "/configuracoes/ia", labelKey: "settings.nav.aiIntegrations" },
+  { href: "/configuracoes/usuarios/convites", labelKey: "settings.nav.teamInvites" },
+];
 
 export function SettingsNav() {
+  const { t } = useDashboardLanguage();
   const pathname = usePathname();
   const [role, setRole] = useState<CurrentUserRole | null>(null);
 
@@ -52,7 +64,9 @@ export function SettingsNav() {
       ? [...baseItems, ...superAdminItems]
       : role === "ADMIN"
         ? [...baseItems, ...adminItems]
-        : baseItems;
+        : role === "FINANCEIRO"
+          ? financeiroItems
+          : baseItems;
 
   return (
     <div className="flex flex-col gap-2">
@@ -61,7 +75,9 @@ export function SettingsNav() {
           pathname === item.href ||
           (item.href === "/configuracoes/usuarios" &&
             pathname.startsWith("/configuracoes/usuarios")) ||
-          (item.href === "/configuracoes/ia" && pathname.startsWith("/configuracoes/ia"));
+          (item.href === "/configuracoes/ia" && pathname.startsWith("/configuracoes/ia")) ||
+          (item.href === "/configuracoes/usuarios/convites" &&
+            pathname.startsWith("/configuracoes/usuarios/convites"));
 
         return (
           <Link
@@ -74,7 +90,7 @@ export function SettingsNav() {
                 : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             )}
           >
-            {item.label}
+            {t(item.labelKey)}
           </Link>
         );
       })}

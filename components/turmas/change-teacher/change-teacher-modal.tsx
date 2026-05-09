@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { GraduationCap, UserCircle } from "lucide-react";
 import {
   Dialog,
@@ -33,6 +32,9 @@ export function ChangeTeacherModal({
 }: ChangeTeacherModalProps) {
   const {
     teachers,
+    disciplinasTurma,
+    disciplinaFilterId,
+    setDisciplinaFilterId,
     teacherId,
     setTeacherId,
     motivoTroca,
@@ -44,19 +46,14 @@ export function ChangeTeacherModal({
     loadingTeachers,
     saving,
     error,
-    handleOpenChange,
     handleSubmit,
   } = useChangeTeacher({
     turmaId,
     currentTeacherId,
+    modalOpen: open,
     onSuccess,
     onClose: () => onOpenChange(false),
   });
-
-  useEffect(() => {
-    if (!open) return;
-    handleOpenChange(true);
-  }, [open, handleOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -96,6 +93,9 @@ export function ChangeTeacherModal({
         </div>
 
         <ChangeTeacherForm
+          disciplinasTurma={disciplinasTurma}
+          disciplinaFilterId={disciplinaFilterId}
+          setDisciplinaFilterId={setDisciplinaFilterId}
           teachers={teachers}
           teacherId={teacherId}
           setTeacherId={setTeacherId}

@@ -4,8 +4,8 @@ import { UsersSettingsSection } from "@/components/configuracoes/sections/users-
 export default function ConfiguracoesUsuariosPage() {
   return (
     <SettingsShell
-      title="Usuários"
-      description="Gerencie usuários e permissões do sistema."
+      titleKey="settings.shell.usersTitle"
+      descriptionKey="settings.shell.usersDesc"
     >
       <UsersSettingsSection />
     </SettingsShell>

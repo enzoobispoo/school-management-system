@@ -10,12 +10,15 @@ import {
   type DashboardMetricKey,
   type OptionalMetricKey,
 } from "./dashboard-metric-card-config";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 interface DashboardMetricsGridProps {
   metrics: DashboardMetricsView;
   optionalCards: Record<OptionalMetricKey, boolean>;
   cardsOrder: DashboardMetricKey[];
   loading: boolean;
+  /** Oculta cartões (ex.: secretaria sem métricas financeiras agregadas). */
+  excludeMetricKeys?: readonly DashboardMetricKey[];
 }
 
 function getMetricValue(
@@ -50,10 +53,14 @@ function getMetricValue(
   }
 }
 
-function getVariationText(value: number) {
-  if (value > 0) return `↑ +${value}% vs mês passado`;
-  if (value < 0) return `↓ ${value}% vs mês passado`;
-  return "Sem variação vs mês passado";
+function getVariationText(
+  value: number,
+  t: (key: string, vars?: Record<string, string | number>) => string
+) {
+  if (value > 0) return t("metric.variation.up", { pct: value });
+  if (value < 0)
+    return t("metric.variation.down", { pct: Math.abs(value) });
+  return t("metric.variation.none");
 }
 
 function getVariationType(
@@ -64,87 +71,12 @@ function getVariationType(
   return "neutral";
 }
 
-function renderMetricCard(
-  key: DashboardMetricKey,
-  metrics: DashboardMetricsView
-) {
-  const config = METRIC_CARD_CONFIG[key];
+function metricTitleKey(key: DashboardMetricKey): string {
+  return `metric.${key}.title`;
+}
 
-  if (key === "pagamentosAtrasados") {
-    return (
-      <MetricCard
-        key={key}
-        title={config.title}
-        value={metrics.pagamentosAtrasados}
-        change={`${metrics.quantidadePagamentosAtrasados} atrasado(s)`}
-        changeType={config.changeType}
-        secondaryInfo={`${metrics.quantidadePagamentosPendentes} pendente(s)`}
-        icon={config.icon}
-        iconColor={METRIC_CARD_ICON_COLOR}
-        href={config.href}
-      />
-    );
-  }
-
-  if (key === "receitaMensal") {
-    return (
-      <MetricCard
-        key={key}
-        title={config.title}
-        value={metrics.receitaMensal}
-        change={getVariationText(metrics.receitaMensalVariacao)}
-        changeType={getVariationType(metrics.receitaMensalVariacao)}
-        icon={config.icon}
-        iconColor={METRIC_CARD_ICON_COLOR}
-        href={config.href}
-      />
-    );
-  }
-
-  if (key === "novosAlunosNoMes") {
-    return (
-      <MetricCard
-        key={key}
-        title={config.title}
-        value={metrics.novosAlunosNoMes}
-        change={getVariationText(metrics.novosAlunosVariacao)}
-        changeType={getVariationType(metrics.novosAlunosVariacao)}
-        icon={config.icon}
-        iconColor={METRIC_CARD_ICON_COLOR}
-        href={config.href}
-      />
-    );
-  }
-
-  if (key === "trocasProfessorNoMes") {
-    return (
-      <MetricCard
-        key={key}
-        title={config.title}
-        value={metrics.trocasProfessorNoMes}
-        change={getVariationText(metrics.trocasProfessorVariacao)}
-        changeType={getVariationType(metrics.trocasProfessorVariacao)}
-        icon={config.icon}
-        iconColor={METRIC_CARD_ICON_COLOR}
-        href={config.href}
-      />
-    );
-  }
-
-  const value = getMetricValue(key, metrics);
-
-  return (
-    <MetricCard
-      key={key}
-      title={config.title}
-      value={value}
-      change={config.change}
-      changeType={config.changeType}
-      icon={config.icon}
-      iconColor={METRIC_CARD_ICON_COLOR}
-      href={config.href}
-    />
-  );
+function metricChangeKey(key: DashboardMetricKey): string {
+  return `metric.${key}.change`;
 }
 
 export function DashboardMetricsGrid({
@@ -152,9 +84,107 @@ export function DashboardMetricsGrid({
   optionalCards,
   cardsOrder,
   loading,
+  excludeMetricKeys,
 }: DashboardMetricsGridProps) {
+  const { t } = useDashboardLanguage();
+
+  function renderMetricCard(key: DashboardMetricKey) {
+    const config = METRIC_CARD_CONFIG[key];
+    const title = t(metricTitleKey(key));
+
+    if (key === "pagamentosAtrasados") {
+      return (
+        <MetricCard
+          key={key}
+          title={title}
+          value={metrics.pagamentosAtrasados}
+          change={t("metric.pagamentosAtrasados.overdueLine", {
+            n: metrics.quantidadePagamentosAtrasados,
+          })}
+          changeType={config.changeType}
+          secondaryInfo={t("metric.pagamentosAtrasados.pendingLine", {
+            n: metrics.quantidadePagamentosPendentes,
+          })}
+          icon={config.icon}
+          iconColor={METRIC_CARD_ICON_COLOR}
+          href={config.href}
+        />
+      );
+    }
+
+    if (key === "receitaMensal") {
+      return (
+        <MetricCard
+          key={key}
+          title={title}
+          value={metrics.receitaMensal}
+          change={getVariationText(metrics.receitaMensalVariacao, t)}
+          changeType={getVariationType(metrics.receitaMensalVariacao)}
+          icon={config.icon}
+          iconColor={METRIC_CARD_ICON_COLOR}
+          href={config.href}
+        />
+      );
+    }
+
+    if (key === "novosAlunosNoMes") {
+      return (
+        <MetricCard
+          key={key}
+          title={title}
+          value={metrics.novosAlunosNoMes}
+          change={getVariationText(metrics.novosAlunosVariacao, t)}
+          changeType={getVariationType(metrics.novosAlunosVariacao)}
+          icon={config.icon}
+          iconColor={METRIC_CARD_ICON_COLOR}
+          href={config.href}
+        />
+      );
+    }
+
+    if (key === "trocasProfessorNoMes") {
+      return (
+        <MetricCard
+          key={key}
+          title={title}
+          value={metrics.trocasProfessorNoMes}
+          change={getVariationText(metrics.trocasProfessorVariacao, t)}
+          changeType={getVariationType(metrics.trocasProfessorVariacao)}
+          icon={config.icon}
+          iconColor={METRIC_CARD_ICON_COLOR}
+          href={config.href}
+        />
+      );
+    }
+
+    const value = getMetricValue(key, metrics);
+    const change =
+      "change" in config && config.change ?
+        t(metricChangeKey(key))
+      : undefined;
+
+    return (
+      <MetricCard
+        key={key}
+        title={title}
+        value={value}
+        change={change}
+        changeType={config.changeType}
+        icon={config.icon}
+        iconColor={METRIC_CARD_ICON_COLOR}
+        href={config.href}
+      />
+    );
+  }
+
+  const exclude = excludeMetricKeys ?
+      new Set<DashboardMetricKey>(excludeMetricKeys)
+    : null;
+
   const visibleKeys = cardsOrder.filter((key) => {
-    if (FIXED_METRIC_CARDS.includes(key as any)) return true;
+    if (exclude?.has(key)) return false;
+    if ((FIXED_METRIC_CARDS as readonly DashboardMetricKey[]).includes(key))
+      return true;
     return optionalCards[key as OptionalMetricKey];
   });
 
@@ -173,7 +203,7 @@ export function DashboardMetricsGrid({
         ? Array.from({ length: totalVisibleCards }).map((_, index) => (
             <DashboardMetricCardSkeleton key={`metric-skeleton-${index}`} />
           ))
-        : visibleKeys.map((key) => renderMetricCard(key, metrics))}
+        : visibleKeys.map((key) => renderMetricCard(key))}
     </div>
   );
 }

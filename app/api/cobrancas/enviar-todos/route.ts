@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { buildPaymentReminderMessage } from "@/lib/templates/payment-reminder";
-import { getCurrentUser, requireSchool } from "@/lib/auth";
+import {
+  assertBillingNotify,
+  getCurrentUser,
+  requireSchool,
+} from "@/lib/auth";
+import { logSchoolAudit } from "@/lib/audit/school-audit-log";
 import {
   CanalCobranca,
   StatusEnvioCobranca,
@@ -31,6 +36,9 @@ export async function POST(request: NextRequest) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const denied = assertBillingNotify(user);
+    if (denied) return denied;
 
     const body = await request.json();
     const { paymentIds } = body as { paymentIds?: string[] };
@@ -163,6 +171,21 @@ export async function POST(request: NextRequest) {
         skipped.push(`${aluno.nome} (falha no envio)`);
       }
     }
+
+    void logSchoolAudit({
+      schoolId,
+      userId: user.id,
+      role: user.role,
+      domain: "finance",
+      action: "PAYMENT_REMINDER_BATCH",
+      resourceId: null,
+      summary: `Lembretes em lote: ${sentCount} enviados (${paymentIds.length} selecionados).`,
+      payload: {
+        sentCount,
+        sentWithBoletoCount,
+        selected: paymentIds.length,
+      },
+    });
 
     return NextResponse.json({
       success: true,

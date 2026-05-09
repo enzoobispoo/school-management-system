@@ -29,7 +29,7 @@ function parseJsonSafe(text: string): Record<string, unknown> | null {
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
-  const pctx = requireProfessorContext(user);
+  const pctx = await requireProfessorContext(user);
   if (pctx instanceof NextResponse) return pctx;
   const schoolAi = await resolveSchoolAiForUser(user);
   const settings = user.schoolId
@@ -56,7 +56,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
-  const pctx = requireProfessorContext(user);
+  const pctx = await requireProfessorContext(user);
   if (pctx instanceof NextResponse) return pctx;
   const { schoolId } = pctx;
 

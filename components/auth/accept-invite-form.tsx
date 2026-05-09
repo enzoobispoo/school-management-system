@@ -12,7 +12,12 @@ interface AcceptInviteFormProps {
 interface InviteResponse {
   invite?: {
     email: string;
-    role: "ADMIN" | "FINANCEIRO" | "SECRETARIA" | "PROFESSOR";
+    role:
+      | "ADMIN"
+      | "FINANCEIRO"
+      | "SECRETARIA"
+      | "SECRETARIA_FINANCEIRA"
+      | "PROFESSOR";
     schoolName: string;
     expiresAt: string;
     planNome: string | null;
@@ -28,7 +33,9 @@ function formatRole(role?: string) {
     case "FINANCEIRO":
       return "Financeiro";
     case "SECRETARIA":
-      return "Secretaria";
+      return "Secretaria (acadêmica)";
+    case "SECRETARIA_FINANCEIRA":
+      return "Secretaria (com financeiro no painel)";
     case "PROFESSOR":
       return "Professor";
     default:

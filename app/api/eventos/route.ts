@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { Prisma, TipoEvento } from "@prisma/client"
 import { z } from "zod"
 import { getCurrentUser, requireSchool } from "@/lib/auth"
+import { blockProfessorWhenPortalDisabled } from "@/lib/docente/professor-portal-policy"
 
 const createEventoSchema = z.object({
   titulo: z.string().min(2, "Título é obrigatório"),
@@ -26,6 +27,9 @@ export async function POST(request: NextRequest) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const portalDenied = await blockProfessorWhenPortalDisabled(user);
+    if (portalDenied) return portalDenied;
 
     const body = await request.json()
     const parsed = createEventoSchema.safeParse(body)

@@ -370,3 +370,26 @@ export const aiToolDefinitions = [
       },
     },
   ] as const;
+
+/** Ferramentas liberadas para o perfil FINANCEIRO na EduIA (sem cadastros nem operação acadêmica). */
+export const FINANCEIRO_ALLOWED_AI_TOOLS = new Set<string>([
+  "query_payments",
+  "query_dashboard",
+  "register_payment",
+  "generate_monthly_payments",
+  "query_notifications",
+  "mark_notification_read",
+]);
+
+export function aiToolDefinitionsForRole(
+  role: string | null | undefined
+): unknown[] {
+  if (role !== "FINANCEIRO") {
+    return [...aiToolDefinitions];
+  }
+  return aiToolDefinitions.filter(
+    (def) =>
+      def.type === "function" &&
+      FINANCEIRO_ALLOWED_AI_TOOLS.has(def.name as string)
+  );
+}

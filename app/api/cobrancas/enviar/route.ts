@@ -8,7 +8,12 @@ import {
   TipoEnvioCobranca,
 } from "@prisma/client";
 import { createCobrancaEnvioLog } from "@/lib/services/cobranca-envio-log";
-import { getCurrentUser, requireSchool } from "@/lib/auth";
+import {
+  assertBillingNotify,
+  getCurrentUser,
+  requireSchool,
+} from "@/lib/auth";
+import { logSchoolAudit } from "@/lib/audit/school-audit-log";
 
 function formatCompetence(month: number, year: number) {
   return `${String(month).padStart(2, "0")}/${year}`;
@@ -36,6 +41,13 @@ export async function POST(request: NextRequest) {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
 
+    const _school = requireSchool(user);
+    if (_school instanceof NextResponse) return _school;
+    const { schoolId } = _school;
+
+    const denied = assertBillingNotify(user);
+    if (denied) return denied;
+
     const { paymentId } = await request.json();
 
     if (!paymentId) {
@@ -45,8 +57,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const pagamento = await prisma.pagamento.findUnique({
-      where: { id: paymentId },
+    const pagamento = await prisma.pagamento.findFirst({
+      where: { id: paymentId, schoolId },
       include: {
         matricula: {
           include: {
@@ -126,6 +138,17 @@ export async function POST(request: NextRequest) {
         provedor: "twilio",
         externalId: result?.sid ?? null,
         mensagem: message,
+      });
+
+      void logSchoolAudit({
+        schoolId,
+        userId: user.id,
+        role: user.role,
+        domain: "finance",
+        action: "PAYMENT_REMINDER_SEND",
+        resourceId: pagamento.id,
+        summary: `Lembrete de cobrança enviado (WhatsApp): ${pagamento.matricula.aluno.nome}`,
+        payload: { canal: "WHATSAPP" },
       });
 
       return NextResponse.json({

@@ -3,6 +3,7 @@ import { createInviteToken } from "@/lib/auth/invite-token";
 import { getCurrentUserFromRequest } from "@/lib/auth/current-user";
 import { prisma } from "@/lib/prisma";
 import { sendInviteEmail } from "@/lib/email/send-invite-email";
+import { API_FORBIDDEN_PROFILE } from "@/lib/http/api-forbidden";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,20 +11,22 @@ export const dynamic = "force-dynamic";
 function formatRoleLabel(role: string) {
   const map: Record<string, string> = {
     ADMIN: "Administrador", FINANCEIRO: "Financeiro",
-    SECRETARIA: "Secretaria", PROFESSOR: "Professor",
+    SECRETARIA: "Secretaria (acadêmica)",
+    SECRETARIA_FINANCEIRA: "Secretaria (com financeiro no painel)",
+    PROFESSOR: "Professor",
   };
   return map[role] ?? "Usuário";
 }
 
 function canManageInvites(role: string) {
-  return role === "SUPER_ADMIN";
+  return role === "SUPER_ADMIN" || role === "ADMIN";
 }
 
 export async function POST(request: NextRequest) {
   try {
     const currentUser = await getCurrentUserFromRequest(request);
     if (!currentUser || !canManageInvites(currentUser.role)) {
-      return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+      return NextResponse.json({ error: API_FORBIDDEN_PROFILE }, { status: 403 });
     }
 
     const body = await request.json();
@@ -53,6 +56,15 @@ export async function POST(request: NextRequest) {
         },
         { status: 404 }
       );
+    }
+
+    if (currentUser.role === "ADMIN") {
+      if (
+        !currentUser.schoolId ||
+        conviteAnterior.schoolId !== currentUser.schoolId
+      ) {
+        return NextResponse.json({ error: API_FORBIDDEN_PROFILE }, { status: 403 });
+      }
     }
 
     const { token, tokenHash } = createInviteToken();

@@ -79,7 +79,8 @@ function applyTheme(theme: "light" | "dark") {
 const ROLE_LABEL: Record<string, string> = {
   ADMIN: "Administrador",
   FINANCEIRO: "Financeiro",
-  SECRETARIA: "Secretaria",
+  SECRETARIA: "Secretaria (acadêmica)",
+  SECRETARIA_FINANCEIRA: "Secretaria (com financeiro no painel)",
   PROFESSOR: "Professor",
 };
 
@@ -568,7 +569,15 @@ function AdminConfiguracoesPageInner() {
                             onChange={(e) => patchUser(u.id, { role: e.target.value })}
                             className="h-7 rounded-md border border-border bg-background px-1.5 text-[12px]"
                           >
-                            {(["ADMIN", "FINANCEIRO", "SECRETARIA", "PROFESSOR"] as const).map((role) => (
+                            {(
+                              [
+                                "ADMIN",
+                                "FINANCEIRO",
+                                "SECRETARIA",
+                                "SECRETARIA_FINANCEIRA",
+                                "PROFESSOR",
+                              ] as const
+                            ).map((role) => (
                               <option key={role} value={role}>
                                 {ROLE_LABEL[role] ?? role}
                               </option>

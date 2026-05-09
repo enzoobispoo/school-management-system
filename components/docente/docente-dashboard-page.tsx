@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
   ArrowRight,
+  ChevronRight,
   Bell,
   BookOpenText,
   CheckCircle2,
@@ -35,6 +36,7 @@ import { DashboardMainLayout } from "@/components/dashboard/dashboard-main-layou
 import { DocenteDashboardCalendar } from "@/components/docente/docente-dashboard-calendar";
 import { DocenteQuickPanel } from "@/components/docente/docente-quick-panel";
 import { DocenteEduiaSidePanel } from "@/components/docente/docente-eduia-side-panel";
+import { DocenteOnboardingDialog } from "@/components/docente/docente-onboarding-dialog";
 import { DocenteGreeting } from "@/components/docente/docente-greeting";
 import type { OverviewTurmaLike } from "@/components/docente/docente-dashboard-types";
 import {
@@ -46,6 +48,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 type OverviewResponse = {
   needsLink: boolean;
@@ -65,22 +68,27 @@ function MetricPill(props: {
   value: string;
   loading: boolean;
   tone?: string;
+  pillVariant?: "default" | "studio";
 }) {
-  const { label, value, loading, tone } = props;
+  const { label, value, loading, tone, pillVariant = "default" } = props;
   return (
     <div
       className={cn(
-        "rounded-xl border px-4 py-2.5 backdrop-blur-sm",
-        tone ?? "border-border/50 bg-muted/25 dark:border-border/60 dark:bg-muted/30"
+        "border backdrop-blur-sm",
+        pillVariant === "studio"
+          ? "rounded-2xl px-4 py-3 shadow-[0_14px_36px_-22px_rgba(15,23,42,0.09)] dark:shadow-none"
+          : "rounded-xl px-4 py-2.5",
+        tone ??
+          "border-indigo-200/55 bg-gradient-to-br from-white to-indigo-50/40 shadow-sm dark:border-indigo-400/18 dark:bg-gradient-to-br dark:from-zinc-900/85 dark:to-indigo-950/40 dark:shadow-none"
       )}
     >
-      <p className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+      <p className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground dark:text-zinc-400">
         {label}
       </p>
       {loading ? (
-        <div className="mt-1 h-7 w-12 animate-pulse rounded bg-muted" />
+        <div className="mt-1 h-7 w-12 animate-pulse rounded bg-muted dark:bg-white/10" />
       ) : (
-        <p className="mt-0.5 font-mono text-xl font-semibold tabular-nums text-foreground">
+        <p className="mt-0.5 font-mono text-xl font-semibold tabular-nums text-foreground dark:text-white">
           {value}
         </p>
       )}
@@ -97,54 +105,61 @@ type TileSpec = {
   badge?: string;
 };
 
-const WORKSPACE_TILES: TileSpec[] = [
+type WorkspaceTileDef = {
+  id: string;
+  titleKey: string;
+  descriptionKey: string;
+  href: string;
+  icon: LucideIcon;
+};
+
+const WORKSPACE_TILE_DEFS: WorkspaceTileDef[] = [
   {
     id: "eduia",
-    title: "EduIA",
-    description:
-      "Copiloto do workspace: turmas titulares, avisos e planejamento de avaliações.",
+    titleKey: "docente.tile.eduia.title",
+    descriptionKey: "docente.tile.eduia.desc",
     href: "/docente/eduia",
     icon: PanelRight,
   },
   {
     id: "materiais",
-    title: "Materiais",
-    description: "Ambientes para slides, provas impressas e atividades em arquivo.",
+    titleKey: "docente.tile.materials.title",
+    descriptionKey: "docente.tile.materials.desc",
     href: "/docente/materiais",
     icon: FileStack,
   },
   {
     id: "avaliacao",
-    title: "Nova avaliação",
-    description: "Crie prova ou atividade avaliada na turma para lançar notas.",
+    titleKey: "docente.tile.newAssessment.title",
+    descriptionKey: "docente.tile.newAssessment.desc",
     href: "/docente/avaliacoes/nova",
     icon: PenLine,
   },
   {
     id: "mensagens",
-    title: "Mensagens",
-    description: "Converse com professores e gestores; envie texto e anexos.",
+    titleKey: "docente.tile.messages.title",
+    descriptionKey: "docente.tile.messages.desc",
     href: "/mensagens",
     icon: MessageSquare,
   },
   {
     id: "turmas",
-    title: "Turmas",
-    description: "Chamadas, diário, boletins e registros por turma.",
+    titleKey: "docente.tile.classes.title",
+    descriptionKey: "docente.tile.classes.desc",
     href: "/docente#turmas-docente",
     icon: ClipboardList,
   },
   {
     id: "agenda",
-    title: "Agenda",
-    description: "Calendário da escola e compromissos.",
+    titleKey: "docente.tile.agenda.title",
+    descriptionKey: "docente.tile.agenda.desc",
     href: "/calendario/eventos",
     icon: CalendarDays,
   },
   {
     id: "avisos",
-    title: "Avisos",
-    description: "Caixa de notificações (sem financeiro no seu perfil).",
+    titleKey: "docente.tile.notices.title",
+    descriptionKey: "docente.tile.notices.desc",
     href: "/notificacoes",
     icon: Bell,
   },
@@ -169,6 +184,30 @@ const COLOR_CARD_TONES = [
   "border-sky-200/42 bg-sky-50/74 dark:border-sky-400/15 dark:bg-sky-500/[0.055]",
   "border-teal-200/38 bg-teal-50/68 dark:border-teal-400/13 dark:bg-teal-500/[0.05]",
 ];
+
+const ELEGANT_SURFACE =
+  "border-slate-200/78 bg-gradient-to-br from-white via-indigo-50/35 to-violet-50/45 shadow-[0_10px_38px_-22px_rgba(79,70,229,0.14)] dark:border-indigo-400/18 dark:bg-gradient-to-br dark:from-zinc-900/92 dark:via-indigo-950/55 dark:to-violet-950/35 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]";
+
+/** Claro: pastéis. Escuro: cartões tipo vidro com borda colorida (referência painel). */
+const ELEGANT_METRIC_TONES = [
+  "border-lime-200/75 bg-gradient-to-br from-lime-50/95 to-lime-100/55 dark:border-emerald-400/55 dark:bg-zinc-950/65 dark:bg-none dark:text-white dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] dark:backdrop-blur-md",
+  "border-violet-200/72 bg-gradient-to-br from-violet-50/95 to-violet-100/50 dark:border-violet-400/55 dark:bg-zinc-950/65 dark:bg-none dark:text-white dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] dark:backdrop-blur-md",
+  "border-orange-200/70 bg-gradient-to-br from-orange-50/95 to-amber-100/48 dark:border-orange-400/50 dark:bg-zinc-950/65 dark:bg-none dark:text-white dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] dark:backdrop-blur-md",
+];
+
+function studioPastelIconShell(index: number) {
+  const shells = [
+    "border-lime-200/65 bg-lime-100 text-lime-800 shadow-[0_6px_18px_-10px_rgba(132,204,22,0.35)] dark:border-lime-400/22 dark:bg-lime-500/14 dark:text-lime-100 dark:shadow-none",
+    "border-violet-200/65 bg-violet-100 text-violet-800 shadow-[0_6px_18px_-10px_rgba(139,92,246,0.28)] dark:border-violet-400/22 dark:bg-violet-500/14 dark:text-violet-100 dark:shadow-none",
+    "border-orange-200/65 bg-orange-100 text-orange-800 shadow-[0_6px_18px_-10px_rgba(249,115,22,0.28)] dark:border-orange-400/22 dark:bg-orange-500/14 dark:text-orange-100 dark:shadow-none",
+    "border-pink-200/65 bg-pink-100 text-pink-800 shadow-[0_6px_18px_-10px_rgba(236,72,153,0.25)] dark:border-pink-400/22 dark:bg-pink-500/14 dark:text-pink-100 dark:shadow-none",
+    "border-sky-200/65 bg-sky-100 text-sky-800 shadow-[0_6px_18px_-10px_rgba(14,165,233,0.25)] dark:border-sky-400/22 dark:bg-sky-500/14 dark:text-sky-100 dark:shadow-none",
+  ];
+  return cn(
+    "flex size-12 shrink-0 items-center justify-center rounded-2xl border",
+    shells[index % shells.length]
+  );
+}
 
 type DashboardInsights = {
   configAplicada: DashboardConfig;
@@ -294,6 +333,7 @@ function WorkspaceTileLink({
 }
 
 export function DocenteDashboardPage() {
+  const { t } = useDashboardLanguage();
   const searchParams = useSearchParams();
   const initialAiPrompt = searchParams.get("ai")?.trim() ?? "";
 
@@ -306,6 +346,7 @@ export function DocenteDashboardPage() {
   const [linkWorking, setLinkWorking] = useState(false);
   const [editingShortcuts, setEditingShortcuts] = useState(false);
   const [editingThresholds, setEditingThresholds] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [turmaView, setTurmaView] = useState<"all" | "today" | "attention">("all");
   const [visualTheme, setVisualTheme] = useState<"elegante" | "colorido" | "aurora" | "sunset">(
     "elegante"
@@ -333,16 +374,28 @@ export function DocenteDashboardPage() {
       }
       setData(json as OverviewResponse);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erro ao carregar.");
+      setError(e instanceof Error ? e.message : t("docente.loadError.generic"));
       setData(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (loading) return;
+    if (window.localStorage.getItem("docente.onboarding.v1.done") === "1") return;
+    if (
+      window.sessionStorage.getItem("docente.onboarding.dismiss.session") === "1"
+    ) {
+      return;
+    }
+    setOnboardingOpen(true);
+  }, [loading]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -353,7 +406,7 @@ export function DocenteDashboardPage() {
       if (!Array.isArray(parsed)) return;
       const valid = parsed
         .map((id) => String(id))
-        .filter((id) => WORKSPACE_TILES.some((tile) => tile.id === id))
+        .filter((id) => WORKSPACE_TILE_DEFS.some((tile) => tile.id === id))
         .slice(0, 4);
       if (valid.length > 0) setShortcutIds(valid);
     } catch {
@@ -411,17 +464,17 @@ export function DocenteDashboardPage() {
       const res = await fetch("/api/docente/link-professor", { method: "POST" });
       const j = await res.json();
       if (res.ok && j.ok) {
-        toast.success("Conta vinculada ao seu cadastro de professor.");
+        toast.success(t("docente.toast.linkSuccess"));
         await load();
         return;
       }
       toast.error(
         typeof j.message === "string"
           ? j.message
-          : "Ainda não foi possível vincular. Confira o checklist abaixo."
+          : t("docente.toast.linkFailGeneric")
       );
     } catch {
-      toast.error("Erro de rede. Tente novamente.");
+      toast.error(t("docente.toast.networkError"));
     } finally {
       setLinkWorking(false);
     }
@@ -515,30 +568,42 @@ export function DocenteDashboardPage() {
   const proximaAula = insights?.proximaAula ?? null;
   const agendaDidatica = insights?.agendaDidatica ?? null;
 
-  const trocaLabel =
-    (data?.trocasPendentes ?? 0) > 0 ? String(data?.trocasPendentes) : undefined;
+  const baseWorkspaceTiles = useMemo<TileSpec[]>(
+    () =>
+      WORKSPACE_TILE_DEFS.map((def) => ({
+        id: def.id,
+        title: t(def.titleKey),
+        description: t(def.descriptionKey),
+        href: def.href,
+        icon: def.icon,
+      })),
+    [t]
+  );
 
-  const tilesWithTrocas: TileSpec[] =
-    (data?.trocasPendentes ?? 0) > 0 ?
-      [
-        ...WORKSPACE_TILES,
-        {
-          id: "trocas",
-          title: "Trocas de turma",
-          description: "Convites da escola para assumir titularidade — confirme aqui.",
-          href: "/docente/trocas",
-          icon: Shuffle,
-          badge: trocaLabel,
-        },
-      ]
-    : WORKSPACE_TILES;
+  const tilesWithTrocas = useMemo<TileSpec[]>(() => {
+    const trocaLabel =
+      (data?.trocasPendentes ?? 0) > 0 ? String(data?.trocasPendentes) : undefined;
+    return (data?.trocasPendentes ?? 0) > 0 ?
+        [
+          ...baseWorkspaceTiles,
+          {
+            id: "trocas",
+            title: t("docente.tile.swaps.title"),
+            description: t("docente.tile.swaps.desc"),
+            href: "/docente/trocas",
+            icon: Shuffle,
+            badge: trocaLabel,
+          },
+        ]
+      : baseWorkspaceTiles;
+  }, [baseWorkspaceTiles, data?.trocasPendentes, t]);
 
   const shortcutTiles = shortcutIds
-    .map((id) => tilesWithTrocas.find((t) => t.id === id))
+    .map((id) => tilesWithTrocas.find((tileRow) => tileRow.id === id))
     .filter((tile): tile is TileSpec => Boolean(tile));
 
   const resumoTurmaById = new Map(
-    (insights?.resumoTurmas ?? []).map((t) => [t.turmaId, t] as const)
+    (insights?.resumoTurmas ?? []).map((row) => [row.turmaId, row] as const)
   );
   const turmasComAlerta = new Set(
     (insights?.alertasPedagogicos ?? []).map((alerta) => alerta.turmaNome)
@@ -570,10 +635,13 @@ export function DocenteDashboardPage() {
       ? "bg-[linear-gradient(125deg,rgba(34,211,238,0.065),rgba(99,102,241,0.085))]"
       : visualTheme === "sunset"
       ? "bg-[linear-gradient(125deg,rgba(251,191,36,0.065),rgba(251,207,232,0.09))]"
-      : "bg-card/55";
+      : "bg-white ring-1 ring-stone-200/75 dark:bg-[linear-gradient(103deg,#09090b_0%,#18181b_46%,rgba(55,48,163,0.62)_80%,rgba(91,33,182,0.5)_100%)] dark:ring-1 dark:ring-white/[0.11] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]";
   const isColorfulTheme = visualTheme !== "elegante";
+  const isStudioShell = visualTheme === "elegante";
   const tone = (index: number) =>
-    isColorfulTheme ? COLOR_CARD_TONES[index % COLOR_CARD_TONES.length] : "border-border/60 bg-card/55";
+    isColorfulTheme
+      ? COLOR_CARD_TONES[index % COLOR_CARD_TONES.length]
+      : ELEGANT_SURFACE;
 
   function toggleShortcut(tileId: string) {
     setShortcutIds((current) => {
@@ -607,25 +675,7 @@ export function DocenteDashboardPage() {
       "docente.dashboard.profileConfig",
       JSON.stringify(configDraft)
     );
-    toast.success("Critérios do seu perfil salvos.");
-  }
-
-  async function saveSchoolConfig() {
-    try {
-      const res = await fetch("/api/settings/docente-dashboard", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(configDraft),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.error || "Falha ao salvar configuração da escola.");
-      }
-      setSchoolConfig(json.schoolConfig as DashboardConfig);
-      toast.success("Padrão da escola atualizado para perfil professor.");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Sem permissão para salvar na escola.");
-    }
+    toast.success(t("docente.toast.profileSaved"));
   }
 
   function resetFromSchoolConfig() {
@@ -634,10 +684,28 @@ export function DocenteDashboardPage() {
 
   return (
     <DashboardLayout>
-      <Header
-        title="Painel docente"
-        description="Gestão premium de turmas, avaliações, materiais e rotina pedagógica."
+      <DocenteOnboardingDialog
+        open={onboardingOpen}
+        onOpenChange={(next) => {
+          setOnboardingOpen(next);
+          if (
+            !next &&
+            typeof window !== "undefined" &&
+            window.localStorage.getItem("docente.onboarding.v1.done") !== "1"
+          ) {
+            try {
+              window.sessionStorage.setItem(
+                "docente.onboarding.dismiss.session",
+                "1"
+              );
+            } catch {
+              /* noop */
+            }
+          }
+        }}
+        needsLink={data?.needsLink ?? false}
       />
+      <Header titleKey="docente.page.title" descriptionKey="docente.page.description" />
 
       <DashboardMainLayout
         rightPanel={
@@ -650,17 +718,38 @@ export function DocenteDashboardPage() {
           />
         }
       >
+        <div
+          className={cn(
+            isStudioShell &&
+              "-mx-6 bg-[#F9F9F8] px-6 pb-14 pt-2 dark:mx-0 dark:bg-transparent dark:px-0 dark:pb-0 dark:pt-0"
+          )}
+        >
         <div className="relative space-y-10 pb-16 pt-2">
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 -top-6 h-72 rounded-[28px] bg-[radial-gradient(ellipse_72%_52%_at_50%_-8%,hsl(var(--primary)/0.12),transparent)] dark:bg-[radial-gradient(ellipse_72%_52%_at_50%_-8%,hsl(var(--primary)/0.2),transparent)]"
+            className={cn(
+              "pointer-events-none absolute inset-x-0 -top-8 h-[22rem] rounded-[28px]",
+              isStudioShell
+                ? "bg-[radial-gradient(ellipse_72%_54%_at_50%_-12%,rgba(163,230,53,0.09),transparent_58%),radial-gradient(ellipse_48%_42%_at_94%_4%,rgba(196,181,253,0.11),transparent)] dark:bg-[radial-gradient(ellipse_72%_56%_at_88%_-12%,rgba(139,92,246,0.28),transparent_58%),radial-gradient(ellipse_52%_44%_at_12%_8%,rgba(16,185,129,0.09),transparent)]"
+                : "bg-[radial-gradient(ellipse_78%_56%_at_50%_-14%,hsl(var(--primary)/0.26),transparent_62%),radial-gradient(ellipse_52%_42%_at_92%_6%,rgba(139,92,246,0.12),transparent)] dark:bg-[radial-gradient(ellipse_74%_54%_at_50%_-10%,hsl(var(--primary)/0.28),transparent_58%),radial-gradient(ellipse_48%_38%_at_88%_4%,rgba(99,102,241,0.12),transparent)]"
+            )}
           />
 
-          <section className={`relative overflow-hidden rounded-2xl border border-border/55 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl dark:border-white/[0.07] sm:p-8 ${themeHeroClass}`}>
+          <section
+            className={cn(
+              "relative overflow-hidden border p-6 backdrop-blur-xl sm:p-8",
+              isStudioShell ? "rounded-3xl" : "rounded-2xl",
+              visualTheme === "elegante"
+                ? "border-stone-200/70 shadow-[0_32px_64px_-40px_rgba(15,23,42,0.14)] dark:border-white/[0.09] dark:shadow-[0_28px_80px_-38px_rgba(0,0,0,0.65)] dark:backdrop-blur-xl"
+                : "border-border/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] dark:border-white/[0.07]",
+              themeHeroClass,
+            )}
+          >
             <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
               <div className="max-w-xl flex-1 space-y-4">
                 <DocenteGreeting
                   variant="workspace"
+                  welcomeStyle={isStudioShell ? "studio" : "default"}
                   loading={loading}
                   needsLink={data?.needsLink ?? false}
                   professorNome={data?.professor?.nome}
@@ -670,17 +759,22 @@ export function DocenteDashboardPage() {
                     data &&
                     !data.needsLink &&
                     (data.trocasPendentes ?? 0) > 0 ? (
-                      <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-2 font-mono text-[11px] text-foreground">
+                      <div className="rounded-full border border-amber-400/45 bg-amber-500/[0.12] px-3 py-2 font-mono text-[11px] text-foreground dark:border-amber-400/40 dark:bg-amber-950/35 dark:text-zinc-100">
                         <span className="font-semibold tracking-wide">
-                          {data.trocasPendentes}{" "}
-                          {data.trocasPendentes === 1 ? "convite de troca" : "convites de troca"}
+                          {data.trocasPendentes === 1 ?
+                            t("docente.swapInvite.one", {
+                              count: data.trocasPendentes ?? 0,
+                            })
+                          : t("docente.swapInvite.many", {
+                              count: data.trocasPendentes ?? 0,
+                            })}
                         </span>
                         .{" "}
                         <Link
                           href="/docente/trocas"
-                          className="font-medium text-primary underline-offset-4 hover:underline"
+                          className="font-medium text-sky-600 underline-offset-4 hover:underline dark:text-sky-400"
                         >
-                          Responder agora
+                          {t("docente.swapRespondNow")}
                         </Link>
                       </div>
                     ) : null
@@ -689,7 +783,7 @@ export function DocenteDashboardPage() {
 
                 {!loading && data?.needsLink ? (
                   <p className="text-sm leading-relaxed text-muted-foreground">
-                    Conclua o vínculo com seu cadastro de professor para liberar turmas, avaliações e mensagens.
+                    {t("docente.needsLinkHint")}
                   </p>
                 ) : null}
               </div>
@@ -697,57 +791,92 @@ export function DocenteDashboardPage() {
               <div className="flex w-full flex-col gap-4 lg:w-auto lg:min-w-[280px] lg:items-end">
                 <div className="grid w-full grid-cols-3 gap-2 sm:max-w-md lg:max-w-none">
                   <MetricPill
-                    label="Turmas"
+                    label={t("docente.metric.classes")}
                     value={String(metricas.turmasAtivas)}
                     loading={loading}
-                    tone={isColorfulTheme ? tone(0) : undefined}
+                    pillVariant={isStudioShell ? "studio" : "default"}
+                    tone={
+                      isColorfulTheme ? tone(0) : ELEGANT_METRIC_TONES[0]
+                    }
                   />
                   <MetricPill
-                    label="Alunos"
+                    label={t("docente.metric.students")}
                     value={String(metricas.alunosTotal)}
                     loading={loading}
-                    tone={isColorfulTheme ? tone(1) : undefined}
+                    pillVariant={isStudioShell ? "studio" : "default"}
+                    tone={
+                      isColorfulTheme ? tone(1) : ELEGANT_METRIC_TONES[1]
+                    }
                   />
                   <MetricPill
-                    label="Hoje"
+                    label={t("docente.metric.today")}
                     value={String(metricas.turmasComAulaHoje)}
                     loading={loading}
-                    tone={isColorfulTheme ? tone(2) : undefined}
+                    pillVariant={isStudioShell ? "studio" : "default"}
+                    tone={
+                      isColorfulTheme ? tone(2) : ELEGANT_METRIC_TONES[2]
+                    }
                   />
                 </div>
 
                 {!loading && data && !data.needsLink ? (
                   <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
-                    <Button size="sm" variant="secondary" className="rounded-xl font-medium" asChild>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className={cn(
+                        "rounded-full font-medium sm:rounded-xl",
+                        isStudioShell &&
+                          "dark:border dark:border-white/12 dark:bg-zinc-950 dark:text-white dark:shadow-lg dark:hover:bg-black"
+                      )}
+                      asChild
+                    >
                       <Link href="/docente/avaliacoes/nova">
                         <PenLine className="mr-2 h-3.5 w-3.5" />
-                        Nova avaliação
+                        {t("docente.hero.newAssessment")}
                       </Link>
                     </Button>
-                    <Button size="sm" variant="outline" className="rounded-xl border-border/70 dark:border-white/[0.08]" asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className={cn(
+                        "rounded-full border-border/70 sm:rounded-xl dark:border-white/[0.12]",
+                        isStudioShell &&
+                          "dark:bg-zinc-950/85 dark:text-white dark:hover:bg-black"
+                      )}
+                      asChild
+                    >
                       <Link href="/mensagens">
                         <MessageSquare className="mr-2 h-3.5 w-3.5" />
-                        Mensagens
+                        {t("docente.hero.messages")}
                       </Link>
                     </Button>
-                    <div className="flex items-center gap-1 rounded-xl border border-border/60 bg-background/70 p-1 backdrop-blur">
+                    <div
+                      className={cn(
+                        "flex items-center gap-1 rounded-xl border p-1 backdrop-blur",
+                        isStudioShell
+                          ? "border-stone-200/80 bg-white/95 shadow-sm dark:border-white/[0.1] dark:bg-black/55 dark:backdrop-blur-sm"
+                          : "border-border/60 bg-background/70"
+                      )}
+                    >
                       {[
-                        { id: "elegante", label: "Elegante" },
-                        { id: "colorido", label: "Colorido" },
-                        { id: "aurora", label: "Aurora" },
-                        { id: "sunset", label: "Sunset" },
+                        { id: "elegante", labelKey: "docente.theme.elegant" as const },
+                        { id: "colorido", labelKey: "docente.theme.colorful" as const },
+                        { id: "aurora", labelKey: "docente.theme.aurora" as const },
+                        { id: "sunset", labelKey: "docente.theme.sunset" as const },
                       ].map((opt) => (
                         <button
                           key={opt.id}
                           type="button"
                           onClick={() => setVisualTheme(opt.id as typeof visualTheme)}
-                          className={`rounded-lg px-2 py-1 text-[11px] font-medium transition ${
+                          className={cn(
+                            "rounded-lg px-2 py-1 text-[11px] font-medium transition",
                             visualTheme === opt.id
-                              ? "bg-primary text-primary-foreground"
-                              : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                          }`}
+                              ? "bg-primary text-primary-foreground dark:bg-indigo-600 dark:text-white"
+                              : "text-muted-foreground hover:bg-muted/70 hover:text-foreground dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-zinc-100"
+                          )}
                         >
-                          {opt.label}
+                          {t(opt.labelKey)}
                         </button>
                       ))}
                     </div>
@@ -766,77 +895,171 @@ export function DocenteDashboardPage() {
           /> : null}
 
           {!loading && data && !data.needsLink ? (
-            <section className={`space-y-4 rounded-2xl border p-5 ${
-              visualTheme === "colorido"
-                ? "border-blue-200/55 bg-[linear-gradient(165deg,rgba(191,219,254,0.35),rgba(199,210,254,0.28))] dark:border-blue-400/22 dark:bg-[linear-gradient(165deg,rgba(37,99,235,0.12),rgba(79,70,229,0.1))]"
-                : visualTheme === "aurora"
-                ? "border-teal-200/50 bg-[linear-gradient(165deg,rgba(167,243,208,0.32),rgba(199,210,254,0.26))] dark:border-teal-400/20 dark:bg-[linear-gradient(165deg,rgba(20,184,166,0.11),rgba(79,70,229,0.09))]"
-                : visualTheme === "sunset"
-                ? "border-amber-200/50 bg-[linear-gradient(165deg,rgba(254,215,170,0.38),rgba(252,231,243,0.3))] dark:border-amber-400/22 dark:bg-[linear-gradient(165deg,rgba(245,158,11,0.1),rgba(219,39,119,0.07))]"
-                : "border-border/60 bg-card/70 dark:bg-zinc-900/55"
-            }`}>
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    Resumo do dia
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {data.diaHojeLabel}
-                  </p>
+            <section
+              className={cn(
+                "space-y-4 rounded-2xl border p-5",
+                visualTheme === "colorido" &&
+                  "border-blue-200/55 bg-[linear-gradient(165deg,rgba(191,219,254,0.35),rgba(199,210,254,0.28))] dark:border-blue-400/22 dark:bg-[linear-gradient(165deg,rgba(37,99,235,0.12),rgba(79,70,229,0.1))]",
+                visualTheme === "aurora" &&
+                  "border-teal-200/50 bg-[linear-gradient(165deg,rgba(167,243,208,0.32),rgba(199,210,254,0.26))] dark:border-teal-400/20 dark:bg-[linear-gradient(165deg,rgba(20,184,166,0.11),rgba(79,70,229,0.09))]",
+                visualTheme === "sunset" &&
+                  "border-amber-200/50 bg-[linear-gradient(165deg,rgba(254,215,170,0.38),rgba(252,231,243,0.3))] dark:border-amber-400/22 dark:bg-[linear-gradient(165deg,rgba(245,158,11,0.1),rgba(219,39,119,0.07))]",
+                visualTheme === "elegante" &&
+                  "rounded-3xl border border-stone-200/60 bg-white p-6 shadow-[0_28px_60px_-44px_rgba(15,23,42,0.14)] dark:border-white/[0.08] dark:bg-gradient-to-br dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+              )}
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-4">
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "hidden h-10 w-1 shrink-0 rounded-full sm:block",
+                      visualTheme === "elegante" &&
+                        "bg-gradient-to-b from-lime-400 via-violet-400 to-orange-300 opacity-95 dark:from-lime-400 dark:via-violet-500 dark:to-orange-400 dark:opacity-75",
+                      visualTheme === "colorido" && "bg-blue-400/80 dark:bg-blue-400/60",
+                      visualTheme === "aurora" && "bg-teal-400/80 dark:bg-teal-400/55",
+                      visualTheme === "sunset" && "bg-amber-400/85 dark:bg-amber-400/55"
+                    )}
+                  />
+                  <div>
+                    <p
+                      className={cn(
+                        "font-semibold uppercase tracking-[0.16em] text-muted-foreground",
+                        isStudioShell ?
+                          "text-[11px] text-stone-400 dark:text-muted-foreground"
+                        : "font-mono text-[11px]"
+                      )}
+                    >
+                      {isStudioShell ? "Agenda do dia" : "Resumo do dia"}
+                    </p>
+                    <p
+                      className={cn(
+                        "mt-1 text-sm text-muted-foreground",
+                        isStudioShell && "text-stone-600 dark:text-muted-foreground"
+                      )}
+                    >
+                      {data.diaHojeLabel}
+                    </p>
+                  </div>
                 </div>
+                {isStudioShell ? (
+                  <WorkspaceTileLink
+                    href="/docente#turmas-docente"
+                    className="text-sm font-medium text-stone-700 underline-offset-4 transition hover:text-stone-900 hover:underline dark:text-muted-foreground dark:hover:text-foreground"
+                  >
+                    Ver turmas
+                  </WorkspaceTileLink>
+                ) : null}
               </div>
 
-              <div className="space-y-2">
+              <div className={cn("space-y-2", isStudioShell && "mt-5")}>
                 {resumoDoDia.length === 0 ? (
-                  <div className="rounded-xl border border-border/60 bg-muted/10 px-4 py-4 text-sm text-muted-foreground">
+                  <div
+                    className={cn(
+                      "rounded-2xl border px-4 py-10 text-center text-sm text-muted-foreground",
+                      isColorfulTheme
+                        ? "border-white/45 bg-white/50 dark:border-white/12 dark:bg-white/[0.06]"
+                        : "border-dashed border-stone-200/95 bg-stone-50/90 dark:border-white/[0.12] dark:bg-zinc-900/65"
+                    )}
+                  >
                     Sem aulas no dia de hoje.
                   </div>
                 ) : (
-                  resumoDoDia.map((item) => (
+                  resumoDoDia.map((item, idx) => (
                     <Link
                       key={`${item.turmaId}-${item.horaInicio}`}
                       href={`/docente/turmas/${item.turmaId}`}
                       className={cn(
-                        "flex items-center justify-between rounded-xl border px-4 py-3 transition",
+                        "group flex items-center gap-4 transition",
                         isColorfulTheme
-                          ? "border-white/40 bg-white/45 hover:bg-white/65 dark:border-white/15 dark:bg-white/5 dark:hover:bg-white/10"
-                          : "border-border/60 bg-muted/10 hover:bg-muted/20"
+                          ? "rounded-xl border border-white/40 bg-white/45 px-4 py-3 hover:bg-white/65 dark:border-white/15 dark:bg-white/5 dark:hover:bg-white/10"
+                          : cn(
+                              "rounded-2xl border border-stone-100 bg-white p-4 shadow-[0_10px_34px_-24px_rgba(15,23,42,0.12)] hover:border-stone-200 hover:shadow-[0_14px_40px_-22px_rgba(15,23,42,0.14)]",
+                              "dark:border-white/[0.08] dark:bg-zinc-900/82 dark:shadow-none dark:hover:border-white/[0.14] dark:hover:bg-zinc-800/88"
+                            )
                       )}
                     >
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{item.turmaNome}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.horaInicio}-{item.horaFim}
-                        </p>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                      {isColorfulTheme ? (
+                        <>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-foreground">{item.turmaNome}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {item.horaInicio}-{item.horaFim}
+                            </p>
+                          </div>
+                          <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        </>
+                      ) : (
+                        <>
+                          <div className={studioPastelIconShell(idx)}>
+                            <CalendarClock className="size-5" strokeWidth={2} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold leading-snug text-stone-900 dark:text-foreground">
+                              {item.turmaNome}
+                            </p>
+                            <p className="mt-0.5 text-sm text-stone-500 dark:text-muted-foreground">
+                              {t("docente.lessonSlot", {
+                                start: item.horaInicio,
+                                end: item.horaFim,
+                              })}
+                            </p>
+                          </div>
+                          <ChevronRight className="size-5 shrink-0 text-stone-300 opacity-70 transition group-hover:text-stone-500 group-hover:opacity-100 dark:text-zinc-600 dark:group-hover:text-zinc-400" />
+                        </>
+                      )}
                     </Link>
                   ))
                 )}
               </div>
 
-              <div className="border-t border-border/50 pt-4">
-                <p className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                  Atalhos
+              <div className={cn("border-t pt-4 dark:border-white/[0.08]", isStudioShell ? "mt-6 border-stone-100" : "border-border/50")}>
+                <p
+                  className={cn(
+                    "mb-3 font-semibold uppercase tracking-[0.14em] text-muted-foreground",
+                    isStudioShell ? "text-[11px] text-stone-400 dark:text-muted-foreground" : "font-mono text-[11px]"
+                  )}
+                >
+                  {isStudioShell ? t("docente.shortcuts.quick") : t("docente.shortcuts.default")}
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                   {[
-                    { href: "/calendario/eventos", label: "Calendário" },
-                    { href: "/notificacoes", label: "Notificações" },
-                    { href: "/mensagens", label: "Mensagens" },
-                    { href: "/docente/avaliacoes/nova", label: "Avaliações" },
-                  ].map((item) => (
+                    {
+                      href: "/calendario/eventos",
+                      labelKey: "docente.shortcut.calendar" as const,
+                    },
+                    {
+                      href: "/notificacoes",
+                      labelKey: "docente.shortcut.notifications" as const,
+                    },
+                    { href: "/mensagens", labelKey: "docente.shortcut.messages" as const },
+                    {
+                      href: "/docente/avaliacoes/nova",
+                      labelKey: "docente.shortcut.assessments" as const,
+                    },
+                  ].map((item, shortcutIdx) => (
                     <Link
                       key={item.href}
                       href={item.href}
                       className={cn(
-                        "rounded-xl border px-3 py-2 text-sm transition hover:text-foreground",
+                        "border px-3 py-2 text-sm transition hover:text-foreground",
                         isColorfulTheme
-                          ? "border-white/40 bg-white/45 text-foreground/80 hover:bg-white/65 dark:border-white/15 dark:bg-white/5"
-                          : "border-border/60 bg-muted/10 text-muted-foreground hover:bg-muted/20"
+                          ? "rounded-xl border-white/40 bg-white/45 text-foreground/80 hover:bg-white/65 dark:border-white/15 dark:bg-white/5"
+                          : cn(
+                              "rounded-2xl border-transparent bg-white font-medium text-stone-600 shadow-[0_8px_26px_-18px_rgba(15,23,42,0.12)] hover:bg-stone-50 hover:shadow-md",
+                              "dark:border-white/[0.06] dark:bg-zinc-900/78 dark:text-muted-foreground dark:hover:bg-zinc-800/85",
+                              shortcutIdx % 4 === 0 &&
+                                "ring-1 ring-lime-200/55 dark:ring-lime-400/15",
+                              shortcutIdx % 4 === 1 &&
+                                "ring-1 ring-violet-200/55 dark:ring-violet-400/15",
+                              shortcutIdx % 4 === 2 &&
+                                "ring-1 ring-orange-200/55 dark:ring-orange-400/15",
+                              shortcutIdx % 4 === 3 &&
+                                "ring-1 ring-sky-200/55 dark:ring-sky-400/15"
+                            )
                       )}
                     >
-                      {item.label}
+                      {t(item.labelKey)}
                     </Link>
                   ))}
                 </div>
@@ -907,7 +1130,7 @@ export function DocenteDashboardPage() {
                       </p>
                       <Button size="sm" variant="secondary" className="mt-2 rounded-xl" asChild>
                         <Link href={`/docente/turmas/${proximaAula!.turmaId}`}>
-                          Abrir turma
+                          {t("docente.turmas.openClass")}
                         </Link>
                       </Button>
                     </div>
@@ -1300,6 +1523,18 @@ export function DocenteDashboardPage() {
                       <p className="text-xs font-medium text-foreground">
                         Limiares e metas (perfil + escola)
                       </p>
+                      <p className="text-[11px] leading-relaxed text-muted-foreground">
+                        Os valores abaixo ficam salvos no seu navegador quando você usa{" "}
+                        <span className="font-medium text-foreground/85">
+                          {t("docente.config.saveProfile")}
+                        </span>
+                        . O padrão da escola para todos os professores é definido pela gestão no painel
+                        administrativo — use{" "}
+                        <span className="font-medium text-foreground/85">
+                          {t("docente.config.restoreSchoolDefault")}
+                        </span>{" "}
+                        para voltar ao que a escola configurou.
+                      </p>
                       <div className="grid gap-2 sm:grid-cols-2">
                         <label className="space-y-1 text-xs text-muted-foreground">
                           <span>Freq. mínima (%)</span>
@@ -1382,16 +1617,7 @@ export function DocenteDashboardPage() {
                           className="rounded-xl"
                           onClick={saveProfileConfig}
                         >
-                          Salvar no meu perfil
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="rounded-xl"
-                          onClick={() => void saveSchoolConfig()}
-                        >
-                          Salvar para escola
+                          {t("docente.config.saveProfile")}
                         </Button>
                         <Button
                           type="button"
@@ -1400,7 +1626,7 @@ export function DocenteDashboardPage() {
                           className="rounded-xl"
                           onClick={resetFromSchoolConfig}
                         >
-                          Restaurar padrão da escola
+                          {t("docente.config.restoreSchoolDefault")}
                         </Button>
                       </div>
                     </div>
@@ -1421,42 +1647,79 @@ export function DocenteDashboardPage() {
             <section className="relative space-y-4">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    Áreas do workspace
+                  <p
+                    className={cn(
+                      "font-semibold uppercase tracking-[0.16em] text-muted-foreground",
+                      isStudioShell ?
+                        "text-[11px] text-stone-400 dark:text-muted-foreground"
+                      : "font-mono text-[11px]"
+                    )}
+                  >
+                    {t("docente.section.workspaceAreas")}
                   </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Atalhos no estilo painel moderno — cada bloco leva a uma ferramenta da sua rotina.
+                  <p
+                    className={cn(
+                      "mt-1 text-muted-foreground",
+                      isStudioShell ?
+                        "max-w-xl text-base font-semibold text-stone-900 dark:text-foreground"
+                      : "text-sm"
+                    )}
+                  >
+                    {isStudioShell ?
+                      t("docente.section.workspaceSubtitleStudio")
+                    : t("docente.section.workspaceSubtitleDefault")}
                   </p>
+                  {isStudioShell ? (
+                    <p className="mt-1 max-w-xl text-sm font-normal text-stone-500 dark:text-muted-foreground">
+                      {t("docente.section.workspaceHintStudio")}
+                    </p>
+                  ) : null}
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {tilesWithTrocas.map((tile) => (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {tilesWithTrocas.map((tile, tileIdx) => (
                   <WorkspaceTileLink
                     key={`${tile.href}-${tile.title}`}
                     href={tile.href}
                     className={cn(
-                      "group relative overflow-hidden rounded-2xl border p-5 shadow-sm transition-all duration-200",
+                      "group relative overflow-hidden border p-5 transition-all duration-200",
                       isColorfulTheme ?
-                        `${tone(Number(tile.id.length + tile.title.length))} hover:brightness-[1.03]` :
-                        "border-border/55 bg-card/40 hover:border-primary/25 hover:bg-card/70 hover:shadow-md dark:border-white/[0.06] dark:bg-zinc-900/35 dark:hover:border-primary/35 dark:hover:bg-zinc-900/55"
+                        cn(
+                          "rounded-2xl shadow-sm",
+                          `${tone(Number(tile.id.length + tile.title.length))} hover:brightness-[1.03]`
+                        )
+                      : cn(
+                          "rounded-3xl border-stone-100 bg-white shadow-[0_22px_52px_-38px_rgba(15,23,42,0.13)] hover:border-stone-200/90 hover:shadow-[0_26px_56px_-34px_rgba(15,23,42,0.15)]",
+                          "dark:border-white/[0.08] dark:bg-zinc-900/88 dark:hover:border-white/[0.12] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+                        )
                     )}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className={cn(
-                        "rounded-xl border p-2 text-muted-foreground",
-                        isColorfulTheme
-                          ? "border-white/45 bg-white/55 dark:border-white/15 dark:bg-white/10"
-                          : "border-border/50 bg-muted/35 dark:border-white/[0.06] dark:bg-zinc-950/45"
-                      )}>
-                        <tile.icon className="h-4 w-4 opacity-90 transition-colors group-hover:text-foreground" />
+                      <div
+                        className={cn(
+                          isColorfulTheme ?
+                            cn(
+                              "rounded-xl border p-2 text-muted-foreground",
+                              "border-white/45 bg-white/55 dark:border-white/15 dark:bg-white/10"
+                            )
+                          : studioPastelIconShell(tileIdx)
+                        )}
+                      >
+                        <tile.icon
+                          className={cn(
+                            "opacity-90 transition-colors group-hover:text-foreground",
+                            isColorfulTheme ? "h-4 w-4" : "size-5"
+                          )}
+                          strokeWidth={isColorfulTheme ? 2 : 2.25}
+                        />
                       </div>
                       {tile.badge ? (
                         <span className="rounded-full bg-primary/15 px-2 py-0.5 font-mono text-[10px] font-semibold text-primary">
                           {tile.badge}
                         </span>
                       ) : (
-                        <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                        <ChevronRight className="size-5 shrink-0 text-stone-300 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-90 dark:text-zinc-600" />
                       )}
                     </div>
                     <p className="mt-4 text-[15px] font-semibold leading-snug text-foreground">
@@ -1527,10 +1790,22 @@ export function DocenteDashboardPage() {
               <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                   <div>
-                    <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    <p
+                      className={cn(
+                        "font-semibold uppercase tracking-[0.16em] text-muted-foreground",
+                        isStudioShell ?
+                          "text-[11px] text-stone-400 dark:text-muted-foreground"
+                        : "font-mono text-[11px]"
+                      )}
+                    >
                       Minhas turmas
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p
+                      className={cn(
+                        "text-sm text-muted-foreground",
+                        isStudioShell && "text-stone-600 dark:text-muted-foreground"
+                      )}
+                    >
                       Visualização dinâmica por contexto: rotina do dia, atenção e acompanhamento.
                     </p>
                   </div>
@@ -1573,8 +1848,8 @@ export function DocenteDashboardPage() {
                 </div>
 
                 <div className="grid gap-3 lg:grid-cols-3">
-                  {filteredTurmas.slice(0, 3).map((t) => {
-                    const resumo = resumoTurmaById.get(t.id);
+                  {filteredTurmas.slice(0, 3).map((snap) => {
+                    const resumo = resumoTurmaById.get(snap.id);
                     const progressoChecklist =
                       insights ?
                         Math.min(
@@ -1595,23 +1870,33 @@ export function DocenteDashboardPage() {
                       : 0;
                     return (
                       <div
-                        key={`snapshot-${t.id}`}
+                        key={`snapshot-${snap.id}`}
                         className={cn(
-                          "rounded-2xl border p-4 shadow-sm",
-                          isColorfulTheme ? tone(Number(t.nome.length + t.id.length)) : "border-border/55 bg-card/45"
+                          "border p-4 shadow-sm",
+                          isStudioShell ? "rounded-3xl" : "rounded-2xl",
+                          isColorfulTheme
+                            ? tone(Number(snap.nome.length + snap.id.length))
+                            : cn(
+                                "border-stone-100 bg-white shadow-[0_14px_40px_-28px_rgba(15,23,42,0.09)] dark:border-white/[0.08] dark:bg-zinc-900/85 dark:shadow-none",
+                                isStudioShell &&
+                                  "ring-1 ring-stone-100/80 dark:ring-white/[0.04]"
+                              )
                         )}
                       >
-                        <p className="text-sm font-semibold text-foreground">{t.nome}</p>
-                        <p className="text-xs text-muted-foreground">{t.cursoNome}</p>
+                        <p className="text-sm font-semibold text-foreground">{snap.nome}</p>
+                        <p className="text-xs text-muted-foreground">{snap.cursoNome}</p>
                         <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                          <span>Alunos: {t.alunosAtivos}</span>
-                          <span>Hoje: {t.horariosHoje.length > 0 ? "Sim" : "Nao"}</span>
+                          <span>Alunos: {snap.alunosAtivos}</span>
+                          <span>Hoje: {snap.horariosHoje.length > 0 ? "Sim" : "Nao"}</span>
                         </div>
                         <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
                           <span>Frequencia: {resumo ? `${resumo.frequenciaAtual}%` : "—"}</span>
                           <span>Media: {resumo ? resumo.mediaAtual.toFixed(1) : "—"}</span>
                         </div>
-                        <div className="mt-3 h-1.5 rounded-full bg-white/60 dark:bg-white/15">
+                        <div className={cn(
+                          "mt-3 h-1.5 rounded-full dark:bg-white/15",
+                          isStudioShell ? "bg-stone-100/95" : "bg-white/60"
+                        )}>
                           <div className="h-1.5 rounded-full bg-foreground/80" style={{ width: `${progressoChecklist}%` }} />
                         </div>
                         <p className="mt-2 text-[11px] text-muted-foreground">Progresso semanal consolidado: {progressoChecklist}%</p>
@@ -1622,7 +1907,10 @@ export function DocenteDashboardPage() {
               </div>
 
               {filteredTurmas.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border/70 bg-muted/15 px-6 py-12 text-center dark:border-white/[0.08] dark:bg-zinc-950/30">
+                <div className={cn(
+                  "border border-dashed border-border/70 bg-muted/15 px-6 py-12 text-center dark:border-white/[0.08] dark:bg-zinc-950/30",
+                  isStudioShell ? "rounded-3xl border-stone-200/80 bg-stone-50/90 dark:bg-zinc-900/50" : "rounded-2xl"
+                )}>
                   <p className="text-sm font-medium text-foreground">Nenhuma turma para esse filtro</p>
                   <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
                     Ajuste para “Todas” ou aguarde novas movimentações pedagógicas.
@@ -1630,15 +1918,19 @@ export function DocenteDashboardPage() {
                 </div>
               ) : (
                 <div className="grid gap-4 lg:grid-cols-2">
-                  {filteredTurmas.map((t, idx) => (
+                  {filteredTurmas.map((turma, idx) => (
                     <div
-                      key={t.id}
+                      key={turma.id}
                       className={cn(
-                        "group overflow-hidden rounded-2xl border shadow-sm backdrop-blur-md transition-all hover:shadow-md",
+                        "group overflow-hidden border shadow-sm backdrop-blur-md transition-all hover:shadow-md",
+                        isStudioShell ? "rounded-3xl" : "rounded-2xl",
                         isColorfulTheme ?
                           `${tone(idx)} hover:brightness-[1.02]` :
-                          "border-border/55 bg-card/45 hover:border-primary/25 dark:border-white/[0.06] dark:bg-zinc-900/38 dark:hover:border-primary/35",
-                        t.horariosHoje.length > 0 && "ring-1 ring-primary/25"
+                          cn(
+                            "border-stone-100 bg-white shadow-[0_18px_48px_-32px_rgba(15,23,42,0.12)] hover:border-stone-200 dark:border-white/[0.08] dark:bg-zinc-900/88 dark:hover:border-white/[0.12] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
+                            isStudioShell && "hover:shadow-[0_22px_52px_-30px_rgba(15,23,42,0.14)]"
+                          ),
+                        turma.horariosHoje.length > 0 && "ring-1 ring-primary/25"
                       )}
                     >
                       <div className={cn(
@@ -1650,18 +1942,18 @@ export function DocenteDashboardPage() {
                             <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                               Turma
                             </p>
-                            <p className="mt-1 text-lg font-semibold leading-tight text-foreground">{t.nome}</p>
-                            <p className="mt-0.5 text-sm text-muted-foreground">{t.cursoNome}</p>
+                            <p className="mt-1 text-lg font-semibold leading-tight text-foreground">{turma.nome}</p>
+                            <p className="mt-0.5 text-sm text-muted-foreground">{turma.cursoNome}</p>
                           </div>
                           <span
                             className={cn(
                               "rounded-full border px-2 py-1 font-mono text-[10px] uppercase tracking-wide",
-                              t.horariosHoje.length > 0
+                              turma.horariosHoje.length > 0
                                 ? "border-primary/30 bg-primary/10 text-primary"
                                 : "border-border/70 bg-muted/20 text-muted-foreground"
                             )}
                           >
-                            {t.horariosHoje.length > 0 ? "Aula hoje" : "Sem aula hoje"}
+                            {turma.horariosHoje.length > 0 ? "Aula hoje" : "Sem aula hoje"}
                           </span>
                         </div>
                       </div>
@@ -1671,7 +1963,7 @@ export function DocenteDashboardPage() {
                             "rounded-xl border px-3 py-2",
                             isColorfulTheme
                               ? "border-white/40 bg-white/45 dark:border-white/15 dark:bg-white/5"
-                              : "border-border/50 bg-muted/15"
+                              : "border-slate-200/60 bg-white/80 dark:border-border/50 dark:bg-muted/15"
                           )}>
                             <p className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
                               Alunos ativos
@@ -1679,7 +1971,8 @@ export function DocenteDashboardPage() {
                             <div className="mt-1 flex items-center gap-2 text-foreground">
                               <Users className="h-4 w-4 shrink-0 opacity-70" />
                               <span className="text-sm font-medium">
-                                {t.alunosAtivos} {t.alunosAtivos === 1 ? "aluno" : "alunos"}
+                                {turma.alunosAtivos}{" "}
+                                {turma.alunosAtivos === 1 ? "aluno" : "alunos"}
                               </span>
                             </div>
                           </div>
@@ -1687,7 +1980,7 @@ export function DocenteDashboardPage() {
                             "rounded-xl border px-3 py-2",
                             isColorfulTheme
                               ? "border-white/40 bg-white/45 dark:border-white/15 dark:bg-white/5"
-                              : "border-border/50 bg-muted/15"
+                              : "border-slate-200/60 bg-white/80 dark:border-border/50 dark:bg-muted/15"
                           )}>
                             <p className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
                               Carga semanal
@@ -1695,7 +1988,8 @@ export function DocenteDashboardPage() {
                             <div className="mt-1 flex items-center gap-2 text-foreground">
                               <TimerReset className="h-4 w-4 shrink-0 opacity-70" />
                               <span className="text-sm font-medium">
-                                {t.horarios.length} {t.horarios.length === 1 ? "encontro" : "encontros"}
+                                {turma.horarios.length}{" "}
+                                {turma.horarios.length === 1 ? "encontro" : "encontros"}
                               </span>
                             </div>
                           </div>
@@ -1713,14 +2007,14 @@ export function DocenteDashboardPage() {
                           </span>
                         </div>
 
-                        {t.horariosHoje.length > 0 ? (
+                        {turma.horariosHoje.length > 0 ? (
                           <div className="rounded-xl border border-primary/20 bg-primary/[0.06] px-3 py-2 dark:bg-primary/[0.09]">
                             <div className="mb-1 flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-wide text-primary">
                               <CalendarClock className="h-3.5 w-3.5" />
                               Hoje
                             </div>
                             <ul className="space-y-0.5 font-mono text-xs text-foreground/90">
-                              {t.horariosHoje.map((h, i) => (
+                              {turma.horariosHoje.map((h, i) => (
                                 <li key={`${h.horaInicio}-${i}`}>
                                   {h.horaInicio} – {h.horaFim}
                                 </li>
@@ -1734,19 +2028,19 @@ export function DocenteDashboardPage() {
                               ? "border-white/45 bg-white/35 dark:border-white/15 dark:bg-white/5"
                               : "border-border/60 bg-muted/15"
                           )}>
-                            Sem aulas hoje. Use o botão abaixo para adiantar planejamento e lançamentos.
+                            {t("docente.turmas.noClassesToday")}
                           </div>
                         )}
 
                         <div>
                           <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            Grade semanal
+                            {t("docente.turmas.weeklySchedule")}
                           </p>
                           <ul className="space-y-1 text-xs text-muted-foreground">
-                            {t.horarios.length === 0 ? (
-                              <li>Horários não cadastrados.</li>
+                            {turma.horarios.length === 0 ? (
+                              <li>{t("docente.turmas.noScheduleRegistered")}</li>
                             ) : (
-                              t.horarios.map((h) => (
+                              turma.horarios.map((h) => (
                                 <li key={`${h.diaSemana}-${h.horaInicio}`}>
                                   <span className="font-medium text-foreground/85">{h.diaLabel}</span>:{" "}
                                   {h.horaInicio} – {h.horaFim}
@@ -1758,14 +2052,14 @@ export function DocenteDashboardPage() {
 
                         <div className="grid gap-2 sm:grid-cols-2">
                           <Button variant="secondary" size="sm" className="w-full rounded-xl font-medium" asChild>
-                            <Link href={`/docente/turmas/${t.id}`}>
-                              Abrir turma
+                            <Link href={`/docente/turmas/${turma.id}`}>
+                              {t("docente.turmas.openClass")}
                               <ArrowRight className="ml-2 h-3.5 w-3.5 opacity-70 transition-transform group-hover:translate-x-0.5" />
                             </Link>
                           </Button>
                           <Button variant="outline" size="sm" className="w-full rounded-xl font-medium" asChild>
                             <Link href="/docente/avaliacoes/nova">
-                              Nova avaliação
+                              {t("docente.hero.newAssessment")}
                             </Link>
                           </Button>
                         </div>
@@ -1776,6 +2070,7 @@ export function DocenteDashboardPage() {
               )}
             </section>
           ) : null}
+        </div>
         </div>
       </DashboardMainLayout>
     </DashboardLayout>

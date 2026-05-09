@@ -18,7 +18,7 @@ function generatePin() {
 export async function GET(_req: NextRequest, context: RouteContext) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
-  const prof = requireProfessorContext(user);
+  const prof = await requireProfessorContext(user);
   if (prof instanceof NextResponse) return prof;
   const { schoolId, professorId } = prof;
   const { avaliacaoId } = await context.params;
@@ -59,7 +59,7 @@ function parseTempoPorQuestao(body: unknown): number | null {
 export async function POST(req: NextRequest, context: RouteContext) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
-  const prof = requireProfessorContext(user);
+  const prof = await requireProfessorContext(user);
   if (prof instanceof NextResponse) return prof;
   const { schoolId, professorId } = prof;
   const { avaliacaoId } = await context.params;

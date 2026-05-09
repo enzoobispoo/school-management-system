@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server"
 import { Prisma, StatusPagamento } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { updatePagamentoSchema } from "@/lib/validations/pagamento"
-import { getCurrentUser, requireSchool } from "@/lib/auth"
+import {
+  assertCoreFinanceWrite,
+  assertFinanceRead,
+  getCurrentUser,
+  requireSchool,
+} from "@/lib/auth"
+import { logSchoolAudit } from "@/lib/audit/school-audit-log"
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -32,6 +38,10 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const deniedRead = assertFinanceRead(user);
+    if (deniedRead) return deniedRead;
+
     const { id } = await context.params
 
     const pagamento = await prisma.pagamento.findFirst({
@@ -120,6 +130,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const deniedWrite = assertCoreFinanceWrite(user);
+    if (deniedWrite) return deniedWrite;
+
     const { id } = await context.params
     const body = await request.json()
 
@@ -237,6 +251,21 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       })
     }
 
+    void logSchoolAudit({
+      schoolId,
+      userId: user.id,
+      role: user.role,
+      domain: "finance",
+      action: "PAYMENT_UPDATE",
+      resourceId: pagamento.id,
+      summary: `Pagamento atualizado: ${pagamento.descricao} — status ${pagamentoExistente.status} → ${pagamento.status}`,
+      payload: {
+        prevStatus: pagamentoExistente.status,
+        nextStatus: pagamento.status,
+        valor: Number(pagamento.valor),
+      },
+    });
+
     return NextResponse.json({
       id: pagamento.id,
       descricao: pagamento.descricao,
@@ -297,6 +326,10 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const deniedWrite = assertCoreFinanceWrite(user);
+    if (deniedWrite) return deniedWrite;
+
     const { id } = await context.params
 
     const pagamento = await prisma.pagamento.findFirst({
@@ -345,6 +378,20 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
         },
       })
     })
+
+    void logSchoolAudit({
+      schoolId,
+      userId: user.id,
+      role: user.role,
+      domain: "finance",
+      action: "PAYMENT_DELETE",
+      resourceId: id,
+      summary: `Pagamento excluído: ${pagamento.descricao} (${pagamento.matricula.aluno.nome})`,
+      payload: {
+        matriculaId: pagamento.matriculaId,
+        valor: Number(pagamento.valor),
+      },
+    });
 
     return NextResponse.json({
       message: "Pagamento excluído com sucesso",

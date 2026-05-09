@@ -12,6 +12,8 @@ interface EduiaLivePulseProps {
   loading?: boolean;
   onAskEduia: (prompt: string) => void;
   className?: string;
+  /** Briefing amplo exige OpenAI + ferramentas — oculto no modo integrado. */
+  showBriefingShortcut?: boolean;
 }
 
 export function EduiaLivePulse({
@@ -19,6 +21,7 @@ export function EduiaLivePulse({
   loading,
   onAskEduia,
   className,
+  showBriefingShortcut = true,
 }: EduiaLivePulseProps) {
   if (loading) {
     return (
@@ -60,15 +63,17 @@ export function EduiaLivePulse({
       <p className="mt-2 text-[13px] leading-relaxed text-foreground">{pulse.headline}</p>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          className="h-8 rounded-xl text-xs"
-          onClick={() => onAskEduia(EDUIA_FULL_BRIEFING_PROMPT)}
-        >
-          Analisar com EduIA
-        </Button>
+        {showBriefingShortcut ?
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="h-8 rounded-xl text-xs"
+            onClick={() => onAskEduia(EDUIA_FULL_BRIEFING_PROMPT)}
+          >
+            Analisar com EduIA
+          </Button>
+        : null}
         <Button
           type="button"
           size="sm"

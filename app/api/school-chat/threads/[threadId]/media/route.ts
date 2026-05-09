@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, requireSchool } from "@/lib/auth";
+import { blockProfessorWhenPortalDisabled } from "@/lib/docente/professor-portal-policy";
 import { userParticipatesInThread } from "@/lib/school-chat/thread-access";
 
 export const runtime = "nodejs";
@@ -19,6 +20,9 @@ export async function GET(_request: NextRequest, ctx: RouteContext) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const portalDenied = await blockProfessorWhenPortalDisabled(user);
+    if (portalDenied) return portalDenied;
 
     const { threadId } = await ctx.params;
     const ok = await userParticipatesInThread(user.id, threadId);

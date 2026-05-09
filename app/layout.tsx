@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/next";
 import { NavigationProgress } from "@/components/shared/navigation-progress";
 import { SessionProvider } from "@/components/providers/session-provider";
+import { DashboardLanguageProvider } from "@/lib/i18n/dashboard-language";
 import { PageTransition } from "@/components/shared/page-transition";
 import "./globals.css";
 
@@ -63,9 +64,11 @@ export default async function RootLayout({
     >
       <body className={`${inter.variable} font-sans antialiased`}>
         <NavigationProgress />
-        <SessionProvider>
-          <PageTransition>{children}</PageTransition>
-        </SessionProvider>
+        <DashboardLanguageProvider>
+          <SessionProvider>
+            <PageTransition>{children}</PageTransition>
+          </SessionProvider>
+        </DashboardLanguageProvider>
         <Toaster richColors position="top-right" />
         <Analytics />
       </body>

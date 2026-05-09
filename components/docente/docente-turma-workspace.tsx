@@ -36,6 +36,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  dashboardLocaleTag,
+  useDashboardLanguage,
+} from "@/lib/i18n/dashboard-language";
 
 function todayIsoLocal() {
   const d = new Date();
@@ -94,26 +98,34 @@ type MaterialRow = {
   disciplina: { nome: string } | null;
 };
 
-const TIPO_MATERIAL_LABEL: Record<string, string> = {
-  SLIDE: "Slides",
-  ATIVIDADE_IMPRESSAO: "Atividade (impressão)",
-  PROVA_IMPRESSAO: "Prova (impressão)",
-  PLANO_AULA: "Plano de aula",
-  REFERENCIA: "Referência",
-  OUTRO: "Outro",
-};
-
-const TIPO_REGISTRO_LABEL: Record<string, string> = {
-  OBSERVACAO: "Observação",
-  OCORRENCIA: "Ocorrência",
-  ADVERTENCIA: "Advertência",
-};
-
 interface Props {
   turmaId: string;
 }
 
 export function DocenteTurmaWorkspace({ turmaId }: Props) {
+  const { t, language } = useDashboardLanguage();
+
+  const tipoMaterialLabel = useMemo(
+    (): Record<string, string> => ({
+      SLIDE: t("docente.workspace.material.slide"),
+      ATIVIDADE_IMPRESSAO: t("docente.workspace.material.activityPrint"),
+      PROVA_IMPRESSAO: t("docente.workspace.material.examPrint"),
+      PLANO_AULA: t("docente.workspace.material.lessonPlan"),
+      REFERENCIA: t("docente.workspace.material.reference"),
+      OUTRO: t("docente.workspace.material.other"),
+    }),
+    [t]
+  );
+
+  const tipoRegistroLabel = useMemo(
+    (): Record<string, string> => ({
+      OBSERVACAO: t("docente.workspace.registro.observacao"),
+      OCORRENCIA: t("docente.workspace.registro.ocorrencia"),
+      ADVERTENCIA: t("docente.workspace.registro.advertencia"),
+    }),
+    [t]
+  );
+
   const [resumo, setResumo] = useState<TurmaResumo | null>(null);
   const [aulasRecentes, setAulasRecentes] = useState<
     Array<{
@@ -173,7 +185,7 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
 
       const jTurma = await rTurma.json();
       if (!rTurma.ok) {
-        throw new Error(jTurma.error || "Turma não encontrada.");
+        throw new Error(jTurma.error || t("docente.workspace.classNotFound"));
       }
 
       const jChamadas = rChamadas.ok ? await rChamadas.json() : [];
@@ -191,12 +203,12 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
       }
       setPresentes(pres);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erro ao carregar.");
+      setError(e instanceof Error ? e.message : t("docente.loadError.generic"));
       setResumo(null);
     } finally {
       setLoading(false);
     }
-  }, [turmaId]);
+  }, [turmaId, t]);
 
   const loadAvaliacoes = useCallback(async () => {
     try {
@@ -205,7 +217,8 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
         cache: "no-store",
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Erro ao carregar avaliações.");
+      if (!res.ok)
+        throw new Error(json.error || t("docente.workspace.loadAssessmentsError"));
       const rows = json as AvaliacaoRow[];
       setAvaliacoes(rows);
       const draft: Record<string, Record<string, string>> = {};
@@ -221,11 +234,11 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
       }
       setNotasDraft(draft);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro.");
+      toast.error(err instanceof Error ? err.message : t("common.errorShort"));
     } finally {
       setLoadingAv(false);
     }
-  }, [turmaId, resumo]);
+  }, [turmaId, resumo, t]);
 
   const loadRegistros = useCallback(async () => {
     try {
@@ -234,14 +247,14 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
         cache: "no-store",
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Erro.");
+      if (!res.ok) throw new Error(json.error || t("common.errorShort"));
       setRegistros(json as RegistroRow[]);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro.");
+      toast.error(err instanceof Error ? err.message : t("common.errorShort"));
     } finally {
       setLoadingReg(false);
     }
-  }, [turmaId]);
+  }, [turmaId, t]);
 
   const loadMateriaisTurma = useCallback(async () => {
     try {
@@ -249,12 +262,12 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
         cache: "no-store",
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Erro.");
+      if (!res.ok) throw new Error(json.error || t("common.errorShort"));
       setMateriaisTurma(json as MaterialRow[]);
     } catch {
       setMateriaisTurma([]);
     }
-  }, [turmaId]);
+  }, [turmaId, t]);
 
   useEffect(() => {
     void loadCore();
@@ -309,14 +322,16 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(typeof j?.error === "string" ? j.error : "Falha ao registrar.");
+        throw new Error(
+          typeof j?.error === "string" ? j.error : t("docente.workspace.attendanceRegisterFail")
+        );
       }
-      toast.success("Chamada e diário salvos.");
+      toast.success(t("docente.workspace.attendanceSaved"));
       setTituloAula("");
       setConteudoAula("");
       await loadCore();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao registrar.");
+      toast.error(err instanceof Error ? err.message : t("docente.workspace.registerError"));
     } finally {
       setSubmitting(false);
     }
@@ -325,7 +340,7 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
   async function criarAvaliacao(e: React.FormEvent) {
     e.preventDefault();
     if (!novaAvTitulo.trim() || !novaAvDisciplina) {
-      toast.error("Preencha título e disciplina.");
+      toast.error(t("docente.workspace.fillTitleDiscipline"));
       return;
     }
     try {
@@ -340,12 +355,13 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
         }),
       });
       const j = await res.json();
-      if (!res.ok) throw new Error(j.error || "Erro ao criar.");
-      toast.success("Avaliação criada.");
+      if (!res.ok)
+        throw new Error(j.error || t("docente.workspace.createAssessmentError"));
+      toast.success(t("docente.workspace.assessmentCreated"));
       setNovaAvTitulo("");
       await loadAvaliacoes();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro.");
+      toast.error(err instanceof Error ? err.message : t("common.errorShort"));
     }
   }
 
@@ -361,7 +377,7 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
       };
     });
     if (parsed.some((p) => p.raw === "" || Number.isNaN(p.nota))) {
-      toast.error("Informe nota numérica para cada aluno.");
+      toast.error(t("docente.workspace.numericGradeEach"));
       return;
     }
     const notas = parsed.map(({ matriculaId, nota }) => ({
@@ -378,18 +394,19 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
         }
       );
       const j = await res.json();
-      if (!res.ok) throw new Error(j.error || "Erro ao salvar notas.");
-      toast.success("Notas salvas.");
+      if (!res.ok)
+        throw new Error(j.error || t("docente.workspace.saveGradesError"));
+      toast.success(t("docente.workspace.gradesSaved"));
       await loadAvaliacoes();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro.");
+      toast.error(err instanceof Error ? err.message : t("common.errorShort"));
     }
   }
 
   async function registrarPedagogico(e: React.FormEvent) {
     e.preventDefault();
     if (!regAlunoId || !regTitulo.trim()) {
-      toast.error("Aluno e título são obrigatórios.");
+      toast.error(t("docente.workspace.studentTitleRequired"));
       return;
     }
     try {
@@ -404,13 +421,13 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
         }),
       });
       const j = await res.json();
-      if (!res.ok) throw new Error(j.error || "Erro.");
-      toast.success("Registro salvo.");
+      if (!res.ok) throw new Error(j.error || t("common.errorShort"));
+      toast.success(t("docente.workspace.recordSaved"));
       setRegTitulo("");
       setRegDesc("");
       await loadRegistros();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro.");
+      toast.error(err instanceof Error ? err.message : t("common.errorShort"));
     }
   }
 
@@ -423,13 +440,13 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
         { cache: "no-store" }
       );
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Erro.");
+      if (!res.ok) throw new Error(json.error || t("common.errorShort"));
       setBoletimData({
         aluno: json.aluno,
         disciplinas: json.disciplinas,
       });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro.");
+      toast.error(err instanceof Error ? err.message : t("common.errorShort"));
       setBoletimData(null);
     } finally {
       setLoadingBol(false);
@@ -438,7 +455,7 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
 
   function formatDataCurta(iso: string) {
     try {
-      return new Date(iso).toLocaleDateString("pt-BR", {
+      return new Date(iso).toLocaleDateString(dashboardLocaleTag(language), {
         weekday: "short",
         day: "2-digit",
         month: "short",
@@ -457,8 +474,14 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
   return (
     <DashboardLayout>
       <Header
-        title={loading ? "Turma" : resumo?.turma.nome ?? "Turma"}
-        description={loading ? "Carregando…" : resumo?.turma.cursoNome ?? ""}
+        title={
+          loading ?
+            t("docente.workspace.headerFallbackTitle")
+          : resumo?.turma.nome ?? t("docente.workspace.headerFallbackTitle")
+        }
+        description={
+          loading ? t("common.loading") : resumo?.turma.cursoNome ?? ""
+        }
       />
 
       <DashboardMainLayout rightPanel={null}>
@@ -466,7 +489,7 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
           <Button variant="ghost" size="sm" className="rounded-xl" asChild>
             <Link href="/docente">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Voltar ao painel
+              {t("docente.workspace.backToDashboard")}
             </Link>
           </Button>
 
@@ -477,7 +500,7 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
           {loading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Carregando turma…
+              {t("docente.workspace.loadingClass")}
             </div>
           ) : null}
 
@@ -485,22 +508,22 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
             <Tabs defaultValue="visao" className="w-full space-y-6">
               <TabsList className="flex h-auto min-h-10 w-full flex-wrap justify-start gap-1 rounded-2xl bg-muted/40 p-1">
                 <TabsTrigger value="visao" className="rounded-xl">
-                  Visão geral
+                  {t("docente.workspace.tabOverview")}
                 </TabsTrigger>
                 <TabsTrigger value="frequencia" className="rounded-xl">
-                  Frequência e diário
+                  {t("docente.workspace.tabAttendance")}
                 </TabsTrigger>
                 <TabsTrigger value="avaliacoes" className="rounded-xl">
-                  Provas e notas
+                  {t("docente.workspace.tabAssessments")}
                 </TabsTrigger>
                 <TabsTrigger value="boletim" className="rounded-xl">
-                  Boletim
+                  {t("docente.workspace.tabReportCard")}
                 </TabsTrigger>
                 <TabsTrigger value="registros" className="rounded-xl">
-                  Observações / ocorrências
+                  {t("docente.workspace.tabRecords")}
                 </TabsTrigger>
                 <TabsTrigger value="materiais" className="rounded-xl">
-                  Materiais da turma
+                  {t("docente.workspace.tabMaterials")}
                 </TabsTrigger>
               </TabsList>
 
@@ -509,16 +532,18 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base flex items-center gap-2">
                       <BookOpen className="h-4 w-4 opacity-70" />
-                      Horários
+                      {t("docente.workspace.overview.scheduleTitle")}
                     </CardTitle>
                     <CardDescription>
-                      Capacidade máxima: {resumo.turma.capacidadeMaxima} vagas
+                      {t("docente.workspace.overview.capacity", {
+                        max: resumo.turma.capacidadeMaxima,
+                      })}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {resumo.turma.horarios.length === 0 ? (
                       <p className="text-sm text-muted-foreground">
-                        Sem horários cadastrados.
+                        {t("docente.workspace.overview.noSchedule")}
                       </p>
                     ) : (
                       <ul className="space-y-1 text-sm text-muted-foreground">
@@ -539,11 +564,15 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
                       <Users className="h-4 w-4 opacity-70" />
-                      Alunos matriculados
+                      {t("docente.workspace.overview.enrolledTitle")}
                     </CardTitle>
                     <CardDescription>
-                      {resumo.alunos.length}{" "}
-                      {resumo.alunos.length === 1 ? "aluno ativo" : "alunos ativos"}
+                      {t(
+                        resumo.alunos.length === 1 ?
+                          "docente.workspace.overview.activeStudentSingular"
+                        : "docente.workspace.overview.activeStudentPlural",
+                        { count: resumo.alunos.length }
+                      )}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -566,26 +595,27 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
                       <ClipboardList className="h-4 w-4 opacity-70" />
-                      Registrar chamada e conteúdo
+                      {t("docente.workspace.attendance.cardTitle")}
                     </CardTitle>
                     <CardDescription>
-                      Marque faltas e, se quiser, registre o tema da aula ou conteúdo
-                      trabalhado (diário).
+                      {t("docente.workspace.attendance.cardDesc")}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {!resumo.disciplinas.length ? (
                       <p className="text-sm text-muted-foreground">
-                        Nenhuma disciplina vinculada à turma.
+                        {t("docente.workspace.attendance.noSubjects")}
                       </p>
                     ) : !resumo.alunos.length ? (
                       <p className="text-sm text-muted-foreground">
-                        Sem alunos ativos nesta turma.
+                        {t("docente.workspace.attendance.noStudents")}
                       </p>
                     ) : (
                       <form className="space-y-4" onSubmit={handleRegistrarChamada}>
                         <div className="grid gap-2">
-                          <Label htmlFor="disciplina">Disciplina</Label>
+                          <Label htmlFor="disciplina">
+                            {t("docente.workspace.attendance.disciplineLabel")}
+                          </Label>
                           <select
                             id="disciplina"
                             className="flex h-10 w-full max-w-md rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -601,7 +631,9 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                         </div>
 
                         <div className="grid gap-2">
-                          <Label htmlFor="dataAula">Data da aula</Label>
+                          <Label htmlFor="dataAula">
+                            {t("docente.workspace.attendance.dateLabel")}
+                          </Label>
                           <Input
                             id="dataAula"
                             type="date"
@@ -612,29 +644,33 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                         </div>
 
                         <div className="grid gap-2">
-                          <Label htmlFor="tituloAula">Título / tema (opcional)</Label>
+                          <Label htmlFor="tituloAula">
+                            {t("docente.workspace.attendance.titleLabel")}
+                          </Label>
                           <Input
                             id="tituloAula"
                             value={tituloAula}
                             onChange={(e) => setTituloAula(e.target.value)}
-                            placeholder="Ex.: Present Perfect — revisão"
+                            placeholder={t("docente.workspace.attendance.titlePlaceholder")}
                             className="max-w-xl rounded-xl"
                           />
                         </div>
 
                         <div className="grid gap-2">
-                          <Label htmlFor="conteudoAula">Conteúdo / atividades (opcional)</Label>
+                          <Label htmlFor="conteudoAula">
+                            {t("docente.workspace.attendance.contentLabel")}
+                          </Label>
                           <Textarea
                             id="conteudoAula"
                             value={conteudoAula}
                             onChange={(e) => setConteudoAula(e.target.value)}
-                            placeholder="O que foi trabalhado em sala, dever de casa, links…"
+                            placeholder={t("docente.workspace.attendance.contentPlaceholder")}
                             className="min-h-[88px] rounded-xl max-w-xl"
                           />
                         </div>
 
                         <div className="space-y-2">
-                          <Label>Presença</Label>
+                          <Label>{t("docente.workspace.attendance.presenceLabel")}</Label>
                           <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl border border-border/50 p-3">
                             {resumo.alunos.map((a) => (
                               <label
@@ -664,10 +700,10 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                           {submitting ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Salvando…
+                              {t("docente.workspace.attendance.saving")}
                             </>
                           ) : (
-                            "Salvar chamada"
+                            t("docente.workspace.attendance.saveButton")
                           )}
                         </Button>
                       </form>
@@ -677,15 +713,17 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
 
                 <Card className="rounded-2xl border-border/60 shadow-sm">
                   <CardHeader>
-                    <CardTitle className="text-base">Aulas registradas</CardTitle>
+                    <CardTitle className="text-base">
+                      {t("docente.workspace.attendanceHistory.title")}
+                    </CardTitle>
                     <CardDescription>
-                      Histórico recente de chamadas e diário.
+                      {t("docente.workspace.attendanceHistory.desc")}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {aulasRecentes.length === 0 ? (
                       <p className="text-sm text-muted-foreground">
-                        Nenhuma chamada registrada ainda.
+                        {t("docente.workspace.attendanceHistory.empty")}
                       </p>
                     ) : (
                       <ul className="space-y-3 text-sm">
@@ -695,7 +733,8 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                             className="rounded-lg border border-border/40 px-3 py-2"
                           >
                             <span className="font-medium text-foreground">
-                              {aula.disciplina?.nome ?? "Disciplina"}
+                              {aula.disciplina?.nome ??
+                                t("docente.workspace.attendanceHistory.disciplineFallback")}
                             </span>
                             <span className="mt-0.5 block text-xs text-muted-foreground">
                               {formatDataCurta(aula.dataAula)}
@@ -719,15 +758,17 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
               <TabsContent value="avaliacoes" className="space-y-4">
                 <Card className="rounded-2xl border-border/60 shadow-sm">
                   <CardHeader>
-                    <CardTitle className="text-base">Nova avaliação ou prova</CardTitle>
+                    <CardTitle className="text-base">
+                      {t("docente.workspace.newAssessmentSection.title")}
+                    </CardTitle>
                     <CardDescription>
-                      Crie o instrumento; depois lance as notas por aluno.
+                      {t("docente.workspace.newAssessmentSection.desc")}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <form className="grid gap-3 max-w-xl" onSubmit={criarAvaliacao}>
                       <div className="grid gap-2">
-                        <Label>Disciplina</Label>
+                        <Label>{t("docente.workspace.attendance.disciplineLabel")}</Label>
                         <select
                           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                           value={novaAvDisciplina}
@@ -741,17 +782,17 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                         </select>
                       </div>
                       <div className="grid gap-2">
-                        <Label>Título</Label>
+                        <Label>{t("docente.workspace.form.titleLabel")}</Label>
                         <Input
                           value={novaAvTitulo}
                           onChange={(e) => setNovaAvTitulo(e.target.value)}
-                          placeholder="Ex.: Prova bimestral — Unidade 3"
+                          placeholder={t("docente.workspace.form.newAssessmentPlaceholder")}
                           className="rounded-xl"
                         />
                       </div>
                       <div className="flex flex-wrap gap-3">
                         <div className="grid gap-2">
-                          <Label>Data</Label>
+                          <Label>{t("docente.workspace.form.dateLabel")}</Label>
                           <Input
                             type="date"
                             value={novaAvData}
@@ -760,7 +801,7 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                           />
                         </div>
                         <div className="grid gap-2">
-                          <Label>Peso (opcional)</Label>
+                          <Label>{t("docente.workspace.form.weightOptional")}</Label>
                           <Input
                             type="number"
                             step="0.1"
@@ -771,7 +812,7 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                         </div>
                       </div>
                       <Button type="submit" className="w-fit rounded-xl">
-                        Criar avaliação
+                        {t("docente.workspace.newAssessmentSection.submitButton")}
                       </Button>
                     </form>
                   </CardContent>
@@ -779,15 +820,21 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
 
                 <Card className="rounded-2xl border-border/60 shadow-sm">
                   <CardHeader>
-                    <CardTitle className="text-base">Lançamento de notas</CardTitle>
+                    <CardTitle className="text-base">
+                      {t("docente.workspace.gradesSection.title")}
+                    </CardTitle>
                     <CardDescription>
-                      {loadingAv ? "Carregando…" : `${avaliacoes.length} avaliação(ões)`}
+                      {loadingAv ?
+                        t("common.loading")
+                      : t("docente.workspace.gradesSection.count", {
+                          count: avaliacoes.length,
+                        })}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     {avaliacoes.length === 0 ? (
                       <p className="text-sm text-muted-foreground">
-                        Nenhuma avaliação cadastrada para esta turma.
+                        {t("docente.workspace.gradesSection.empty")}
                       </p>
                     ) : (
                       avaliacoes.map((av) => (
@@ -800,7 +847,11 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                             <p className="text-xs text-muted-foreground">
                               {av.disciplina.nome} ·{" "}
                               {formatDataCurta(av.dataAvaliacao)}
-                              {av.peso != null ? ` · peso ${av.peso}` : ""}
+                              {av.peso != null ?
+                                t("docente.workspace.gradesSection.weightLine", {
+                                  weight: av.peso,
+                                })
+                              : ""}
                             </p>
                           </div>
                           <div className="grid gap-2 sm:grid-cols-2">
@@ -838,7 +889,7 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                               className="rounded-xl"
                               onClick={() => salvarNotas(av.id)}
                             >
-                              Salvar notas desta avaliação
+                              {t("docente.workspace.gradesSection.saveButton")}
                             </Button>
                             <Button
                               type="button"
@@ -853,7 +904,7 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                                 rel="noreferrer"
                               >
                                 <Download className="mr-1.5 h-3.5 w-3.5" />
-                                Baixar PDF
+                                {t("docente.workspace.gradesSection.downloadPdf")}
                               </a>
                             </Button>
                           </div>
@@ -867,22 +918,23 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
               <TabsContent value="boletim" className="space-y-4">
                 <Card className="rounded-2xl border-border/60 shadow-sm">
                   <CardHeader>
-                    <CardTitle className="text-base">Boletim por aluno</CardTitle>
-                    <CardDescription>
-                      Médias por disciplina e frequência calculada a partir das chamadas
-                      registradas.
-                    </CardDescription>
+                    <CardTitle className="text-base">
+                      {t("docente.workspace.reportCard.title")}
+                    </CardTitle>
+                    <CardDescription>{t("docente.workspace.reportCard.desc")}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex flex-wrap items-end gap-3">
                       <div className="grid gap-2">
-                        <Label>Aluno</Label>
+                        <Label>{t("docente.workspace.reportCard.studentLabel")}</Label>
                         <Select
                           value={boletimMatriculaId}
                           onValueChange={setBoletimMatriculaId}
                         >
                           <SelectTrigger className="w-[260px] rounded-xl">
-                            <SelectValue placeholder="Selecione" />
+                            <SelectValue
+                              placeholder={t("docente.workspace.reportCard.selectPlaceholder")}
+                            />
                           </SelectTrigger>
                           <SelectContent>
                             {resumo.alunos.map((a) => (
@@ -902,7 +954,7 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                         {loadingBol ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          "Carregar"
+                          t("docente.workspace.reportCard.loadButton")
                         )}
                       </Button>
                     </div>
@@ -915,10 +967,18 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="border-b border-border/60 text-left text-xs text-muted-foreground">
-                              <th className="px-3 py-2">Disciplina</th>
-                              <th className="px-3 py-2">Média</th>
-                              <th className="px-3 py-2">Faltas</th>
-                              <th className="px-3 py-2">Freq.</th>
+                              <th className="px-3 py-2">
+                                {t("docente.workspace.reportCard.thDiscipline")}
+                              </th>
+                              <th className="px-3 py-2">
+                                {t("docente.workspace.reportCard.thAverage")}
+                              </th>
+                              <th className="px-3 py-2">
+                                {t("docente.workspace.reportCard.thAbsences")}
+                              </th>
+                              <th className="px-3 py-2">
+                                {t("docente.workspace.reportCard.thAttendance")}
+                              </th>
                             </tr>
                           </thead>
                           <tbody>
@@ -949,20 +1009,19 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
                       <Megaphone className="h-4 w-4 opacity-70" />
-                      Novo registro pedagógico
+                      {t("docente.workspace.recordsNew.title")}
                     </CardTitle>
-                    <CardDescription>
-                      Observações, ocorrências e advertências ficam no histórico do
-                      aluno.
-                    </CardDescription>
+                    <CardDescription>{t("docente.workspace.recordsNew.desc")}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <form className="grid gap-3 max-w-xl" onSubmit={registrarPedagogico}>
                       <div className="grid gap-2">
-                        <Label>Aluno</Label>
+                        <Label>{t("docente.workspace.reportCard.studentLabel")}</Label>
                         <Select value={regAlunoId} onValueChange={setRegAlunoId}>
                           <SelectTrigger className="rounded-xl">
-                            <SelectValue placeholder="Selecione" />
+                            <SelectValue
+                              placeholder={t("docente.workspace.reportCard.selectPlaceholder")}
+                            />
                           </SelectTrigger>
                           <SelectContent>
                             {resumo.alunos.map((a) => (
@@ -974,20 +1033,26 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                         </Select>
                       </div>
                       <div className="grid gap-2">
-                        <Label>Tipo</Label>
+                        <Label>{t("docente.workspace.recordsNew.typeLabel")}</Label>
                         <Select value={regTipo} onValueChange={setRegTipo}>
                           <SelectTrigger className="rounded-xl">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="OBSERVACAO">Observação</SelectItem>
-                            <SelectItem value="OCORRENCIA">Ocorrência</SelectItem>
-                            <SelectItem value="ADVERTENCIA">Advertência</SelectItem>
+                            <SelectItem value="OBSERVACAO">
+                              {tipoRegistroLabel.OBSERVACAO}
+                            </SelectItem>
+                            <SelectItem value="OCORRENCIA">
+                              {tipoRegistroLabel.OCORRENCIA}
+                            </SelectItem>
+                            <SelectItem value="ADVERTENCIA">
+                              {tipoRegistroLabel.ADVERTENCIA}
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="grid gap-2">
-                        <Label>Título</Label>
+                        <Label>{t("docente.workspace.form.titleLabel")}</Label>
                         <Input
                           value={regTitulo}
                           onChange={(e) => setRegTitulo(e.target.value)}
@@ -995,7 +1060,7 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                         />
                       </div>
                       <div className="grid gap-2">
-                        <Label>Detalhes (opcional)</Label>
+                        <Label>{t("docente.workspace.recordsNew.detailsOptional")}</Label>
                         <Textarea
                           value={regDesc}
                           onChange={(e) => setRegDesc(e.target.value)}
@@ -1003,7 +1068,7 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                         />
                       </div>
                       <Button type="submit" className="w-fit rounded-xl">
-                        Salvar registro
+                        {t("docente.workspace.recordsNew.saveButton")}
                       </Button>
                     </form>
                   </CardContent>
@@ -1011,15 +1076,21 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
 
                 <Card className="rounded-2xl border-border/60 shadow-sm">
                   <CardHeader>
-                    <CardTitle className="text-base">Histórico nesta turma</CardTitle>
+                    <CardTitle className="text-base">
+                      {t("docente.workspace.recordsHistory.title")}
+                    </CardTitle>
                     <CardDescription>
-                      {loadingReg ? "Carregando…" : `${registros.length} registro(s)`}
+                      {loadingReg ?
+                        t("common.loading")
+                      : t("docente.workspace.recordsHistory.count", {
+                          count: registros.length,
+                        })}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {registros.length === 0 ? (
                       <p className="text-sm text-muted-foreground">
-                        Nenhum registro ainda.
+                        {t("docente.workspace.recordsHistory.empty")}
                       </p>
                     ) : (
                       <ul className="space-y-2 text-sm">
@@ -1031,7 +1102,7 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="font-medium">{r.aluno.nome}</span>
                               <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
-                                {TIPO_REGISTRO_LABEL[r.tipo] ?? r.tipo}
+                                {tipoRegistroLabel[r.tipo] ?? r.tipo}
                               </span>
                             </div>
                             <p className="mt-0.5 font-medium text-foreground">{r.titulo}</p>
@@ -1055,22 +1126,19 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
                       <FileStack className="h-4 w-4 opacity-70" />
-                      Arquivos desta turma
+                      {t("docente.workspace.materialsSection.title")}
                     </CardTitle>
-                    <CardDescription>
-                      Slides, provas e atividades enviados para esta turma. Para enviar
-                      novos arquivos, use o repositório de materiais.
-                    </CardDescription>
+                    <CardDescription>{t("docente.workspace.materialsSection.desc")}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <Button variant="secondary" className="rounded-xl" asChild>
                       <Link href={`/docente/materiais?turmaId=${turmaId}`}>
-                        Abrir biblioteca de materiais
+                        {t("docente.workspace.materialsSection.openLibrary")}
                       </Link>
                     </Button>
                     {materiaisTurma.length === 0 ? (
                       <p className="text-sm text-muted-foreground">
-                        Nenhum material vinculado a esta turma ainda.
+                        {t("docente.workspace.materialsSection.empty")}
                       </p>
                     ) : (
                       <ul className="space-y-2 text-sm">
@@ -1085,7 +1153,7 @@ export function DocenteTurmaWorkspace({ turmaId }: Props) {
                               {m.titulo}
                             </a>
                             <span className="block text-xs text-muted-foreground">
-                              {TIPO_MATERIAL_LABEL[m.tipo] ?? m.tipo}
+                              {tipoMaterialLabel[m.tipo] ?? m.tipo}
                               {m.disciplina?.nome ? ` · ${m.disciplina.nome}` : ""}
                             </span>
                           </li>

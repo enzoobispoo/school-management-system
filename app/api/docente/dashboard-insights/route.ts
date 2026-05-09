@@ -7,6 +7,8 @@ import {
   DOCENTE_DASHBOARD_DEFAULTS,
   normalizeDocenteDashboardConfig,
 } from "@/lib/docente/dashboard-config";
+import { API_FORBIDDEN_PROFILE } from "@/lib/http/api-forbidden";
+import { blockProfessorWhenPortalDisabled } from "@/lib/docente/professor-portal-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -60,7 +62,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     }
     if (user.role !== "PROFESSOR") {
-      return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+      return NextResponse.json({ error: API_FORBIDDEN_PROFILE }, { status: 403 });
     }
     if (!user.schoolId || !user.professorId) {
       return NextResponse.json(
@@ -68,6 +70,9 @@ export async function GET(request: NextRequest) {
         { status: 403 }
       );
     }
+
+    const portalDenied = await blockProfessorWhenPortalDisabled(user);
+    if (portalDenied) return portalDenied;
 
     const schoolId = user.schoolId;
     const professorId = user.professorId;

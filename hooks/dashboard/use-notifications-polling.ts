@@ -24,7 +24,7 @@ interface NotificationsState {
   clearHasNew: () => void;
 }
 
-const POLL_INTERVAL = 30_000;
+const POLL_INTERVAL = 45_000;
 
 export function useNotificationsPolling(): NotificationsState {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -54,9 +54,21 @@ export function useNotificationsPolling(): NotificationsState {
   }, []);
 
   useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, POLL_INTERVAL);
-    return () => clearInterval(interval);
+    void fetchNotifications();
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+      }
+      void fetchNotifications();
+    }, POLL_INTERVAL);
+    const onVis = () => {
+      if (document.visibilityState === "visible") void fetchNotifications();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, [fetchNotifications]);
 
   async function markAsRead(id: string) {

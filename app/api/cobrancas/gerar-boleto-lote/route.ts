@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createBoleto } from "@/lib/billing/provider";
-import { getCurrentUser, requireSchool } from "@/lib/auth";
+import { assertCoreFinanceWrite, getCurrentUser, requireSchool } from "@/lib/auth";
+import { logSchoolAudit } from "@/lib/audit/school-audit-log";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import {
   CanalCobranca,
@@ -41,6 +42,9 @@ export async function POST(request: NextRequest) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const denied = assertCoreFinanceWrite(user);
+    if (denied) return denied;
 
     const { paymentIds, method } = await request.json();
 
@@ -264,6 +268,19 @@ Se o pagamento já foi realizado, desconsidere esta mensagem. Caso precise de ap
         }
       }
     }
+
+    void logSchoolAudit({
+      schoolId,
+      userId: user.id,
+      role: user.role,
+      domain: "finance",
+      action: "BOLETO_GENERATE_BATCH",
+      resourceId: null,
+      summary: `Geração de cobrança em lote (${paymentIds.length} mensalidades).`,
+      payload: {
+        paymentCount: paymentIds.length,
+      },
+    });
 
     return NextResponse.json({
       success: true,

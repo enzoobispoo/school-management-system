@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
-import { Header } from "@/components/dashboard/header";
+import { ResourcePageHeader } from "@/components/dashboard/resource-page-header";
 import { TurmaProfileContent } from "@/components/turmas/turma-profile-content";
 import { prisma } from "@/lib/prisma";
 
@@ -42,7 +42,11 @@ export default async function TurmaPage({ params }: PageProps) {
 
   return (
     <DashboardLayout>
-      <Header title={turma.nome} description={`Turma · ${turma.curso.nome}`} />
+      <ResourcePageHeader
+        title={turma.nome}
+        variant="class"
+        courseName={turma.curso.nome}
+      />
       <TurmaProfileContent turma={turma as any} />
     </DashboardLayout>
   );

@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server"
 import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { updateMatriculaSchema } from "@/lib/validations/matricula"
-import { getCurrentUser, requireSchool } from "@/lib/auth";
+import {
+  assertEnrollmentRead,
+  assertEnrollmentWrite,
+  getCurrentUser,
+  requireSchool,
+} from "@/lib/auth";
+import { logSchoolAudit } from "@/lib/audit/school-audit-log";
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -15,6 +21,10 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const deniedRead = assertEnrollmentRead(user);
+    if (deniedRead) return deniedRead;
+
     const { id } = await context.params
 
     const matricula = await prisma.matricula.findFirst({
@@ -112,6 +122,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const deniedWrite = assertEnrollmentWrite(user);
+    if (deniedWrite) return deniedWrite;
+
     const { id } = await context.params
     const body = await request.json()
 
@@ -252,6 +266,24 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       })
     }
 
+    void logSchoolAudit({
+      schoolId,
+      userId: user.id,
+      role: user.role,
+      domain: "enrollment",
+      action: "MATRICULA_UPDATE",
+      resourceId: matricula.id,
+      summary: `Matrícula atualizada: ${matricula.aluno.nome} — ${matricula.turma.nome}`,
+      payload: {
+        prevStatus: matriculaExistente.status,
+        nextStatus: matricula.status,
+        turmaChanged:
+          parsed.data.turmaId ?
+            parsed.data.turmaId !== matriculaExistente.turmaId
+          : false,
+      },
+    });
+
     return NextResponse.json({
       id: matricula.id,
       status: matricula.status,
@@ -313,6 +345,10 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const deniedWrite = assertEnrollmentWrite(user);
+    if (deniedWrite) return deniedWrite;
+
     const { id } = await context.params
 
     const matricula = await prisma.matricula.findFirst({
@@ -345,6 +381,17 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
         { status: 400 }
       )
     }
+
+    void logSchoolAudit({
+      schoolId,
+      userId: user.id,
+      role: user.role,
+      domain: "enrollment",
+      action: "MATRICULA_DELETE",
+      resourceId: id,
+      summary: `Matrícula excluída (sem pagamentos vinculados): id ${id}`,
+      payload: null,
+    });
 
     await prisma.matricula.delete({
       where: { id },

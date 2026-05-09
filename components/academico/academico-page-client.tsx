@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Header } from "@/components/dashboard/header";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 type Turma = {
   id: string;
@@ -28,6 +29,7 @@ function periodQuery(start: string, end: string) {
 }
 
 export function AcademicoPageClient() {
+  const { t } = useDashboardLanguage();
   const [turmas, setTurmas] = useState<Turma[]>([]);
   const [selectedTurmaId, setSelectedTurmaId] = useState("");
   const [disciplinas, setDisciplinas] = useState<Disciplina[]>([]);
@@ -144,7 +146,10 @@ export function AcademicoPageClient() {
 
   return (
     <DashboardLayout>
-      <Header title="Acadêmico" description="Painel executivo por turma" />
+      <Header
+        title={t("page.academic.title")}
+        description={t("page.academic.description")}
+      />
       <div className="p-6 space-y-4">
         <section className="rounded-2xl border border-border/70 bg-card/70 p-5">
           <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Gestão Acadêmica</p>

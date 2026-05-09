@@ -4,18 +4,20 @@ import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Header } from "@/components/dashboard/header";
 import { TurmasPageContent } from "@/components/turmas/turmas-page-content";
 import { useTurmasPage } from "@/hooks/turmas/use-turmas-page";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 export function TurmasPageClient() {
+  const { t } = useDashboardLanguage();
   const turmasPage = useTurmasPage();
 
   return (
     <DashboardLayout>
       <Header
-        title="Turmas"
+        title={t("page.classes.title")}
         description={
-          turmasPage.professorId
-            ? "Turmas vinculadas ao professor selecionado"
-            : "Gerencie as turmas da escola"
+          turmasPage.professorId ?
+            t("page.classes.descriptionProfessorFilter")
+          : t("page.classes.description")
         }
       />
 

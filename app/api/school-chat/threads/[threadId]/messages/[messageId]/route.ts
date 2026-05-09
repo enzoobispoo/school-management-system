@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, requireSchool } from "@/lib/auth";
+import { blockProfessorWhenPortalDisabled } from "@/lib/docente/professor-portal-policy";
 import { mapSchoolChatMessageForViewer } from "@/lib/school-chat/map-chat-message";
 import { userParticipatesInThread } from "@/lib/school-chat/thread-access";
 
@@ -22,6 +23,9 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const portalDeniedPatch = await blockProfessorWhenPortalDisabled(user);
+    if (portalDeniedPatch) return portalDeniedPatch;
 
     const { threadId, messageId } = await ctx.params;
 
@@ -147,6 +151,9 @@ export async function DELETE(request: NextRequest, ctx: RouteContext) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const portalDeniedDel = await blockProfessorWhenPortalDisabled(user);
+    if (portalDeniedDel) return portalDeniedDel;
 
     const { threadId, messageId } = await ctx.params;
 

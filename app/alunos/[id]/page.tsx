@@ -1,5 +1,5 @@
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
-import { Header } from "@/components/dashboard/header";
+import { ResourcePageHeader } from "@/components/dashboard/resource-page-header";
 import { AlunoProfileContent } from "@/components/alunos/profile/aluno-profile-content";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
@@ -92,7 +92,7 @@ export default async function AlunoProfilePage({ params }: Props) {
 
   return (
     <DashboardLayout>
-      <Header title={aluno.nome} description="Perfil do aluno" />
+      <ResourcePageHeader title={aluno.nome} variant="student" />
       <AlunoProfileContent aluno={data as any} />
     </DashboardLayout>
   );

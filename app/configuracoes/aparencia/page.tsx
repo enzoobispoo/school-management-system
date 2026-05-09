@@ -4,8 +4,8 @@ import { AppearanceSettingsSection } from "@/components/configuracoes/sections/a
 export default function ConfiguracoesAparenciaPage() {
   return (
     <SettingsShell
-      title="Configurações"
-      description="Personalize a aparência do sistema."
+      titleKey="settings.shell.title"
+      descriptionKey="settings.shell.desc.appearance"
     >
       <AppearanceSettingsSection />
     </SettingsShell>

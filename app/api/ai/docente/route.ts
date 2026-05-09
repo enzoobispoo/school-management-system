@@ -19,11 +19,42 @@ import {
   queryDocenteTurmas,
   type QueryDocenteTurmasResult,
 } from "@/lib/ai/tools/query-docente-turmas";
-import { requireProfessorContext } from "@/lib/docente/require-professor";
+import type { AuthenticatedUser } from "@/lib/auth";
+import {
+  filterAndPublicAiSuggestions,
+  eduiaClientCapsFromResolvedSchoolAi,
+} from "@/lib/ai/eduia-client-caps";
 import { getEduiaDocenteQuickSuggestions } from "@/lib/ai/suggestions";
+import { blockProfessorWhenPortalDisabled } from "@/lib/docente/professor-portal-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function docenteAiScope(user: AuthenticatedUser): NextResponse | {
+  schoolId: string;
+  professorId: string | null;
+  needsProfessorLink: boolean;
+} {
+  if (user.role !== "PROFESSOR") {
+    return NextResponse.json(
+      { error: "Acesso restrito a professores." },
+      { status: 403 }
+    );
+  }
+  const sid = user.schoolId?.trim();
+  if (!sid) {
+    return NextResponse.json(
+      { error: "Escola não associada ao usuário." },
+      { status: 403 }
+    );
+  }
+  const pid = user.professorId?.trim() ?? null;
+  return {
+    schoolId: sid,
+    professorId: pid,
+    needsProfessorLink: !pid,
+  };
+}
 
 type ConversationMessage = {
   role: "user" | "assistant";
@@ -67,7 +98,7 @@ function messageWhenOpenAiUnavailableDocente(schoolAi: ResolvedSchoolAi | null) 
     ? `${schoolAi.schoolDisplayName} — `
     : "";
   if (schoolAi.tier === "starter") {
-    return `${prefix}no plano Starter a EduIA do professor está em modo integrado (sem OpenAI): você recebe seus dados de turmas abaixo. Para sugestões de avaliações com IA generativa, a escola precisa de plano com OpenAI configurado em Configurações → IA e integrações.`;
+    return `${prefix}no plano **Starter** a EduIA do professor fica em **modo integrado** (sem modelo OpenAI): você vê abaixo dados reais das suas turmas titulares e pode usar as **Sugestões rápidas** para perguntas objetivas. Para respostas generativas com ferramentas (pré-visualização de provas, slides, etc.), a escola precisa de plano com uso de IA e **chave OpenAI** em Configurações → IA e integrações.`;
   }
   if (schoolAi.limitExceeded) {
     return `O limite mensal de mensagens com IA do seu plano foi atingido (${schoolAi.usageCount}/${schoolAi.monthlyLimit}). Abaixo estão suas turmas no sistema; use /docente/avaliacoes/nova para criar avaliações manualmente.`;
@@ -102,12 +133,17 @@ export async function POST(request: NextRequest) {
       return json({ error: "Não autenticado." }, { status: 401 });
     }
 
-    const pctx = requireProfessorContext(user);
-    if (pctx instanceof NextResponse) {
-      return withCorrelationHeader(pctx, correlationId);
+    const portalDenied = await blockProfessorWhenPortalDisabled(user);
+    if (portalDenied) {
+      return withCorrelationHeader(portalDenied, correlationId);
     }
 
-    const { schoolId, professorId } = pctx;
+    const scope = docenteAiScope(user);
+    if (scope instanceof NextResponse) {
+      return withCorrelationHeader(scope, correlationId);
+    }
+
+    const { schoolId, professorId, needsProfessorLink } = scope;
 
     let raw: unknown;
     try {
@@ -136,6 +172,7 @@ export async function POST(request: NextRequest) {
     );
 
     const schoolAi = await resolveSchoolAiForUser(user);
+    const eduiaCaps = eduiaClientCapsFromResolvedSchoolAi(schoolAi);
     const client =
       schoolAi?.useOpenAi &&
       schoolAi.apiKey &&
@@ -160,12 +197,49 @@ export async function POST(request: NextRequest) {
       professorId
     );
 
+    if (needsProfessorLink) {
+      const linkMsg =
+        "Sua conta ainda **não está vinculada** ao cadastro de professor nesta escola (mesmo e-mail na ficha). Isso não é um erro seu: quando a secretaria ajustar, as turmas aparecem aqui automaticamente.\n\n" +
+        "Enquanto isso você pode usar **Nova avaliação**, **Mensagens**, **Materiais** e **Calendário** pelo menu. As sugestões abaixo trazem orientações gerais que funcionam sem dados de turma.\n\n" +
+        "### Suas turmas (titular)\n" +
+        formatTurmasDocenteMarkdown(turmasSnapshot);
+
+      await registerAiAudit({
+        userId: user.id,
+        schoolId,
+        correlationId,
+        message,
+        intent: "DOCENTE_NEEDS_LINK",
+        response: linkMsg,
+        executed: false,
+      });
+
+      return json({
+        message: linkMsg,
+        suggestions: filterAndPublicAiSuggestions(
+          getEduiaDocenteQuickSuggestions(),
+          eduiaCaps
+        ),
+        meta: {
+          intent: "DOCENTE_NEEDS_LINK",
+          confidence: 1,
+          executed: false,
+          conversationContext: nextConversationContext,
+          correlationId,
+          toolsUsed: ["docente_sem_vinculo"],
+        },
+      });
+    }
+
     if (!client) {
       resultMessage = `${messageWhenOpenAiUnavailableDocente(schoolAi)}
 
 ### Suas turmas (titular)
 ${formatTurmasDocenteMarkdown(turmasSnapshot)}`;
-      suggestions = getEduiaDocenteQuickSuggestions();
+      suggestions = filterAndPublicAiSuggestions(
+        getEduiaDocenteQuickSuggestions(),
+        eduiaCaps
+      );
       toolsUsedMeta = ["docente_modo_integrado"];
 
       await registerAiAudit({
@@ -223,14 +297,21 @@ ${formatTurmasDocenteMarkdown(turmasSnapshot)}`;
         aiRun.toolRuns.length > 0
           ? [...new Set(aiRun.toolRuns.map((r) => r.tool))]
           : ["openai_docente_sem_tools"];
-      suggestions = getEduiaDocenteQuickSuggestions();
+      suggestions = filterAndPublicAiSuggestions(
+        getEduiaDocenteQuickSuggestions(),
+        eduiaCaps
+      );
     } catch (fallbackError) {
       console.error("Erro no modo tools da EduIA (docente):", fallbackError);
 
       resultMessage =
-        "No momento o modo avançado da EduIA está indisponível. Seguem suas turmas cadastrais:\n\n" +
+        "Encontrei um erro técnico ao processar esta mensagem com as ferramentas da EduIA. **Seus dados de turmas como titular** continuam disponíveis abaixo — use também os botões em **Sugestões rápidas**.\n\n" +
+        "### Turmas (titular)\n" +
         formatTurmasDocenteMarkdown(turmasSnapshot);
-      suggestions = getEduiaDocenteQuickSuggestions();
+      suggestions = filterAndPublicAiSuggestions(
+        getEduiaDocenteQuickSuggestions(),
+        eduiaCaps
+      );
       toolsUsedMeta = ["docente_tools_erro"];
     }
 

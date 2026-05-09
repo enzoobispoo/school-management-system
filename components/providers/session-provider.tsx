@@ -3,8 +3,10 @@
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useDashboardLanguage();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -20,7 +22,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         const url = typeof args[0] === "string" ? args[0] : args[0]?.toString() ?? "";
         // ignora rotas de auth para não criar loop
         if (!url.includes("/api/auth/")) {
-          toast.error("Sessão expirada. Faça login novamente.");
+          toast.error(t("session.expiredToast"));
           router.push("/login");
         }
       }
@@ -31,7 +33,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     return () => {
       window.fetch = originalFetch;
     };
-  }, [pathname, router]);
+  }, [pathname, router, t]);
 
   return <>{children}</>;
 }

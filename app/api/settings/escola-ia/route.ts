@@ -62,6 +62,12 @@ export async function GET() {
       aiUsageResetAt: usageRow?.aiUsageResetAt ?? settings.aiUsageResetAt,
       hasOpenaiApiKey: Boolean(settings.openaiApiKey?.trim()),
       maskedOpenaiApiKey: maskApiKey(settings.openaiApiKey),
+      hasAnthropicApiKey: Boolean(settings.anthropicApiKey?.trim()),
+      maskedAnthropicApiKey: maskApiKey(settings.anthropicApiKey),
+      hasGoogleGeminiApiKey: Boolean(settings.googleGeminiApiKey?.trim()),
+      maskedGoogleGeminiApiKey: maskApiKey(settings.googleGeminiApiKey),
+      hasFalAiApiKey: Boolean(settings.falAiApiKey?.trim()),
+      maskedFalAiApiKey: maskApiKey(settings.falAiApiKey),
       twilioAccountSid: settings.twilioAccountSid?.trim() || null,
       hasTwilioAuthToken: Boolean(settings.twilioAuthToken?.trim()),
       maskedTwilioAuthToken: maskTwilioToken(settings.twilioAuthToken),
@@ -104,6 +110,21 @@ export async function PUT(request: NextRequest) {
         const k = body.openaiApiKey;
         if (k === null || k === "") data.openaiApiKey = null;
         else if (typeof k === "string" && k.trim()) data.openaiApiKey = k.trim();
+      }
+      if ("anthropicApiKey" in body) {
+        const k = body.anthropicApiKey;
+        if (k === null || k === "") data.anthropicApiKey = null;
+        else if (typeof k === "string" && k.trim()) data.anthropicApiKey = k.trim();
+      }
+      if ("googleGeminiApiKey" in body) {
+        const k = body.googleGeminiApiKey;
+        if (k === null || k === "") data.googleGeminiApiKey = null;
+        else if (typeof k === "string" && k.trim()) data.googleGeminiApiKey = k.trim();
+      }
+      if ("falAiApiKey" in body) {
+        const k = body.falAiApiKey;
+        if (k === null || k === "") data.falAiApiKey = null;
+        else if (typeof k === "string" && k.trim()) data.falAiApiKey = k.trim();
       }
       if ("aiMonthlyLimitOverride" in body) {
         const n = Number(body.aiMonthlyLimitOverride);

@@ -7,6 +7,7 @@ import type {
 } from "./dashboard-metric-card-config";
 import { OPTIONAL_METRIC_CARDS } from "./dashboard-metric-card-config";
 import { Button } from "@/components/ui/button";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 interface DashboardCustomizePanelProps {
   optionalCards: Record<OptionalMetricKey, boolean>;
@@ -23,6 +24,7 @@ export function DashboardCustomizePanel({
   onMoveUp,
   onMoveDown,
 }: DashboardCustomizePanelProps) {
+  const { t } = useDashboardLanguage();
   const optionalCardsInOrder = cardsOrder.filter(
     (key): key is OptionalMetricKey =>
       OPTIONAL_METRIC_CARDS.some((item) => item.key === key)
@@ -30,9 +32,9 @@ export function DashboardCustomizePanel({
 
   return (
     <div className="mb-6 rounded-2xl border border-border/60 bg-white/5 backdrop-blur-md p-4 dark:bg-white/[0.03]">
-      <p className="text-sm font-medium text-foreground">Cards opcionais</p>
+      <p className="text-sm font-medium text-foreground">{t("customize.title")}</p>
       <p className="mt-1 text-xs text-muted-foreground">
-        Escolha quais cards adicionais deseja exibir e ajuste a ordem deles.
+        {t("customize.description")}
       </p>
 
       <div className="mt-4 space-y-3">
@@ -55,7 +57,7 @@ export function DashboardCustomizePanel({
                   onChange={(e) => onToggleCard(key, e.target.checked)}
                 />
                 <span className="truncate text-sm text-foreground">
-                  {item.label}
+                  {t(`metric.${item.key}.title`)}
                 </span>
               </label>
 

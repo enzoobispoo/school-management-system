@@ -52,6 +52,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (user.role === "PROFESSOR" && user.schoolId) {
+      const escola = await prisma.escolaSettings.findUnique({
+        where: { schoolId: user.schoolId },
+        select: { professorPortalEnabled: true },
+      });
+      const portalOk = escola?.professorPortalEnabled ?? true;
+      if (!portalOk) {
+        return NextResponse.json(
+          {
+            error:
+              "O portal do professor está desativado para esta escola. Procure a secretaria.",
+            code: "PROFESSOR_PORTAL_DISABLED",
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     const token = await signAuthToken({
       userId: user.id,
       email: user.email,

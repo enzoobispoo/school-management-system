@@ -5,10 +5,12 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Header } from "@/components/dashboard/header";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 import { AccountSettingsSection } from "@/components/configuracoes/sections/account-settings-section";
 import { Button } from "@/components/ui/button";
 
 export default function PerfilPage() {
+  const { t } = useDashboardLanguage();
   const [backHref, setBackHref] = useState("/");
 
   useEffect(() => {
@@ -18,7 +20,10 @@ export default function PerfilPage() {
         const role = d.user?.role;
         if (role === "PROFESSOR") setBackHref("/docente");
         else if (role === "SUPER_ADMIN") setBackHref("/admin");
-        else setBackHref("/");
+        else if (role === "FINANCEIRO") setBackHref("/financeiro");
+        else if (role === "SECRETARIA" || role === "SECRETARIA_FINANCEIRA") {
+          setBackHref("/secretaria");
+        } else setBackHref("/");
       })
       .catch(() => setBackHref("/"));
   }, []);
@@ -26,8 +31,8 @@ export default function PerfilPage() {
   return (
     <DashboardLayout>
       <Header
-        title="Meu perfil"
-        description="Nome, foto, telefone e e-mail aparecem no chat e em outros lugares do sistema."
+        title={t("page.profile.headerTitle")}
+        description={t("page.profile.headerDescription")}
       />
 
       <div className="mx-auto max-w-2xl space-y-4 p-5">

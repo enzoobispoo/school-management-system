@@ -4,8 +4,8 @@ import { AccountSettingsSection } from "@/components/configuracoes/sections/acco
 export default function ConfiguracoesContaPage() {
   return (
     <SettingsShell
-      title="Configurações"
-      description="Gerencie sua conta e preferências do sistema."
+      titleKey="settings.shell.title"
+      descriptionKey="settings.shell.desc.account"
     >
       <AccountSettingsSection />
     </SettingsShell>

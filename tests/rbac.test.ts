@@ -5,14 +5,17 @@ import {
 } from "@/lib/auth/rbac";
 
 describe("RBAC — painel executivo", () => {
-  it("permite administração, financeiro e secretaria", () => {
+  it("permite administração e secretarias (não o hub exclusivo do financeiro)", () => {
     expect(canAccessExecutiveSchoolDashboard({ role: "ADMIN" })).toBe(true);
     expect(canAccessExecutiveSchoolDashboard({ role: "FINANCEIRO" })).toBe(
-      true
+      false
     );
     expect(canAccessExecutiveSchoolDashboard({ role: "SECRETARIA" })).toBe(
       true
     );
+    expect(
+      canAccessExecutiveSchoolDashboard({ role: "SECRETARIA_FINANCEIRA" })
+    ).toBe(true);
   });
 
   it("nega professor", () => {
@@ -23,11 +26,14 @@ describe("RBAC — painel executivo", () => {
 });
 
 describe("RBAC — EduIA executiva", () => {
-  it("permite perfis de gestão e super admin", () => {
+  it("permite perfis de gestão e super admin (financeiro com tools restritas na API)", () => {
     expect(canAccessExecutiveEduia({ role: "ADMIN" })).toBe(true);
     expect(canAccessExecutiveEduia({ role: "SUPER_ADMIN" })).toBe(true);
     expect(canAccessExecutiveEduia({ role: "FINANCEIRO" })).toBe(true);
     expect(canAccessExecutiveEduia({ role: "SECRETARIA" })).toBe(true);
+    expect(canAccessExecutiveEduia({ role: "SECRETARIA_FINANCEIRA" })).toBe(
+      true
+    );
   });
 
   it("nega professor", () => {

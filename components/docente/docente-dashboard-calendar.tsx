@@ -105,16 +105,16 @@ export function DocenteDashboardCalendar(props: {
 
       <div
         className={cn(
-          "grid gap-4 lg:grid-cols-[minmax(0,320px)_1fr]",
+          "grid gap-4 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)] lg:items-start",
           "rounded-2xl border p-4 shadow-sm backdrop-blur-md",
           colorful
             ? "border-violet-200/70 bg-violet-50/60 dark:border-violet-400/25 dark:bg-violet-500/10"
             : "border-border/55 bg-card/40 dark:border-white/[0.06] dark:bg-zinc-900/35"
         )}
       >
-        <div className="relative">
+        <div className="relative min-w-0 overflow-hidden lg:max-w-[320px]">
           {calLoading ? (
-            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-background/60 backdrop-blur-[2px] dark:bg-background/40">
+            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-background/60 backdrop-blur-[2px] dark:bg-background/40">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : null}
@@ -122,12 +122,14 @@ export function DocenteDashboardCalendar(props: {
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
             daysWithEvents={eventDayKeys}
+            embedded
+            className="rounded-2xl"
           />
         </div>
 
         <div
           className={cn(
-            "flex min-h-[200px] flex-col rounded-2xl border p-4",
+            "flex min-h-[220px] min-w-0 flex-col rounded-2xl border p-4 lg:min-h-[280px]",
             colorful
               ? "border-white/45 bg-white/55 dark:border-white/15 dark:bg-white/5"
               : "border-border/50 bg-muted/15 dark:border-white/[0.06] dark:bg-zinc-950/25"

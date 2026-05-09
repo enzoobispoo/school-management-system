@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth/current-user";
 import { prisma } from "@/lib/prisma";
+import { API_FORBIDDEN_PROFILE } from "@/lib/http/api-forbidden";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (user.role !== "SUPER_ADMIN") {
-      return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+      return NextResponse.json({ error: API_FORBIDDEN_PROFILE }, { status: 403 });
     }
 
     const schools = await prisma.school.findMany({

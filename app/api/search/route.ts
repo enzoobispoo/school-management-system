@@ -183,6 +183,59 @@ async function searchProfessorScoped(
   return results;
 }
 
+async function searchFinanceScoped(
+  schoolId: string,
+  query: string
+): Promise<SearchHit[]> {
+  const pagamentos = await prisma.pagamento.findMany({
+    where: {
+      schoolId,
+      status: { not: "CANCELADO" },
+      OR: [
+        { descricao: { contains: query, mode: "insensitive" } },
+        {
+          matricula: {
+            aluno: {
+              nome: { contains: query, mode: "insensitive" },
+            },
+          },
+        },
+        {
+          matricula: {
+            turma: {
+              curso: {
+                nome: { contains: query, mode: "insensitive" },
+              },
+            },
+          },
+        },
+      ],
+    },
+    take: 12,
+    include: {
+      matricula: {
+        include: {
+          aluno: true,
+          turma: {
+            include: {
+              curso: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return pagamentos.map((item) => ({
+    id: item.id,
+    type: "pagamento" as const,
+    label: `${item.matricula.aluno.nome} — ${item.descricao}`,
+    description: item.matricula.turma.curso.nome,
+    href: `/financeiro/cobrancas?paymentId=${item.id}`,
+  }));
+}
+
 async function searchSchoolStaffScoped(
   schoolId: string,
   query: string
@@ -341,7 +394,7 @@ async function searchSchoolStaffScoped(
       type: "pagamento" as const,
       label: `${item.matricula.aluno.nome} — ${item.descricao}`,
       description: item.matricula.turma.curso.nome,
-      href: `/financeiro?paymentId=${item.id}`,
+      href: `/financeiro/cobrancas?paymentId=${item.id}`,
     })),
     ...avaliacoes.map((item) => ({
       id: item.id,
@@ -376,6 +429,8 @@ export async function GET(request: NextRequest) {
     const results =
       user.role === "PROFESSOR"
         ? await searchProfessorScoped(user, schoolId, query)
+        : user.role === "FINANCEIRO"
+          ? await searchFinanceScoped(schoolId, query)
         : await searchSchoolStaffScoped(schoolId, query);
 
     return NextResponse.json({ results });

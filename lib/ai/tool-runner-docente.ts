@@ -2,12 +2,14 @@ import OpenAI from "openai";
 import type { PlanTier } from "@/lib/school-plan";
 import { EDUIA_PRODUCT_CONTEXT } from "@/lib/ai/product-domain";
 import type { AiToolRunAuditEntry } from "@/lib/ai/audit";
+import { extractResponsesOutputText } from "@/lib/ai/responses-output-text";
 import { aiDocenteToolDefinitions } from "@/lib/ai/tool-definitions-docente";
 import { queryDocenteTurmas } from "@/lib/ai/tools/query-docente-turmas";
 import { queryNotifications } from "@/lib/ai/tools/query-notifications";
 import { createDocenteAvaliacaoTool } from "@/lib/ai/tools/create-docente-avaliacao";
 import { queryDocenteAvaliacoesRecentes } from "@/lib/ai/tools/query-docente-avaliacoes-recentes";
 import { queryDocenteDiarioRecente } from "@/lib/ai/tools/query-docente-diario-recente";
+import { createDocenteApresentacaoTool } from "@/lib/ai/tools/create-docente-apresentacao";
 import type { AuthenticatedUser } from "@/lib/auth/get-current-user";
 
 type ConversationMessage = {
@@ -19,6 +21,7 @@ type DocenteToolName =
   | "query_docente_turmas"
   | "query_notifications"
   | "create_docente_avaliacao"
+  | "create_docente_apresentacao"
   | "query_docente_avaliacoes_recentes"
   | "query_docente_diario_recente";
 
@@ -80,6 +83,11 @@ async function runDocenteTool(
     }
     case "create_docente_avaliacao":
       return createDocenteAvaliacaoTool(args, {
+        schoolId: ctx.schoolId,
+        user: ctx.user,
+      });
+    case "create_docente_apresentacao":
+      return createDocenteApresentacaoTool(args, {
         schoolId: ctx.schoolId,
         user: ctx.user,
       });
@@ -151,6 +159,7 @@ ${EDUIA_PRODUCT_CONTEXT}
 ${briefingBlock}
 Regras:
 - Responda em português do Brasil, tom profissional e direto.
+- No texto que o professor lê, jamais cite nomes internos de ferramentas (palavras com sublinhado tipo query_* ou create_*), nem JSON técnico, slideSpecs ou confirmed:true/false — diga em linguagem natural (“vou conferir suas turmas no cadastro”, “segue o rascunho dos slides”).
 - Não acesse nem mencione dados financeiros globais da escola, faturamento ou cobranças de outros perfis.
 - Para dados de turmas e disciplinas do professor, use sempre query_docente_turmas antes de afirmar nomes de turmas ou ids.
 - Para avisos da escola, use query_notifications quando precisar de fatos recentes.
@@ -158,7 +167,9 @@ Regras:
 - Para sugestões de sequência didática, revisão ou próximos temas, use query_docente_diario_recente quando precisar de fatos sobre aulas já registradas.
 - Você pode propor planos de aula, ideias de atividades, rubricas de correção e pegadinhas comuns em avaliações — sempre alinhado ao BNCC apenas quando o professor pedir explicitamente.
 - Para criar avaliações/provas via ferramenta create_docente_avaliacao: primeiro monte o pedido com dados claros (turma, disciplina, título, data); na primeira chamada use confirmed:false e mostre o preview; só use confirmed:true depois que o professor confirmar explicitamente (por exemplo dizendo que confirma usando a frase sugerida pela tool).
-- Oriente sobre telas: /docente (painel), /docente/avaliacoes/nova (formulário), /docente/avaliacoes (biblioteca), /docente/avaliacoes/[id]/ver (visualizar), /docente/avaliacoes/[id]/quadro (quadro para correção/apresentação), /docente/materiais, /mensagens, /docente/eduia (workspace IA).
+- Para criar apresentações (slides editáveis no estilo Canva simplificado) use create_docente_apresentacao com slideSpecs (lista de slides com title; use boldVisualLayout:true na primeira página para capa “hero” vibrante; bullets com linhas separadas por \\n). Mesmo fluxo confirmed:false depois confirmed:true. Opcionalmente turmaId/disciplinaId para vincular o material.
+- Geração de ilustrações 3D ou imagens automáticas não está ligada por padrão — use texto, cores (#hex) e oriente upload de imagens no editor. Chaves opcionais Gemini / Anthropic / Fal ficam nas configurações da escola para evoluções futuras.
+- Oriente sobre telas: /docente (painel), /docente/avaliacoes/nova (formulário), /docente/avaliacoes (biblioteca), /docente/avaliacoes/[id]/ver (visualizar), /docente/avaliacoes/[id]/quadro (quadro para correção/apresentação), /docente/materiais/apresentacoes (biblioteca de slides), /docente/materiais/apresentacoes/editor/[id] (editor), /mensagens, /docente/eduia (workspace IA).
 - Se faltar informação (qual turma ou disciplina), liste opções vindas de query_docente_turmas e peça uma escolha objetiva.
 `,
       },
@@ -182,9 +193,10 @@ ${params.message}`,
     );
 
     if (functionCalls.length === 0) {
+      const text = extractResponsesOutputText(response);
       return {
         message:
-          response.output_text?.trim() ||
+          text ||
           "Não foi possível gerar uma resposta no momento.",
         toolRuns,
       };
@@ -209,13 +221,24 @@ ${params.message}`,
             output: JSON.stringify(output),
           };
         } catch (error) {
+          const errMsg =
+            error instanceof Error ? error.message : String(error);
           toolRuns.push({
             tool: call.name,
             durationMs: Date.now() - started,
-            error:
-              error instanceof Error ? error.message : String(error),
+            error: errMsg,
           });
-          throw error;
+          return {
+            type: "function_call_output" as const,
+            call_id: call.call_id,
+            output: JSON.stringify({
+              tool_error: true,
+              tool: call.name,
+              message: errMsg,
+              hint:
+                "Informe o professor de forma breve e sugira repetir o pedido ou verificar dados (turma/disciplina).",
+            }),
+          };
         }
       })
     );
@@ -229,9 +252,10 @@ ${params.message}`,
     });
   }
 
+  const finalText = extractResponsesOutputText(response);
   return {
     message:
-      response.output_text?.trim() ||
+      finalText ||
       "Não foi possível gerar uma resposta no momento.",
     toolRuns,
   };

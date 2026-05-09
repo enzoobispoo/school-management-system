@@ -4,6 +4,7 @@ const PEER_ROLES: UserRole[] = [
   "PROFESSOR",
   "ADMIN",
   "SECRETARIA",
+  "SECRETARIA_FINANCEIRA",
   "FINANCEIRO",
 ];
 

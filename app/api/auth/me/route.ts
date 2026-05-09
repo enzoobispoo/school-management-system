@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth/current-user";
+import { eduiaClientCapsFromResolvedSchoolAi } from "@/lib/ai/eduia-client-caps";
+import { resolveSchoolAiForUser } from "@/lib/ai/resolve-school-ai";
+import { isProfessorPortalEnabledForSchool } from "@/lib/docente/professor-portal-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,6 +18,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    let professorPortalEnabled: boolean | undefined;
+    if (user.role === "PROFESSOR" && user.schoolId) {
+      professorPortalEnabled = await isProfessorPortalEnabledForSchool(
+        user.schoolId
+      );
+    }
+
+    const eduiaCaps =
+      user.schoolId ?
+        eduiaClientCapsFromResolvedSchoolAi(
+          await resolveSchoolAiForUser({ schoolId: user.schoolId })
+        )
+      : null;
+
     return NextResponse.json({
       user: {
         id: user.id,
@@ -25,6 +42,10 @@ export async function GET(request: NextRequest) {
         professorId: user.professorId ?? null,
         avatarUrl: user.avatarUrl ?? null,
       },
+      eduiaCaps,
+      ...(typeof professorPortalEnabled === "boolean" ?
+        { professorPortalEnabled }
+      : {}),
     });
   } catch (error) {
     console.error("Erro ao buscar usuário autenticado:", error);

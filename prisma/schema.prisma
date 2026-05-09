@@ -30,6 +30,7 @@ model School {
   escolaSettings EscolaSettings?
   subscriptions  SchoolSubscription[]
   financeAuditEvents FinanceAuditEvent[]
+  schoolAuditLogs  SchoolAuditLog[]
   turmaDisciplinas TurmaDisciplina[]
   avaliacoes       Avaliacao[]
   notasAvaliacao   NotaAvaliacao[]
@@ -47,6 +48,7 @@ model School {
   jogoSessoes             JogoSessao[]
   jogoParticipantes       JogoParticipante[]
   jogoRespostas           JogoResposta[]
+  pluggyConnection SchoolPluggyConnection?
 
   @@index([slug])
   @@index([ativo])
@@ -97,6 +99,118 @@ enum SubscriptionStatus {
   CANCELADA
   SUSPENSA
   TRIAL
+}
+
+enum PluggyConnectionStatus {
+  DISCONNECTED
+  ACTIVE
+  ERROR
+}
+
+/// Conexão Open Finance via Pluggy — uma conexão ativa por escola (item Pluggy).
+model SchoolPluggyConnection {
+  id                          String                 @id @default(cuid())
+  schoolId                    String                 @unique
+  pluggyItemId                String                 @unique
+  connectorId                 Int?
+  institutionName             String?
+  institutionUrl              String?
+  status                      PluggyConnectionStatus @default(ACTIVE)
+  pluggyItemStatus            String?
+  lastPluggyItemUpdateAt      DateTime?
+  lastSyncedAt                DateTime?
+  lastSyncError               String?                @db.VarChar(4000)
+  /// Metadados opcionais cifrados (AES-256-GCM) — ex.: payload interno de auditoria; credenciais do usuário ficam na Pluggy.
+  encryptedCredentialEnvelope String?                @db.Text
+  createdAt                   DateTime               @default(now())
+  updatedAt                   DateTime               @updatedAt
+
+  school       School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  accounts     PluggyAccount[]
+  transactions PluggyTransaction[]
+  syncLogs     PluggySyncLog[]
+
+  @@index([schoolId])
+  @@index([pluggyItemId])
+  @@index([status])
+}
+
+model PluggyAccount {
+  id                 String   @id @default(cuid())
+  schoolId           String
+  connectionId       String
+  pluggyAccountId    String
+  pluggyItemId       String
+  name               String
+  type               String
+  subtype            String
+  currencyCode       String
+  balance            Decimal  @db.Decimal(18, 2)
+  bankClosingBalance Decimal? @db.Decimal(18, 2)
+  numberMasked       String?
+  ownerName          String?
+  updatedAtPluggy    DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  connection   SchoolPluggyConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  transactions PluggyTransaction[]
+
+  @@unique([schoolId, pluggyAccountId])
+  @@index([schoolId])
+  @@index([connectionId])
+}
+
+model PluggyTransaction {
+  id                       String    @id @default(cuid())
+  schoolId                 String
+  connectionId             String
+  accountId                String
+  pluggyTransactionId      String
+  pluggyAccountId          String
+  date                     DateTime
+  amount                   Decimal   @db.Decimal(18, 2)
+  currencyCode             String
+  type                     String
+  description              String    @db.VarChar(2000)
+  descriptionRaw           String?   @db.VarChar(4000)
+  status                   String?
+  category                 String?
+  paymentData              Json?
+  reconciledPagamentoId    String?
+  reconciledAt             DateTime?
+  reconciliationConfidence Decimal?  @db.Decimal(7, 6)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  connection SchoolPluggyConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  account    PluggyAccount          @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  pagamento  Pagamento?             @relation(fields: [reconciledPagamentoId], references: [id], onDelete: SetNull)
+
+  @@unique([schoolId, pluggyTransactionId])
+  @@index([schoolId, date])
+  @@index([connectionId])
+  @@index([accountId])
+  @@index([reconciledPagamentoId])
+}
+
+model PluggySyncLog {
+  id                     String   @id @default(cuid())
+  schoolId               String
+  connectionId           String
+  phase                  String
+  status                 String
+  detail                 String?  @db.VarChar(4000)
+  accountsUpserted       Int      @default(0)
+  transactionsUpserted   Int      @default(0)
+  reconciliationsApplied Int      @default(0)
+  startedAt              DateTime @default(now())
+  finishedAt             DateTime?
+
+  connection SchoolPluggyConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, startedAt])
+  @@index([connectionId])
 }
 
 model Aluno {
@@ -311,6 +425,7 @@ model Pagamento {
   school    School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   matricula Matricula     @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
   envios    CobrancaEnvio[]
+  pluggyReconciliations PluggyTransaction[]
 
   @@unique([matriculaId, competenciaMes, competenciaAno])
   @@index([schoolId])
@@ -479,6 +594,7 @@ model User {
   schoolChatMessagesSent SchoolChatMessage[]    @relation("SchoolChatMessageSender")
   schoolChatGroupsOwned  SchoolChatThread[]     @relation("SchoolChatThreadOwner")
   notificacoesRecebidas  Notificacao[]          @relation("NotificacaoParaUsuario")
+  schoolAuditLogs      SchoolAuditLog[]
 
   @@index([schoolId])
   @@index([email])
@@ -665,6 +781,26 @@ model FinanceAuditEvent {
   @@index([source])
   @@index([status])
   @@index([createdAt])
+}
+
+/** Registro de ações sensíveis disparadas por usuários (matrícula / cobrança). */
+model SchoolAuditLog {
+  id         String   @id @default(cuid())
+  schoolId   String
+  userId     String
+  role       String
+  domain     String
+  action     String
+  resourceId String?
+  summary    String   @db.VarChar(500)
+  payload    Json?
+  createdAt  DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, createdAt])
+  @@index([domain, action])
 }
 
 model Disciplina {
@@ -932,14 +1068,24 @@ model EscolaSettings {
   subscriptionInadimplenciaAction String @default("SUSPENDER")
   subscriptionInadimplenciaDias Int @default(45)
   openaiApiKey              String?
+  /// Claude / Anthropic Messages API (opcional; reservado para integrações futuras).
+  anthropicApiKey           String?
+  /// Google AI Studio / Gemini API key (opcional).
+  googleGeminiApiKey        String?
+  /// Fal.ai ou outro provedor de imagem — opcional para geração de assets.
+  falAiApiKey               String?
   aiMonthlyLimitOverride    Int?
   aiUsageCount              Int      @default(0)
   aiUsageResetAt           DateTime @default(now())
   aiEvalReviewEnforced     Boolean  @default(false)
   aiEvalReviewMinScore     Int      @default(70)
+  /// Quando false, professores não acessam login nem APIs do workspace docente (secretaria-only).
+  professorPortalEnabled   Boolean  @default(true)
   twilioAccountSid         String?
   twilioAuthToken          String?
   twilioWhatsAppFrom       String?
+  /// Plano Full: banco/conta onde a escola prefere concentrar recebíveis (mensalidades). Texto operacional; liquidação segue o gateway configurado.
+  payoutBankSlug           String?
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 }
@@ -1048,6 +1194,8 @@ enum UserRole {
   ADMIN
   FINANCEIRO
   SECRETARIA
+  /** Mesmas permissões de API que SECRETARIA; painel inclui indicadores e atalhos de cobrança. */
+  SECRETARIA_FINANCEIRA
   PROFESSOR
   SUPER_ADMIN
 }
@@ -1138,8 +1286,11 @@ model MaterialDidatico {
   tipo         TipoMaterialDidatico @default(OUTRO)
   titulo       String
   descricao    String?
-  arquivoUrl   String
-  arquivoNome  String
+  /** Upload externo (PDF/PPTX etc.). Obrigatório salvo quando há slideDeckJson. */
+  arquivoUrl   String?
+  arquivoNome  String?
+  /** Apresentação nativa (estrutura de slides no sistema). */
+  slideDeckJson Json?
   mimeType     String?
   tamanhoBytes Int?
   createdAt    DateTime             @default(now())

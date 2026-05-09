@@ -4,8 +4,8 @@ import { DashboardSettingsSection } from "@/components/configuracoes/sections/da
 export default function ConfiguracoesDashboardPage() {
   return (
     <SettingsShell
-      title="Dashboard"
-      description="Configure o comportamento e as preferências do dashboard."
+      titleKey="settings.shell.dashboardPageTitle"
+      descriptionKey="settings.shell.dashboardPageDesc"
     >
       <DashboardSettingsSection />
     </SettingsShell>

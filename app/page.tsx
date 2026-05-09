@@ -9,6 +9,7 @@ import { DashboardMainLayout } from "@/components/dashboard/dashboard-main-layou
 import { DashboardGreeting } from "@/components/dashboard/dashboard-greeting";
 import { DashboardRightPanel } from "@/components/dashboard/dashboard-right-panel";
 import { useDashboardPage } from "@/hooks/dashboard/use-dashboard-page";
+import { defaultHomePathForRole } from "@/lib/navigation/default-home";
 
 export default function DashboardPage() {
   const dashboard = useDashboardPage();
@@ -30,12 +31,10 @@ export default function DashboardPage() {
         const data = await res.json();
 
         if (res.ok) {
-          if (data.user?.role === "SUPER_ADMIN") {
-            window.location.href = "/admin";
-            return;
-          }
-          if (data.user?.role === "PROFESSOR") {
-            window.location.href = "/docente";
+          const role = data.user?.role as string | undefined;
+          const home = defaultHomePathForRole(role);
+          if (home !== "/") {
+            window.location.href = home;
             return;
           }
           setUserName(data.user?.nome || "");
@@ -56,8 +55,8 @@ export default function DashboardPage() {
   return (
     <DashboardLayout>
       <Header
-        title="Dashboard"
-        description="Painel executivo para rotina diária e escolas de grande porte"
+        titleKey="page.dashboard.title"
+        descriptionKey="page.dashboard.description"
       />
 
       <DashboardMainLayout
@@ -72,9 +71,7 @@ export default function DashboardPage() {
           )
         }
       >
-        <DashboardGreeting
-          name={userName ? userName.split(" ")[0] : "Usuário"}
-        />
+        <DashboardGreeting name={userName} />
 
         <DashboardPageContent
           data={dashboard.data}

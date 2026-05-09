@@ -10,10 +10,7 @@ export default function RelatoriosPage() {
 
   return (
     <DashboardLayout>
-      <Header
-        title="Relatórios"
-        description="Análises e insights do sistema"
-      />
+      <Header titleKey="page.reports.title" descriptionKey="page.reports.description" />
 
       <ReportsPageContent
         year={reportsPage.year}

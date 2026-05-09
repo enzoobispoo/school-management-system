@@ -4,6 +4,7 @@ import { updateNotificacaoSchema } from "@/lib/validations/notificacao"
 import { getCurrentUser, requireSchool } from "@/lib/auth";
 import { enrichNotificationWithLinkHref } from "@/lib/notificacoes/enrich-notification-link";
 import { buildScopedNotificationWhere } from "@/lib/notificacoes/scoped-notification-where";
+import { blockProfessorWhenPortalDisabled } from "@/lib/docente/professor-portal-policy";
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -16,6 +17,10 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const portalDeniedGet = await blockProfessorWhenPortalDisabled(user);
+    if (portalDeniedGet) return portalDeniedGet;
+
     const { id } = await context.params
 
     const scopeWhere = await buildScopedNotificationWhere({
@@ -54,6 +59,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const portalDeniedPut = await blockProfessorWhenPortalDisabled(user);
+    if (portalDeniedPut) return portalDeniedPut;
+
     const { id } = await context.params
     const body = await request.json()
 
@@ -111,6 +120,10 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const portalDeniedDel = await blockProfessorWhenPortalDisabled(user);
+    if (portalDeniedDel) return portalDeniedDel;
+
     const { id } = await context.params
 
     const scopeWhere = await buildScopedNotificationWhere({

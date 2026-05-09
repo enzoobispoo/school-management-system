@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUserFromRequest } from "@/lib/auth/current-user";
 import { maskApiKey } from "@/lib/ia/system-settings";
 import { normalizePlanTier } from "@/lib/school-plan";
+import { API_FORBIDDEN_PROFILE } from "@/lib/http/api-forbidden";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,7 +26,7 @@ function maskTwilioToken(t: string | null | undefined) {
 export async function GET(request: NextRequest) {
   const user = await getCurrentUserFromRequest(request);
   if (!user || user.role !== "SUPER_ADMIN") {
-    return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+    return NextResponse.json({ error: API_FORBIDDEN_PROFILE }, { status: 403 });
   }
 
   const schoolId = request.nextUrl.searchParams.get("schoolId");
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const user = await getCurrentUserFromRequest(request);
   if (!user || user.role !== "SUPER_ADMIN") {
-    return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+    return NextResponse.json({ error: API_FORBIDDEN_PROFILE }, { status: 403 });
   }
 
   const body = await request.json() as Record<string, unknown>;

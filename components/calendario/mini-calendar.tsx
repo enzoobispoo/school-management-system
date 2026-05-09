@@ -4,15 +4,20 @@ import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatDateInput } from "@/lib/calendario/calendar-utils";
+import { cn } from "@/lib/utils";
 
 interface MiniCalendarProps {
   selectedDate?: Date;
   onSelectDate?: (date: Date) => void;
   /** Dias (yyyy-mm-dd) com algum compromisso — mostra um indicador discreto. */
   daysWithEvents?: Set<string>;
+  /** Remove moldura dupla quando embutido em outro card (ex.: painel docente). */
+  embedded?: boolean;
+  className?: string;
 }
 
-const WEEK_DAYS = ["D", "S", "T", "Q", "Q", "S", "S"];
+/** Domingo → sábado (alinha com getDay(): 0 = domingo). */
+const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -44,8 +49,12 @@ export function MiniCalendar({
   selectedDate = new Date(),
   onSelectDate,
   daysWithEvents,
+  embedded = false,
+  className,
 }: MiniCalendarProps) {
-  const [referenceDate, setReferenceDate] = useState(selectedDate);
+  const [referenceDate, setReferenceDate] = useState(() =>
+    new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
+  );
 
   const days = useMemo(() => {
     const start = startOfCalendarGrid(referenceDate);
@@ -56,7 +65,15 @@ export function MiniCalendar({
   const today = new Date();
 
   return (
-    <div className="rounded-3xl border border-border bg-card p-4 shadow-sm">
+    <div
+      className={cn(
+        "rounded-3xl p-4",
+        embedded ?
+          "border-0 bg-transparent shadow-none"
+        : "border border-border bg-card shadow-sm",
+        className
+      )}
+    >
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">
           {referenceDate.toLocaleDateString("pt-BR", {
@@ -103,12 +120,12 @@ export function MiniCalendar({
       </div>
 
       <div className="mb-2 grid grid-cols-7 gap-1">
-        {WEEK_DAYS.map((day, index) => (
+        {WEEK_DAYS.map((dayLabel, index) => (
           <div
-            key={`${day}-${index}`}
-            className="flex h-8 items-center justify-center text-xs font-medium text-muted-foreground"
+            key={`weekday-${index}`}
+            className="flex h-8 items-center justify-center px-0.5 text-center text-[10px] font-semibold uppercase tracking-tight text-muted-foreground"
           >
-            {day}
+            {dayLabel}
           </div>
         ))}
       </div>
@@ -121,12 +138,16 @@ export function MiniCalendar({
 
           const dayKey = formatDateInput(day);
           const hasMark = daysWithEvents?.has(dayKey) ?? false;
+          const stableKey = `${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`;
 
           return (
             <button
-              key={day.toISOString()}
+              key={stableKey}
               type="button"
-              onClick={() => onSelectDate?.(day)}
+              onClick={() => {
+                setReferenceDate(new Date(day.getFullYear(), day.getMonth(), 1));
+                onSelectDate?.(day);
+              }}
               className={[
                 "relative flex h-9 w-9 items-center justify-center rounded-xl text-sm transition",
                 isSelected

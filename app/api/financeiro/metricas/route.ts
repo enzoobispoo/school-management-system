@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, requireSchool } from "@/lib/auth";
+import {
+  assertFinanceRead,
+  getCurrentUser,
+  requireSchool,
+} from "@/lib/auth";
 
 function startOfMonth(date = new Date()) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -27,6 +31,12 @@ function computedStatus(p: {
 export async function GET() {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    }
+    const forbidden = assertFinanceRead(user);
+    if (forbidden) return forbidden;
+
     const schoolResult = requireSchool(user);
     if (schoolResult instanceof NextResponse) return schoolResult;
     const { schoolId } = schoolResult;

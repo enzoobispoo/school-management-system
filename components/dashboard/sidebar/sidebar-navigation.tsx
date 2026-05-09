@@ -20,12 +20,25 @@ import {
   GraduationCap,
   Layers,
   LayoutDashboard,
-  PanelRight,
   MessageSquare,
+  PanelRight,
   PenLine,
+  Shuffle,
   Users,
   Wallet,
 } from "lucide-react";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
+
+type SidebarNavItem = {
+  titleKey: string;
+  href: string;
+  icon: LucideIcon;
+};
+
+type SidebarNavGroup = {
+  groupKey: string;
+  items: SidebarNavItem[];
+};
 
 function SidebarNavIcon({
   icon: Icon,
@@ -67,7 +80,9 @@ function novidadeDotForHref(
   routeBadges: SidebarRouteBadges,
   unreadNotificacoes: number
 ): boolean {
-  if (href === "/financeiro") return routeBadges.financeiro;
+  if (href === "/financeiro" || href.startsWith("/financeiro/")) {
+    return routeBadges.financeiro;
+  }
   if (href === "/operacao") return routeBadges.operacao;
   if (href === "/turmas") return routeBadges.turmas;
   if (href === "/academico") return routeBadges.academico;
@@ -75,30 +90,36 @@ function novidadeDotForHref(
   return false;
 }
 
-const professorGroups = [
+const professorGroups: SidebarNavGroup[] = [
   {
-    label: "Workspace",
+    groupKey: "sidebar.group.main",
     items: [
-      { name: "Início", href: "/docente", icon: LayoutDashboard },
-      { name: "EduIA", href: "/docente/eduia", icon: PanelRight },
+      { titleKey: "nav.home", href: "/docente", icon: LayoutDashboard },
+      { titleKey: "nav.ai", href: "/docente/eduia", icon: PanelRight },
+      { titleKey: "nav.messages", href: "/mensagens", icon: MessageSquare },
+      { titleKey: "nav.notifications", href: "/notificacoes", icon: Bell },
+    ],
+  },
+  {
+    groupKey: "sidebar.group.pedagogical",
+    items: [
       {
-        name: "Turmas",
+        titleKey: "nav.classes",
         href: "/docente#turmas-docente",
         icon: Layers,
       },
-      { name: "Materiais", href: "/docente/materiais", icon: FileStack },
+      { titleKey: "nav.materials", href: "/docente/materiais", icon: FileStack },
       {
-        name: "Avaliações",
+        titleKey: "nav.assessments",
         href: "/docente/avaliacoes",
         icon: PenLine,
       },
-      { name: "Mensagens", href: "/mensagens", icon: MessageSquare },
-      { name: "Notificações", href: "/notificacoes", icon: Bell },
       {
-        name: "Calendário",
+        titleKey: "nav.calendar",
         href: "/calendario/eventos",
         icon: CalendarDays,
       },
+      { titleKey: "nav.swaps", href: "/docente/trocas", icon: Shuffle },
     ],
   },
 ];
@@ -119,32 +140,50 @@ function professorNavItemIsActive(
   return pathname === base || pathname.startsWith(`${base}/`);
 }
 
-const groups = [
+const financeiroGroups: SidebarNavGroup[] = [
   {
-    label: "Principal",
+    groupKey: "sidebar.group.main",
     items: [
-      { name: "Dashboard", href: "/", icon: LayoutDashboard },
-      { name: "Operação", href: "/operacao", icon: Activity },
-      { name: "Mensagens", href: "/mensagens", icon: MessageSquare },
-      { name: "Notificações", href: "/notificacoes", icon: Bell },
+      { titleKey: "nav.home", href: "/financeiro", icon: LayoutDashboard },
+      { titleKey: "nav.charges", href: "/financeiro/cobrancas", icon: Wallet },
+      { titleKey: "nav.ai", href: "/financeiro/eduia", icon: PanelRight },
+      { titleKey: "nav.messages", href: "/mensagens", icon: MessageSquare },
+      { titleKey: "nav.notifications", href: "/notificacoes", icon: Bell },
     ],
   },
   {
-    label: "Gestão",
+    groupKey: "sidebar.group.analytics",
+    items: [{ titleKey: "nav.reports", href: "/relatorios", icon: BarChart3 }],
+  },
+];
+
+const defaultGroups: SidebarNavGroup[] = [
+  {
+    groupKey: "sidebar.group.main",
     items: [
-      { name: "Alunos", href: "/alunos", icon: Users },
-      { name: "Turmas", href: "/turmas", icon: Layers },
-      { name: "Cursos", href: "/cursos", icon: BookOpen },
-      { name: "Acadêmico", href: "/academico", icon: ClipboardCheck },
-      { name: "Professores", href: "/professores", icon: GraduationCap },
-      { name: "Calendário", href: "/calendario/eventos", icon: CalendarDays },
+      { titleKey: "nav.dashboard", href: "/", icon: LayoutDashboard },
+      { titleKey: "nav.ai", href: "/eduia", icon: PanelRight },
+      { titleKey: "nav.operation", href: "/operacao", icon: Activity },
+      { titleKey: "nav.messages", href: "/mensagens", icon: MessageSquare },
+      { titleKey: "nav.notifications", href: "/notificacoes", icon: Bell },
     ],
   },
   {
-    label: "Financeiro",
+    groupKey: "sidebar.group.management",
     items: [
-      { name: "Financeiro", href: "/financeiro", icon: Wallet },
-      { name: "Relatórios", href: "/relatorios", icon: BarChart3 },
+      { titleKey: "nav.students", href: "/alunos", icon: Users },
+      { titleKey: "nav.classes", href: "/turmas", icon: Layers },
+      { titleKey: "nav.courses", href: "/cursos", icon: BookOpen },
+      { titleKey: "nav.academic", href: "/academico", icon: ClipboardCheck },
+      { titleKey: "nav.teachers", href: "/professores", icon: GraduationCap },
+      { titleKey: "nav.calendar", href: "/calendario/eventos", icon: CalendarDays },
+    ],
+  },
+  {
+    groupKey: "sidebar.group.finance",
+    items: [
+      { titleKey: "nav.finance", href: "/financeiro", icon: Wallet },
+      { titleKey: "nav.reports", href: "/relatorios", icon: BarChart3 },
     ],
   },
 ];
@@ -162,6 +201,7 @@ export function SidebarNavigation({
   unreadCount = 0,
   routeBadges = EMPTY_SIDEBAR_ROUTE_BADGES,
 }: SidebarNavigationProps) {
+  const { t } = useDashboardLanguage();
   const pathname = usePathname();
   const [navRole, setNavRole] = useState<string | null>(null);
   const [locHash, setLocHash] = useState("");
@@ -184,43 +224,58 @@ export function SidebarNavigation({
       .catch(() => setNavRole(null));
   }, []);
 
-  const activeGroups = navRole === "PROFESSOR" ? professorGroups : groups;
+  const secretaryDashboardHome =
+    navRole === "SECRETARIA" || navRole === "SECRETARIA_FINANCEIRA";
+
+  const activeGroups =
+    navRole === "PROFESSOR" ? professorGroups
+    : navRole === "FINANCEIRO" ? financeiroGroups
+    : defaultGroups;
 
   return (
     <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 py-2">
       <div className={cn("flex flex-col", collapsed ? "gap-1.5" : "gap-5")}>
         {activeGroups.map((group) => (
-          <div key={group.label}>
+          <div key={group.groupKey}>
             {!collapsed && (
               <p className="sticky top-0 z-10 mb-2 bg-sidebar/95 px-2 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/35 backdrop-blur-sm supports-[backdrop-filter]:bg-sidebar/85">
-                {group.label}
+                {t(group.groupKey)}
               </p>
             )}
 
             <ul className="flex flex-col gap-1">
               {group.items.map((item) => {
+                const label = t(item.titleKey);
+                const resolvedHref =
+                  item.href === "/" && secretaryDashboardHome ?
+                    "/secretaria"
+                  : item.href;
+
                 const isActive =
                   navRole === "PROFESSOR" ?
                     professorNavItemIsActive(item, pathname, locHash)
                   : item.href === "/docente" ?
                     pathname === "/docente"
-                  : pathname === item.href ||
-                    (item.href !== "/" && pathname.startsWith(`${item.href}/`));
+                  : item.href === "/financeiro" ?
+                    pathname === "/financeiro"
+                  : pathname === resolvedHref ||
+                    (resolvedHref !== "/" &&
+                      pathname.startsWith(`${resolvedHref}/`));
 
                 const showUnread =
                   item.href === "/notificacoes" &&
                   unreadCount > 0;
 
                 const showNovidadeDot = novidadeDotForHref(
-                  item.href,
+                  resolvedHref,
                   routeBadges,
                   unreadCount
                 );
 
                 return (
-                  <li key={item.name}>
+                  <li key={`${item.href}-${item.titleKey}`}>
                     <Link
-                      href={item.href}
+                      href={resolvedHref}
                       scroll={
                         item.href.includes("#turmas-docente") ? false : undefined
                       }
@@ -234,7 +289,7 @@ export function SidebarNavigation({
                         }
                         onNavigate?.();
                       }}
-                      title={collapsed ? item.name : undefined}
+                      title={collapsed ? label : undefined}
                       className={cn(
                         "group relative flex items-center rounded-xl py-2.5 text-[13px] font-medium transition-all duration-150",
                         collapsed ? "justify-center px-2.5" : "gap-3 px-3",
@@ -254,7 +309,7 @@ export function SidebarNavigation({
                         dot={!!showNovidadeDot}
                       />
                       {!collapsed && (
-                        <span className="truncate">{item.name}</span>
+                        <span className="truncate">{label}</span>
                       )}
                       {showUnread ? (
                         <span

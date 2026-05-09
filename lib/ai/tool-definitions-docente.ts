@@ -77,6 +77,52 @@ export const aiDocenteToolDefinitions = [
   },
   {
     type: "function",
+    name: "create_docente_apresentacao",
+    description:
+      "Cria uma apresentação (material tipo SLIDE / deck editável) para turma opcional e disciplina opcional. Use slideSpecs com objetos { title, subtitle?, bullets?, background? (#hex), boldVisualLayout? (capa com texto grande), backgroundImageUrl? }. Fluxo: primeiro confirmed:false para preview; confirmed:true só após o professor confirmar.",
+    parameters: {
+      type: "object",
+      properties: {
+        turmaId: {
+          type: "string",
+          description: "Opcional — turma titular do professor.",
+        },
+        disciplinaId: {
+          type: "string",
+          description: "Opcional — se turmaId informado, deve estar vinculada à turma.",
+        },
+        titulo: { type: "string", description: "Título do material na biblioteca." },
+        descricao: { type: "string" },
+        slideSpecs: {
+          type: "array",
+          description:
+            "Lista de slides: title obrigatório; subtitle/bullets opcionais (bullets com \\n); boldVisualLayout:true para capa estilo hero.",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              subtitle: { type: "string" },
+              bullets: { type: "string" },
+              background: { type: "string" },
+              boldVisualLayout: { type: "boolean" },
+              backgroundImageUrl: { type: "string" },
+            },
+            required: ["title"],
+            additionalProperties: false,
+          },
+        },
+        confirmed: {
+          type: "boolean",
+          description:
+            "false para pré-visualização; true somente após confirmação explícita do professor.",
+        },
+      },
+      required: ["slideSpecs"],
+      additionalProperties: false,
+    },
+  },
+  {
+    type: "function",
     name: "query_docente_diario_recente",
     description:
       "Últimos registros de aula (diário) nas turmas em que o professor é titular — datas, títulos e disciplinas. Use para sugerir continuidade didática, revisão e próximos temas.",

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { isAiQuery } from "@/lib/search/is-ai-query";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 type SearchResult = {
   id: string;
@@ -13,12 +14,12 @@ type SearchResult = {
   href: string;
 };
 
-const TYPE_LABELS: Record<SearchResult["type"], string> = {
-  aluno: "Alunos",
-  curso: "Cursos",
-  professor: "Professores",
-  pagamento: "Pagamentos",
-  avaliacao: "Avaliações",
+const TYPE_LABEL_KEYS: Record<SearchResult["type"], string> = {
+  aluno: "search.type.students",
+  curso: "search.type.courses",
+  professor: "search.type.teachers",
+  pagamento: "search.type.payments",
+  avaliacao: "search.type.assessments",
 };
 
 const TYPE_ORDER: SearchResult["type"][] = [
@@ -53,6 +54,7 @@ function highlightText(text: string, query: string) {
 }
 
 export function HeaderSearch() {
+  const { t } = useDashboardLanguage();
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -77,10 +79,10 @@ export function HeaderSearch() {
 
     return TYPE_ORDER.filter((type) => groups[type].length > 0).map((type) => ({
       type,
-      label: TYPE_LABELS[type],
+      label: t(TYPE_LABEL_KEYS[type]),
       items: groups[type],
     }));
-  }, [results]);
+  }, [results, t]);
 
   const flatResults = useMemo(() => {
     return groupedResults.flatMap((group) => group.items);
@@ -180,7 +182,7 @@ export function HeaderSearch() {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => results.length > 0 && setOpen(true)}
-          placeholder="Buscar alunos, provas, questões..."
+          placeholder={t("header.searchHint")}
           className="
             h-9 w-64 rounded-md border border-transparent
             bg-muted/50 pl-9 pr-3 text-sm
@@ -195,7 +197,7 @@ export function HeaderSearch() {
         <div className="absolute right-0 top-full mt-2 z-50 w-[380px] max-h-[420px] overflow-y-auto rounded-2xl border border-border bg-popover p-3 text-popover-foreground shadow-xl">
           {loading ? (
             <div className="px-3 py-2 text-sm text-muted-foreground">
-              Buscando...
+              {t("header.searching")}
             </div>
           ) : (
             <div className="space-y-3">

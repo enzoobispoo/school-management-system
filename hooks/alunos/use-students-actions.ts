@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 export class ValidationError extends Error {
   field?: string;
@@ -16,6 +17,7 @@ interface StudentPayload {
 }
 
 export function useStudentsActions(onSuccess: () => Promise<void>) {
+  const { t } = useDashboardLanguage();
   const [submitting, setSubmitting] = useState(false);
 
   async function handleCreateStudent(payload: StudentPayload) {
@@ -27,8 +29,9 @@ export function useStudentsActions(onSuccess: () => Promise<void>) {
         body: JSON.stringify(payload),
       });
       const result = await response.json();
-      if (!response.ok) throw new ValidationError(result.error || "Erro ao cadastrar aluno", result.field);
-      toast.success("Aluno cadastrado com sucesso");
+      if (!response.ok)
+        throw new ValidationError(result.error || t("students.actions.createFail"), result.field);
+      toast.success(t("students.actions.created"));
       await onSuccess();
     } finally {
       setSubmitting(false);
@@ -44,8 +47,9 @@ export function useStudentsActions(onSuccess: () => Promise<void>) {
         body: JSON.stringify(payload),
       });
       const result = await response.json();
-      if (!response.ok) throw new ValidationError(result.error || "Erro ao atualizar aluno", result.field);
-      toast.success("Aluno atualizado com sucesso");
+      if (!response.ok)
+        throw new ValidationError(result.error || t("students.actions.updateFail"), result.field);
+      toast.success(t("students.actions.updated"));
       await onSuccess();
     } finally {
       setSubmitting(false);
@@ -57,8 +61,8 @@ export function useStudentsActions(onSuccess: () => Promise<void>) {
       setSubmitting(true);
       const response = await fetch(`/api/alunos/${id}`, { method: "DELETE" });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Erro ao excluir aluno");
-      toast.success("Aluno excluído com sucesso");
+      if (!response.ok) throw new Error(result.error || t("students.actions.deleteFail"));
+      toast.success(t("students.actions.deleted"));
       await onSuccess();
     } finally {
       setSubmitting(false);

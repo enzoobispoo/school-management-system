@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
+  Boxes,
   Info,
   MessageCircle,
   Sparkles,
@@ -24,6 +25,12 @@ type EscolaIaPayload = {
   aiUsageResetAt: string;
   hasOpenaiApiKey: boolean;
   maskedOpenaiApiKey: string | null;
+  hasAnthropicApiKey: boolean;
+  maskedAnthropicApiKey: string | null;
+  hasGoogleGeminiApiKey: boolean;
+  maskedGoogleGeminiApiKey: string | null;
+  hasFalAiApiKey: boolean;
+  maskedFalAiApiKey: string | null;
   twilioAccountSid: string | null;
   hasTwilioAuthToken: boolean;
   maskedTwilioAuthToken: string | null;
@@ -72,6 +79,9 @@ export function AiSettingsSection() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [openaiKey, setOpenaiKey] = useState("");
+  const [anthropicKey, setAnthropicKey] = useState("");
+  const [geminiKey, setGeminiKey] = useState("");
+  const [falKey, setFalKey] = useState("");
   const [limitOverride, setLimitOverride] = useState("");
   const [twilioSid, setTwilioSid] = useState("");
   const [twilioToken, setTwilioToken] = useState("");
@@ -88,6 +98,9 @@ export function AiSettingsSection() {
       if (!r.ok) throw new Error(j.error || "Erro ao carregar.");
       setData(j);
       setOpenaiKey("");
+      setAnthropicKey("");
+      setGeminiKey("");
+      setFalKey("");
       setLimitOverride(j.aiMonthlyLimitOverride != null ? String(j.aiMonthlyLimitOverride) : "");
       setTwilioSid(j.twilioAccountSid ?? "");
       setTwilioToken("");
@@ -113,6 +126,9 @@ export function AiSettingsSection() {
       const body: Record<string, unknown> = {};
       if (data?.allowOpenAi) {
         if (openaiKey.trim()) body.openaiApiKey = openaiKey.trim();
+        if (anthropicKey.trim()) body.anthropicApiKey = anthropicKey.trim();
+        if (geminiKey.trim()) body.googleGeminiApiKey = geminiKey.trim();
+        if (falKey.trim()) body.falAiApiKey = falKey.trim();
         if (limitOverride.trim() === "") body.aiMonthlyLimitOverride = null;
         else body.aiMonthlyLimitOverride = Number(limitOverride.replace(",", "."));
         body.aiEvalReviewEnforced = evalReviewEnforced;
@@ -133,6 +149,9 @@ export function AiSettingsSection() {
       if (!r.ok) throw new Error(j.error || "Erro ao salvar.");
       setData(j);
       setOpenaiKey("");
+      setAnthropicKey("");
+      setGeminiKey("");
+      setFalKey("");
       setTwilioToken("");
       setSuccess("Alterações salvas.");
     } catch (e) {
@@ -250,6 +269,70 @@ export function AiSettingsSection() {
               />
             </div>
           </div>
+        </IntegrationCard>
+      )}
+
+      {data.allowOpenAi && (
+        <IntegrationCard
+          icon={Boxes}
+          title="Outros provedores de IA (opcional)"
+          description="Armazene chaves para integrações futuras (Claude, Gemini, Fal.ai). Hoje a EduIA docente usa apenas OpenAI; as demais podem ser ligadas em versões seguintes."
+        >
+          <div className="space-y-1.5">
+            <Label htmlFor="so-anthropic">Anthropic (Claude)</Label>
+            <Input
+              id="so-anthropic"
+              type="password"
+              autoComplete="off"
+              placeholder={data.hasAnthropicApiKey ? "Nova chave (opcional)" : "sk-ant-…"}
+              value={anthropicKey}
+              onChange={(e) => setAnthropicKey(e.target.value)}
+              className="h-9 font-mono text-[12px]"
+            />
+            {data.hasAnthropicApiKey ?
+              <p className="text-[12px] text-muted-foreground">
+                Chave atual: {data.maskedAnthropicApiKey ?? "••••"}
+              </p>
+            : null}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="so-gemini">Google Gemini</Label>
+            <Input
+              id="so-gemini"
+              type="password"
+              autoComplete="off"
+              placeholder={data.hasGoogleGeminiApiKey ? "Nova chave (opcional)" : "AIza…"}
+              value={geminiKey}
+              onChange={(e) => setGeminiKey(e.target.value)}
+              className="h-9 font-mono text-[12px]"
+            />
+            {data.hasGoogleGeminiApiKey ?
+              <p className="text-[12px] text-muted-foreground">
+                Chave atual: {data.maskedGoogleGeminiApiKey ?? "••••"}
+              </p>
+            : null}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="so-fal">Fal.ai (imagens / vídeo)</Label>
+            <Input
+              id="so-fal"
+              type="password"
+              autoComplete="off"
+              placeholder={data.hasFalAiApiKey ? "Novo token (opcional)" : "Token Fal…"}
+              value={falKey}
+              onChange={(e) => setFalKey(e.target.value)}
+              className="h-9 font-mono text-[12px]"
+            />
+            {data.hasFalAiApiKey ?
+              <p className="text-[12px] text-muted-foreground">
+                Chave atual: {data.maskedFalAiApiKey ?? "••••"}
+              </p>
+            : null}
+          </div>
+          <p className="text-[12px] text-muted-foreground border-l-2 border-border pl-3 leading-relaxed">
+            Campos em branco não alteram chaves já salvas. Para remover uma chave existente, use o endpoint administrativo enviando{" "}
+            <span className="font-mono text-[11px]">null</span> ou peça ao suporte.
+          </p>
         </IntegrationCard>
       )}
 

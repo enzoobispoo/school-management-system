@@ -1,77 +1,32 @@
 "use client";
 
-import { AiSuggestionCard } from "@/components/dashboard/ai/ai-suggestion-card";
-import { EDUIA_FULL_BRIEFING_PROMPT } from "@/lib/dashboard/eduia-pulse";
-
-import { getEduiaDocenteQuickSuggestions } from "@/lib/ai/suggestions";
-import type { AiSuggestionJarvisAccent } from "@/components/dashboard/ai/ai-suggestion-card";
-
+import { useMemo } from "react";
+import {
+  AiSuggestionCard,
+  type AiSuggestionJarvisAccent,
+} from "@/components/dashboard/ai/ai-suggestion-card";
+import {
+  DEFAULT_EDUIA_CLIENT_CAPS,
+  filterAiSuggestionsForCaps,
+  filterAiSuggestionsForExecutiveSecretariaRole,
+  type EduiaClientCaps,
+} from "@/lib/ai/eduia-client-caps";
+import {
+  getEduiaDocenteQuickSuggestions,
+  getEduiaFinanceQuickSuggestions,
+  getEduiaQuickSuggestions,
+} from "@/lib/ai/suggestions";
 interface AiQuickPromptsProps {
   onSelect: (prompt: string) => void;
   /** Atalhos do workspace docente (sem financeiro global). */
   preset?: "executive" | "professor";
   /** Cards grandes e cores suaves (painel docente estilo assistente). */
   presentation?: "list" | "jarvis";
+  /** Capacidades da escola (plano + OpenAI); default conservador até `/api/auth/me` responder. */
+  caps?: EduiaClientCaps | null;
+  /** Para ocultar sugestões financeiras no preset executivo quando `SECRETARIA` acadêmica. */
+  userRole?: string | null;
 }
-
-const quickPrompts = [
-  {
-    prompt: EDUIA_FULL_BRIEFING_PROMPT,
-  },
-  {
-    prompt: "Quantos alunos eu tenho no sistema?",
-  },
-  {
-    prompt: "Quanto foi recebido este mês?",
-  },
-  {
-    prompt: "Quem está inadimplente?",
-  },
-  {
-    prompt: "Quais são os próximos eventos?",
-  },
-  {
-    prompt: "Quais pagamentos estão atrasados?",
-  },
-  {
-    prompt: "Quantos alunos ativos temos hoje?",
-  },
-  {
-    prompt: "Quantas matrículas ativas temos?",
-  },
-  {
-    prompt: "Mostre um resumo financeiro do mês.",
-  },
-  {
-    prompt: "Quais cursos têm mais alunos?",
-  },
-  {
-    prompt: "Quais turmas estão lotadas e onde há vagas?",
-  },
-  {
-    prompt:
-      "Há incidentes operacionais críticos ou em aberto? O que priorizo esta semana?",
-  },
-  {
-    prompt: "Liste professores ativos e os cursos em que lecionam.",
-  },
-  {
-    prompt: "Quantas notificações não lidas temos e quais são as mais recentes?",
-  },
-  {
-    prompt:
-      "Me dê um panorama acadêmico rápido: turmas, avaliações e frequência registrada.",
-  },
-  {
-    prompt:
-      "Qual o boletim (notas e frequência) do aluno que eu indicar pelo nome?",
-  },
-];
-
-const professorQuickPrompts = getEduiaDocenteQuickSuggestions().map((s) => ({
-  prompt: s.prompt,
-  label: s.label,
-}));
 
 const jarvisAccents: AiSuggestionJarvisAccent[] = [
   "violet",
@@ -85,13 +40,35 @@ export function AiQuickPrompts({
   onSelect,
   preset = "executive",
   presentation = "list",
+  caps = null,
+  userRole = null,
 }: AiQuickPromptsProps) {
-  const list = preset === "professor" ? professorQuickPrompts : quickPrompts;
+  const effectiveCaps = caps ?? DEFAULT_EDUIA_CLIENT_CAPS;
+
+  const executiveList = useMemo(() => {
+    const base =
+      userRole === "FINANCEIRO" ?
+        getEduiaFinanceQuickSuggestions()
+      : getEduiaQuickSuggestions();
+    const capped = filterAiSuggestionsForCaps(base, effectiveCaps);
+    return filterAiSuggestionsForExecutiveSecretariaRole(capped, userRole);
+  }, [effectiveCaps, userRole]);
+
+  const professorList = useMemo(
+    () =>
+      filterAiSuggestionsForCaps(
+        getEduiaDocenteQuickSuggestions(),
+        effectiveCaps
+      ),
+    [effectiveCaps]
+  );
+
+  const list = preset === "professor" ? professorList : executiveList;
 
   if (presentation === "jarvis" && preset === "professor") {
     return (
       <div className="grid gap-3 sm:grid-cols-2">
-        {professorQuickPrompts.slice(0, 6).map((item, i) => (
+        {professorList.slice(0, 6).map((item, i) => (
           <AiSuggestionCard
             key={item.prompt}
             prompt={item.prompt}

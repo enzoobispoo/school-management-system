@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { SchoolChatThreadKind } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, requireSchool } from "@/lib/auth";
+import { blockProfessorWhenPortalDisabled } from "@/lib/docente/professor-portal-policy";
 import { schoolChatDmKey } from "@/lib/school-chat/dm-key";
 import { canCreateSchoolChatGroup } from "@/lib/school-chat/group-manager";
 import { isSchoolChatPeerRole } from "@/lib/school-chat/peers";
@@ -27,6 +28,9 @@ export async function GET(request: NextRequest) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const portalDeniedGet = await blockProfessorWhenPortalDisabled(user);
+    if (portalDeniedGet) return portalDeniedGet;
 
     const filter = request.nextUrl.searchParams.get("filter")?.trim().toLowerCase();
     const kindFilter =
@@ -181,6 +185,9 @@ export async function POST(request: NextRequest) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const portalDeniedPost = await blockProfessorWhenPortalDisabled(user);
+    if (portalDeniedPost) return portalDeniedPost;
 
     const body = await request.json().catch(() => ({}));
 

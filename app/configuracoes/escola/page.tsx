@@ -4,8 +4,8 @@ import { SchoolSettingsSection } from "@/components/configuracoes/sections/schoo
 export default function ConfiguracoesEscolaPage() {
   return (
     <SettingsShell
-      title="Configurações"
-      description="Gerencie dados da escola, financeiro, IA e preferências."
+      titleKey="settings.shell.title"
+      descriptionKey="settings.shell.desc.general"
     >
       <SchoolSettingsSection />
     </SettingsShell>

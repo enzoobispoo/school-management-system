@@ -15,18 +15,29 @@ interface DashboardChartsSectionProps {
     }>;
   } | null;
   loading: boolean;
+  /** Painéis sem visão de receita (ex.: secretaria). */
+  omitRevenue?: boolean;
 }
 
 export function DashboardChartsSection({
   data,
   loading,
+  omitRevenue = false,
 }: DashboardChartsSectionProps) {
   return (
-    <div className="mt-6 grid gap-4 lg:grid-cols-2">
-      <RevenueChart
-        data={data?.receitaAoLongoDoTempo ?? []}
-        loading={loading}
-      />
+    <div
+      className={
+        omitRevenue ?
+          "mt-6 grid gap-4"
+        : "mt-6 grid gap-4 lg:grid-cols-2"
+      }
+    >
+      {!omitRevenue ?
+        <RevenueChart
+          data={data?.receitaAoLongoDoTempo ?? []}
+          loading={loading}
+        />
+      : null}
 
       <StudentsByCourseChart
         data={data?.alunosPorCurso ?? []}

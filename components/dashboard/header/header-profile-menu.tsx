@@ -18,7 +18,13 @@ interface MeResponse {
     id: string;
     nome: string;
     email: string;
-    role: "SUPER_ADMIN" | "ADMIN" | "FINANCEIRO" | "SECRETARIA" | "PROFESSOR";
+    role:
+      | "SUPER_ADMIN"
+      | "ADMIN"
+      | "FINANCEIRO"
+      | "SECRETARIA"
+      | "SECRETARIA_FINANCEIRA"
+      | "PROFESSOR";
     ativo: boolean;
     avatarUrl?: string | null;
     professorId?: string | null;
@@ -44,7 +50,9 @@ function formatRole(role?: string) {
     case "FINANCEIRO":
       return "Financeiro";
     case "SECRETARIA":
-      return "Secretaria";
+      return "Secretaria (acadêmica)";
+    case "SECRETARIA_FINANCEIRA":
+      return "Secretaria (financeiro)";
     case "PROFESSOR":
       return "Professor";
     default:

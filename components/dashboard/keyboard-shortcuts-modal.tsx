@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,42 +8,50 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-
-const SHORTCUTS = [
-  {
-    group: "Navegação",
-    items: [
-      { keys: ["G", "D"], label: "Ir para Dashboard" },
-      { keys: ["G", "A"], label: "Ir para Alunos" },
-      { keys: ["G", "F"], label: "Ir para Financeiro" },
-      { keys: ["G", "C"], label: "Ir para Calendário" },
-      { keys: ["G", "R"], label: "Ir para Relatórios" },
-    ],
-  },
-  {
-    group: "Busca",
-    items: [
-      { keys: ["⌘", "K"], label: "Abrir busca global" },
-      { keys: ["?"], label: "Ver atalhos de teclado" },
-      { keys: ["ESC"], label: "Fechar modal / busca" },
-    ],
-  },
-  {
-    group: "Listas",
-    items: [
-      { keys: ["↑", "↓"], label: "Navegar nos resultados" },
-      { keys: ["↵"], label: "Selecionar item" },
-    ],
-  },
-];
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 export function KeyboardShortcutsModal() {
+  const { t } = useDashboardLanguage();
   const [open, setOpen] = useState(false);
+
+  const shortcuts = useMemo(
+    () => [
+      {
+        groupKey: "shortcuts.group.navigation",
+        items: [
+          { keys: ["G", "D"], labelKey: "shortcuts.nav.dashboard" },
+          { keys: ["G", "A"], labelKey: "shortcuts.nav.students" },
+          { keys: ["G", "F"], labelKey: "shortcuts.nav.finance" },
+          { keys: ["G", "C"], labelKey: "shortcuts.nav.calendar" },
+          { keys: ["G", "R"], labelKey: "shortcuts.nav.reports" },
+        ],
+      },
+      {
+        groupKey: "shortcuts.group.search",
+        items: [
+          { keys: ["⌘", "K"], labelKey: "shortcuts.search.open" },
+          { keys: ["?"], labelKey: "shortcuts.search.help" },
+          { keys: ["ESC"], labelKey: "shortcuts.search.close" },
+        ],
+      },
+      {
+        groupKey: "shortcuts.group.lists",
+        items: [
+          { keys: ["↑", "↓"], labelKey: "shortcuts.lists.navigate" },
+          { keys: ["↵"], labelKey: "shortcuts.lists.select" },
+        ],
+      },
+    ],
+    []
+  );
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement)?.tagName;
-      const isInput = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable;
+      const isInput =
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        (e.target as HTMLElement)?.isContentEditable;
       if (e.key === "?" && !isInput && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         setOpen((v) => !v);
@@ -57,22 +65,23 @@ export function KeyboardShortcutsModal() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-[480px] rounded-[28px]">
         <DialogHeader>
-          <DialogTitle>Atalhos de teclado</DialogTitle>
-          <DialogDescription>
-            Use esses atalhos para navegar mais rápido pelo sistema.
-          </DialogDescription>
+          <DialogTitle>{t("shortcuts.title")}</DialogTitle>
+          <DialogDescription>{t("shortcuts.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 py-2">
-          {SHORTCUTS.map((group) => (
-            <div key={group.group}>
+          {shortcuts.map((group) => (
+            <div key={group.groupKey}>
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                {group.group}
+                {t(group.groupKey)}
               </p>
               <div className="space-y-1">
                 {group.items.map((item) => (
-                  <div key={item.label} className="flex items-center justify-between rounded-xl px-3 py-2 hover:bg-muted/50">
-                    <span className="text-sm text-foreground">{item.label}</span>
+                  <div
+                    key={item.labelKey}
+                    className="flex items-center justify-between rounded-xl px-3 py-2 hover:bg-muted/50"
+                  >
+                    <span className="text-sm text-foreground">{t(item.labelKey)}</span>
                     <div className="flex items-center gap-1">
                       {item.keys.map((key, i) => (
                         <kbd
@@ -91,7 +100,7 @@ export function KeyboardShortcutsModal() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground">
-          Pressione <kbd className="rounded border border-border px-1 text-[10px]">?</kbd> para abrir este modal
+          {t("shortcuts.footer", { key: "?" })}
         </p>
       </DialogContent>
     </Dialog>

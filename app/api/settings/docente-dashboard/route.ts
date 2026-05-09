@@ -5,17 +5,30 @@ import {
   DOCENTE_DASHBOARD_DEFAULTS,
   normalizeDocenteDashboardConfig,
 } from "@/lib/docente/dashboard-config";
+import { API_FORBIDDEN_PROFILE } from "@/lib/http/api-forbidden";
+import { blockProfessorWhenPortalDisabled } from "@/lib/docente/professor-portal-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SCHOOL_CONFIG_EDIT_ROLES = new Set(["ADMIN", "SECRETARIA", "SUPER_ADMIN"]);
+const SCHOOL_CONFIG_EDIT_ROLES = new Set([
+  "ADMIN",
+  "SECRETARIA",
+  "SECRETARIA_FINANCEIRA",
+  "SUPER_ADMIN",
+]);
 
 export async function GET() {
   const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  }
   const schoolResult = requireSchool(user);
   if (schoolResult instanceof NextResponse) return schoolResult;
   const { schoolId } = schoolResult;
+
+  const portalDenied = await blockProfessorWhenPortalDisabled(user);
+  if (portalDenied) return portalDenied;
 
   const record = await prisma.docenteDashboardConfig.findUnique({
     where: {
@@ -54,7 +67,7 @@ export async function PUT(request: NextRequest) {
   const { schoolId } = schoolResult;
 
   if (!user || !SCHOOL_CONFIG_EDIT_ROLES.has(user.role)) {
-    return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+    return NextResponse.json({ error: API_FORBIDDEN_PROFILE }, { status: 403 });
   }
 
   const body = await request.json();

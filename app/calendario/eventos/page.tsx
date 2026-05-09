@@ -11,8 +11,8 @@ export default function CalendarioEventosPage() {
   return (
     <DashboardLayout>
       <Header
-        title="Calendário"
-        description="Lista completa de eventos agendados"
+        titleKey="page.calendar.title"
+        descriptionKey="page.calendar.eventsListDescription"
       />
 
       <EventsPageContent

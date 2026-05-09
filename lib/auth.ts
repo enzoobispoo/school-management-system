@@ -13,3 +13,16 @@ export {
   jsonForbiddenRole,
   SCHOOL_EXECUTIVE_ROLES,
 } from "@/lib/auth/rbac";
+
+export {
+  assertBillingNotify,
+  assertCoreFinanceWrite,
+  assertEnrollmentRead,
+  assertEnrollmentWrite,
+  assertFinanceRead,
+  roleHasBillingNotify,
+  roleHasCoreFinanceWrite,
+  roleHasEnrollmentRead,
+  roleHasEnrollmentWrite,
+  roleHasFinanceRead,
+} from "@/lib/auth/school-permissions";

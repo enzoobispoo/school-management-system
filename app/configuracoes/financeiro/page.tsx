@@ -4,8 +4,8 @@ import { FinancialSettingsSection } from "@/components/configuracoes/sections/fi
 export default function ConfiguracoesFinanceiroPage() {
   return (
     <SettingsShell
-      title="Configurações"
-      description="Gerencie dados da escola, financeiro, IA e preferências."
+      titleKey="settings.shell.title"
+      descriptionKey="settings.shell.desc.general"
     >
       <FinancialSettingsSection />
     </SettingsShell>

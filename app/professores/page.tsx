@@ -11,7 +11,10 @@ export default function ProfessoresPage() {
 
   return (
     <DashboardLayout>
-      <Header title="Professores" description="Gerencie o corpo docente" />
+      <Header
+        titleKey="page.teachers.title"
+        descriptionKey="page.teachers.description"
+      />
 
       <TeachersPageContent
         teachers={teachersPage.teachers}

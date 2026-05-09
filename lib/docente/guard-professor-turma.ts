@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { AuthenticatedUser } from "@/lib/auth/get-current-user";
+import { blockProfessorWhenPortalDisabled } from "@/lib/docente/professor-portal-policy";
 
 /** Garante professor titular da turma na escola. `null` = autorizado. */
 export async function guardProfessorTitularTurma(
@@ -14,6 +15,9 @@ export async function guardProfessorTitularTurma(
       { status: 403 }
     );
   }
+
+  const portalDenied = await blockProfessorWhenPortalDisabled(user);
+  if (portalDenied) return portalDenied;
 
   if (!user.professorId) {
     return NextResponse.json(

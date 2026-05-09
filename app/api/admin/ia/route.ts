@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUserFromRequest } from "@/lib/auth/current-user";
 import { AiProviderMode } from "@prisma/client";
 import { maskApiKey, ensureCurrentAiUsageWindow, getOrCreateSystemSetting } from "@/lib/ia/system-settings";
+import { API_FORBIDDEN_PROFILE } from "@/lib/http/api-forbidden";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const user = await getCurrentUserFromRequest(request);
   if (!user || user.role !== "SUPER_ADMIN") {
-    return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+    return NextResponse.json({ error: API_FORBIDDEN_PROFILE }, { status: 403 });
   }
 
   const settings = await ensureCurrentAiUsageWindow(await getOrCreateSystemSetting());
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const user = await getCurrentUserFromRequest(request);
   if (!user || user.role !== "SUPER_ADMIN") {
-    return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+    return NextResponse.json({ error: API_FORBIDDEN_PROFILE }, { status: 403 });
   }
 
   const body = await request.json();
@@ -65,7 +66,7 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const user = await getCurrentUserFromRequest(request);
   if (!user || user.role !== "SUPER_ADMIN") {
-    return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+    return NextResponse.json({ error: API_FORBIDDEN_PROFILE }, { status: 403 });
   }
   // Reset usage counter
   await prisma.systemSetting.update({

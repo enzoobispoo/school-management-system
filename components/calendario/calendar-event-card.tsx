@@ -1,15 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import type { CalendarEvent } from "@/lib/calendario/calendar-types";
-import { getEventColorVars, getEventStyle, getEventTypeLabel } from "@/lib/calendario/calendar-utils";
+import {
+  getEventColorVars,
+  getEventStyle,
+  getEventTypeLabel,
+  type TimedEventLayout,
+} from "@/lib/calendario/calendar-utils";
 
 interface Props {
   event: CalendarEvent;
+  /** Distribuição horizontal quando há sobreposição de horários no mesmo dia. */
+  layout?: TimedEventLayout;
   onClick?: (event: CalendarEvent) => void;
 }
 
-export function CalendarEventCard({ event, onClick }: Props) {
+export function CalendarEventCard({ event, layout, onClick }: Props) {
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
@@ -33,24 +40,44 @@ export function CalendarEventCard({ event, onClick }: Props) {
   const border = isDark ? vars["--ev-border-dark"]  : vars["--ev-border-light"];
   const color  = isDark ? vars["--ev-text-dark"]    : vars["--ev-text-light"];
 
+  const cols = layout && layout.cols > 1 ? layout.cols : 1;
+  const col = layout?.col ?? 0;
+
+  const columnStyle: CSSProperties =
+    cols <= 1 ?
+      { left: "8px", width: "calc(100% - 16px)", right: "auto", zIndex: 5 }
+    : {
+        left: `calc(${col} * (100% / ${cols}) + 4px)`,
+        width: `calc(100% / ${cols} - 8px)`,
+        right: "auto",
+        zIndex: 10 + col,
+      };
+
   return (
     <div
       onClick={() => onClick?.(event)}
-      className="absolute left-2 right-2 cursor-pointer rounded-[18px] border px-3 py-2 shadow-none transition hover:opacity-90"
-      style={{ ...posStyle, backgroundColor: bg, borderColor: border, color }}
+      className="isolate cursor-pointer overflow-hidden rounded-[14px] border px-2.5 py-1.5 shadow-sm backdrop-blur-[2px] transition hover:brightness-[1.03] hover:saturate-[1.02]"
+      style={{
+        ...posStyle,
+        ...columnStyle,
+        backgroundColor: bg,
+        borderColor: border,
+        color,
+        contain: "layout paint",
+      }}
     >
       <div className="mb-1 flex items-start justify-between gap-2">
-        <p className="line-clamp-2 text-[13px] font-semibold leading-4">{event.title}</p>
-        <span className="text-[11px] opacity-50">•••</span>
+        <p className="line-clamp-3 text-[12px] font-semibold leading-tight">{event.title}</p>
+        <span className="shrink-0 text-[10px] opacity-45">⋯</span>
       </div>
 
-      <p className="text-[11px] font-medium opacity-70">
-        {typeLabel} • {startText} - {endText}
+      <p className="text-[10px] font-medium leading-tight opacity-80">
+        {typeLabel} · {startText}–{endText}
       </p>
 
-      {event.turma?.nome && (
-        <p className="mt-1 text-[11px] font-medium opacity-70">{event.turma.nome}</p>
-      )}
+      {event.turma?.nome ?
+        <p className="mt-1 line-clamp-2 text-[10px] font-medium opacity-75">{event.turma.nome}</p>
+      : null}
     </div>
   );
 }

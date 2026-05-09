@@ -1,5 +1,7 @@
 "use client";
 
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
+
 interface ActivityItem {
   id: string;
   type: "enrollment" | "payment" | "new_student";
@@ -14,34 +16,31 @@ interface RecentActivityProps {
   loading?: boolean;
 }
 
-function getTypeLabel(type: ActivityItem["type"]) {
-  if (type === "enrollment") return "Matrícula";
-  if (type === "payment") return "Pagamento";
-  return "Aluno";
+function typeLabelKey(type: ActivityItem["type"]) {
+  if (type === "enrollment") return "activity.kind.enrollment";
+  if (type === "payment") return "activity.kind.payment";
+  return "activity.kind.student";
 }
 
 export function RecentActivity({
   activities,
   loading = false,
 }: RecentActivityProps) {
+  const { t } = useDashboardLanguage();
+
   return (
     <div className="rounded-xl border border-border/60 bg-card p-5 text-card-foreground">
-      
       <div className="mb-4">
-        <p className="text-[13px] text-muted-foreground">Movimentações</p>
+        <p className="text-[13px] text-muted-foreground">{t("activity.subheading")}</p>
         <h3 className="mt-0.5 text-[15px] font-semibold tracking-tight text-foreground">
-          Atividades recentes
+          {t("activity.title")}
         </h3>
       </div>
 
       {loading ? (
-        <div className="text-sm text-muted-foreground">
-          Carregando atividades...
-        </div>
+        <div className="text-sm text-muted-foreground">{t("activity.loading")}</div>
       ) : activities.length === 0 ? (
-        <div className="text-sm text-muted-foreground">
-          Nenhuma atividade recente encontrada.
-        </div>
+        <div className="text-sm text-muted-foreground">{t("activity.empty")}</div>
       ) : (
         <div className="space-y-4">
           {activities.map((activity) => (
@@ -61,7 +60,7 @@ export function RecentActivity({
                     </p>
 
                     <p className="text-xs font-medium text-muted-foreground">
-                      {getTypeLabel(activity.type)}
+                      {t(typeLabelKey(activity.type))}
                     </p>
                   </div>
 

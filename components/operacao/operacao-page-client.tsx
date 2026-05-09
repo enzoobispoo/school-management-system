@@ -32,6 +32,10 @@ import { useOperacaoPage } from "@/hooks/operacao/use-operacao-page";
 import { cn } from "@/lib/utils";
 import { ChevronDown, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import {
+  dashboardLocaleTag,
+  useDashboardLanguage,
+} from "@/lib/i18n/dashboard-language";
 
 function diasAbertosDesde(createdAtIso: string) {
   const t = new Date(createdAtIso).getTime();
@@ -51,20 +55,6 @@ const severityStyle: Record<string, string> = {
   INFO: "bg-sky-600 text-white hover:bg-sky-600/90",
 };
 
-const categoryLabel: Record<string, string> = {
-  FINANCE: "Financeiro",
-  ACADEMIC: "Acadêmico",
-  ENROLLMENT: "Matrícula",
-  SYSTEM: "Sistema",
-};
-
-const statusLabel: Record<string, string> = {
-  OPEN: "Aberto",
-  ACKNOWLEDGED: "Em tratativa",
-  RESOLVED: "Resolvido",
-  DISMISSED: "Dispensado",
-};
-
 type ViewerSchoolsPayload = {
   loaded: boolean;
   schools: { id: string; nome: string }[];
@@ -72,6 +62,26 @@ type ViewerSchoolsPayload = {
 };
 
 export function OperacaoPageClient() {
+  const { t, language } = useDashboardLanguage();
+  const localeTag = dashboardLocaleTag(language);
+
+  function incidentCategoryLabel(category: string) {
+    const key = `operacao.category.${category}`;
+    const raw = t(key);
+    return raw === key ? category : raw;
+  }
+
+  function incidentStatusLabel(status: string) {
+    const key = `operacao.incidentStatus.${status}`;
+    const raw = t(key);
+    return raw === key ? status : raw;
+  }
+
+  function severityLabel(sev: string) {
+    const key = `operacao.severity.${sev}`;
+    const raw = t(key);
+    return raw === key ? sev : raw;
+  }
   const router = useRouter();
   const searchParams = useSearchParams();
   const schoolIdFromUrl = searchParams.get("schoolId");
@@ -175,15 +185,19 @@ export function OperacaoPageClient() {
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        throw new Error(j.error || "Falha ao salvar");
+        throw new Error(j.error || t("operacao.playbookSaveFail"));
       }
       const updated = (await res.json()) as PlaybookRow;
       setPlaybooks((prev) =>
         prev.map((p) => (p.code === updated.code ? { ...p, ...updated } : p))
       );
-      toast.success(active ? "Playbook ativado." : "Playbook desativado.");
+      toast.success(
+        active ? t("operacao.playbookActivated") : t("operacao.playbookDeactivated")
+      );
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao atualizar playbook");
+      toast.error(
+        e instanceof Error ? e.message : t("operacao.playbookUpdateError")
+      );
     } finally {
       setPatchingPlaybookCode(null);
     }
@@ -193,27 +207,27 @@ export function OperacaoPageClient() {
     if (!dismissId) return;
     try {
       await op.patchIncident(dismissId, "dismiss", dismissReason.trim());
-      toast.success("Incidente dispensado.");
+      toast.success(t("operacao.toast.dismissed"));
       setDismissOpen(false);
       setDismissReason("");
       setDismissId(null);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao dispensar");
+      toast.error(e instanceof Error ? e.message : t("operacao.toast.dismissError"));
     }
   }
 
   return (
     <DashboardLayout>
       <Header
-        title="Central operacional"
-        description="Problemas detectados automaticamente, com causa provável e próximos passos sugeridos."
+        title={t("page.operation.hubTitle")}
+        description={t("page.operation.hubDescription")}
       />
 
       <div className="space-y-6 px-6 pb-10">
         {!viewerSchools.loaded ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Carregando permissões…
+            {t("operacao.loadingPermissions")}
           </div>
         ) : null}
 
@@ -221,7 +235,7 @@ export function OperacaoPageClient() {
         viewerSchools.role === "SUPER_ADMIN" &&
         viewerSchools.schools.length === 0 ? (
           <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] px-4 py-3 text-sm text-foreground">
-            Nenhuma escola ativa encontrada. Cadastre ou ative uma escola para usar a Central operacional com perfil de plataforma.
+            {t("operacao.noSchoolsHint")}
           </div>
         ) : null}
 
@@ -236,14 +250,16 @@ export function OperacaoPageClient() {
                 }}
               >
                 <SelectTrigger className="w-[200px] rounded-xl">
-                  <SelectValue placeholder="Status" />
+                  <SelectValue placeholder={t("operacao.statusPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos os status</SelectItem>
-                  <SelectItem value="OPEN">Abertos</SelectItem>
-                  <SelectItem value="ACKNOWLEDGED">Em tratativa</SelectItem>
-                  <SelectItem value="RESOLVED">Resolvidos</SelectItem>
-                  <SelectItem value="DISMISSED">Dispensados</SelectItem>
+                  <SelectItem value="all">{t("operacao.statusAll")}</SelectItem>
+                  <SelectItem value="OPEN">{t("operacao.statusOpenPlural")}</SelectItem>
+                  <SelectItem value="ACKNOWLEDGED">
+                    {t("operacao.statusAcknowledgedPlural")}
+                  </SelectItem>
+                  <SelectItem value="RESOLVED">{t("operacao.statusResolvedPlural")}</SelectItem>
+                  <SelectItem value="DISMISSED">{t("operacao.statusDismissedPlural")}</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -257,7 +273,7 @@ export function OperacaoPageClient() {
                   }
                 >
                   <SelectTrigger className="min-w-[220px] max-w-[320px] rounded-xl">
-                    <SelectValue placeholder="Escola" />
+                    <SelectValue placeholder={t("operacao.schoolPlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
                     {viewerSchools.schools.map((s) => (
@@ -277,8 +293,8 @@ export function OperacaoPageClient() {
               onClick={() =>
                 void op.evaluateNow().then((ok) =>
                   ok
-                    ? toast.success("Avaliação concluída.")
-                    : toast.error("Não foi possível avaliar agora.")
+                    ? toast.success(t("operacao.evaluateSuccess"))
+                    : toast.error(t("operacao.evaluateFail"))
                 )
               }
             >
@@ -287,12 +303,12 @@ export function OperacaoPageClient() {
               ) : (
                 <RefreshCw className="h-4 w-4" />
               )}
-              Avaliar agora
+              {t("operacao.evaluateNow")}
             </Button>
           </div>
           {!op.canDismissIncidents ? (
             <p className="text-xs text-muted-foreground">
-              Dispensar incidentes é restrito a administradores; demais papéis podem marcar em tratativa ou resolvido.
+              {t("operacao.dismissRestrictedHint")}
             </p>
           ) : null}
         </div>
@@ -309,19 +325,27 @@ export function OperacaoPageClient() {
         viewerSchools.schools.length > 0 &&
         !effectiveScopedSchoolId ? (
           <div className="rounded-[24px] border border-border/50 bg-card p-10 text-center text-sm text-muted-foreground">
-            Escolha uma escola para carregar incidentes (perfil de plataforma).
+            {t("operacao.chooseSchoolPrompt")}
           </div>
         ) : op.loading ? (
           <div className="rounded-[24px] border border-border/50 bg-card p-10 text-center text-sm text-muted-foreground">
-            Carregando incidentes…
+            {t("operacao.loadingIncidents")}
           </div>
         ) : op.incidents.length === 0 ? (
           <div className="rounded-[24px] border border-border/50 bg-card p-10 text-center text-sm text-muted-foreground">
-            Nenhum incidente neste filtro. Use &quot;Avaliar agora&quot; ou aguarde o cron horário.
+            {t("operacao.emptyIncidents")}
           </div>
         ) : (
           <ul className="flex flex-col gap-4">
-            {op.incidents.map((inc) => (
+            {op.incidents.map((inc) => {
+              const openDays = inc.createdAt ? diasAbertosDesde(inc.createdAt) : 0;
+              const openSinceLabel =
+                inc.createdAt ?
+                  openDays === 1 ?
+                    t("operacao.openSince.one", { count: openDays })
+                  : t("operacao.openSince.many", { count: openDays })
+                : "";
+              return (
               <li
                 key={inc.id}
                 className={cn(
@@ -333,45 +357,47 @@ export function OperacaoPageClient() {
                   <div className="min-w-0 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge className={cn("rounded-full text-[11px]", severityStyle[inc.severity])}>
-                        {inc.severity}
+                        {severityLabel(inc.severity)}
                       </Badge>
                       <Badge variant="outline" className="rounded-full text-[11px]">
-                        {categoryLabel[inc.category] ?? inc.category}
+                        {incidentCategoryLabel(inc.category)}
                       </Badge>
                       <Badge variant="secondary" className="rounded-full text-[11px]">
-                        {statusLabel[inc.status] ?? inc.status}
+                        {incidentStatusLabel(inc.status)}
                       </Badge>
                       {inc.playbookCode ? (
                         <span className="text-[11px] text-muted-foreground">
-                          playbook: {inc.playbookCode}
+                          {t("operacao.playbookTag", { code: inc.playbookCode })}
                         </span>
                       ) : null}
                     </div>
                     <h2 className="text-lg font-semibold text-foreground">{inc.title}</h2>
                     <p className="text-sm text-muted-foreground">{inc.description}</p>
                     <div className="rounded-xl bg-muted/40 px-3 py-2 text-sm">
-                      <span className="font-medium text-foreground">Diagnóstico: </span>
+                      <span className="font-medium text-foreground">
+                        {t("operacao.diagnosticPrefix")}{" "}
+                      </span>
                       {inc.problemStatement}
                     </div>
                     {inc.impactHint ? (
                       <p className="text-xs text-muted-foreground">
-                        Impacto: {inc.impactHint}
+                        {t("operacao.impactPrefix")} {inc.impactHint}
                       </p>
                     ) : null}
                     <div className="text-xs text-muted-foreground">
-                      Última detecção:{" "}
-                      {new Date(inc.lastDetectedAt).toLocaleString("pt-BR")}
+                      {t("operacao.lastDetectionPrefix")}{" "}
+                      {new Date(inc.lastDetectedAt).toLocaleString(localeTag)}
                       {inc.createdAt ? (
                         <>
                           {" "}
-                          · Aberto há {diasAbertosDesde(inc.createdAt)} dia(s)
+                          · {openSinceLabel}
                         </>
                       ) : null}
                     </div>
                     {inc.suggestedActions?.length ? (
                       <div className="pt-1">
                         <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          Próximos passos sugeridos
+                          {t("operacao.suggestedNextSteps")}
                         </p>
                         <ul className="list-inside list-disc space-y-1 text-sm text-foreground">
                           {inc.suggestedActions.map((s, i) => (
@@ -385,7 +411,7 @@ export function OperacaoPageClient() {
                         href="/financeiro"
                         className="inline-block text-sm font-medium text-primary hover:underline"
                       >
-                        Abrir financeiro →
+                        {t("operacao.openFinance")}
                       </Link>
                     ) : null}
                     {inc.category === "ACADEMIC" ? (
@@ -393,7 +419,7 @@ export function OperacaoPageClient() {
                         href="/turmas"
                         className="inline-block text-sm font-medium text-primary hover:underline"
                       >
-                        Abrir turmas →
+                        {t("operacao.openClasses")}
                       </Link>
                     ) : null}
                     {inc.category === "ENROLLMENT" ? (
@@ -401,12 +427,12 @@ export function OperacaoPageClient() {
                         href="/alunos"
                         className="inline-block text-sm font-medium text-primary hover:underline"
                       >
-                        Abrir alunos →
+                        {t("operacao.openStudents")}
                       </Link>
                     ) : null}
                     {inc.dismissReason ? (
                       <p className="text-xs text-muted-foreground">
-                        Motivo do dispensa: {inc.dismissReason}
+                        {t("operacao.dismissReasonPrefix")} {inc.dismissReason}
                       </p>
                     ) : null}
                   </div>
@@ -421,11 +447,11 @@ export function OperacaoPageClient() {
                           onClick={() =>
                             void op
                               .patchIncident(inc.id, "acknowledge")
-                              .then(() => toast.success("Marcado como em tratativa."))
-                              .catch(() => toast.error("Falha ao atualizar"))
+                              .then(() => toast.success(t("operacao.toast.acknowledged")))
+                              .catch(() => toast.error(t("operacao.toast.updateFail")))
                           }
                         >
-                          Em tratativa
+                          {t("operacao.action.triage")}
                         </Button>
                         <Button
                           size="sm"
@@ -434,11 +460,11 @@ export function OperacaoPageClient() {
                           onClick={() =>
                             void op
                               .patchIncident(inc.id, "resolve")
-                              .then(() => toast.success("Marcado como resolvido."))
-                              .catch(() => toast.error("Falha ao atualizar"))
+                              .then(() => toast.success(t("operacao.toast.resolved")))
+                              .catch(() => toast.error(t("operacao.toast.updateFail")))
                           }
                         >
-                          Resolver
+                          {t("operacao.action.resolve")}
                         </Button>
                         {op.canDismissIncidents ? (
                           <Button
@@ -450,7 +476,7 @@ export function OperacaoPageClient() {
                               setDismissOpen(true);
                             }}
                           >
-                            Dispensar…
+                            {t("operacao.action.dismiss")}
                           </Button>
                         ) : null}
                       </>
@@ -463,11 +489,11 @@ export function OperacaoPageClient() {
                           onClick={() =>
                             void op
                               .patchIncident(inc.id, "resolve")
-                              .then(() => toast.success("Marcado como resolvido."))
-                              .catch(() => toast.error("Falha ao atualizar"))
+                              .then(() => toast.success(t("operacao.toast.resolved")))
+                              .catch(() => toast.error(t("operacao.toast.updateFail")))
                           }
                         >
-                          Resolver
+                          {t("operacao.action.resolve")}
                         </Button>
                         {op.canDismissIncidents ? (
                           <Button
@@ -479,7 +505,7 @@ export function OperacaoPageClient() {
                               setDismissOpen(true);
                             }}
                           >
-                            Dispensar…
+                            {t("operacao.action.dismiss")}
                           </Button>
                         ) : null}
                       </>
@@ -487,14 +513,15 @@ export function OperacaoPageClient() {
                   </div>
                 </div>
               </li>
-            ))}
+            );
+            })}
           </ul>
         )}
 
         {playbooksLoaded && playbooks.length > 0 ? (
           <Collapsible open={playbooksOpen} onOpenChange={setPlaybooksOpen}>
             <CollapsibleTrigger className="flex w-full items-center justify-between rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 text-left text-sm font-semibold text-foreground hover:bg-muted/35">
-              <span>Playbooks de detecção ({playbooks.length})</span>
+              <span>{t("operacao.playbooksTitle", { count: playbooks.length })}</span>
               <ChevronDown
                 className={cn(
                   "h-4 w-4 shrink-0 transition-transform",
@@ -504,10 +531,10 @@ export function OperacaoPageClient() {
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-3 space-y-2 rounded-2xl border border-border/50 bg-card/40 p-4">
               <p className="text-xs text-muted-foreground">
-                Cada playbook executa um detector e pode disparar notificações.{" "}
+                {t("operacao.playbooksIntro")}{" "}
                 {canManagePlaybooks
-                  ? "Desative os que não fazem sentido para sua escola."
-                  : "Somente administradores alteram playbooks."}
+                  ? t("operacao.playbooksIntroAdmin")
+                  : t("operacao.playbooksIntroViewer")}
               </p>
               <ul className="divide-y divide-border/60 rounded-xl border border-border/50">
                 {playbooks.map((pb) => (
@@ -523,7 +550,7 @@ export function OperacaoPageClient() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">
-                        {pb.active ? "Ativo" : "Off"}
+                        {pb.active ? t("operacao.playbookActive") : t("operacao.playbookOff")}
                       </span>
                       <Switch
                         checked={pb.active}
@@ -543,7 +570,10 @@ export function OperacaoPageClient() {
         {op.meta.totalPages > 1 ? (
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span>
-              Página {op.meta.page} de {op.meta.totalPages}
+              {t("operacao.pagination.pageOf", {
+                page: op.meta.page,
+                total: op.meta.totalPages,
+              })}
             </span>
             <div className="flex gap-2">
               <Button
@@ -552,7 +582,7 @@ export function OperacaoPageClient() {
                 disabled={op.page <= 1}
                 onClick={() => op.setPage((p) => Math.max(1, p - 1))}
               >
-                Anterior
+                {t("operacao.pagination.prev")}
               </Button>
               <Button
                 variant="outline"
@@ -560,7 +590,7 @@ export function OperacaoPageClient() {
                 disabled={op.page >= op.meta.totalPages}
                 onClick={() => op.setPage((p) => p + 1)}
               >
-                Próximo
+                {t("operacao.pagination.next")}
               </Button>
             </div>
           </div>
@@ -570,27 +600,25 @@ export function OperacaoPageClient() {
       <Dialog open={dismissOpen} onOpenChange={setDismissOpen}>
         <DialogContent className="rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Dispensar incidente</DialogTitle>
+            <DialogTitle>{t("operacao.dismiss.title")}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Explique por que este alerta não se aplica — o sistema não reabrirá automaticamente enquanto estiver dispensado.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("operacao.dismiss.body")}</p>
           <Textarea
             value={dismissReason}
             onChange={(e) => setDismissReason(e.target.value)}
-            placeholder="Motivo (mín. 3 caracteres)"
+            placeholder={t("operacao.dismiss.reasonPlaceholder")}
             className="min-h-[100px] rounded-xl"
           />
           <DialogFooter className="gap-2 sm:gap-0">
             <Button type="button" variant="outline" onClick={() => setDismissOpen(false)}>
-              Cancelar
+              {t("operacao.dismiss.cancel")}
             </Button>
             <Button
               type="button"
               disabled={dismissReason.trim().length < 3}
               onClick={() => void handleDismissSubmit()}
             >
-              Confirmar dispensa
+              {t("operacao.dismiss.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

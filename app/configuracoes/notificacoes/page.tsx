@@ -4,8 +4,8 @@ import { NotificationsSettingsSection } from "@/components/configuracoes/section
 export default function ConfiguracoesNotificacoesPage() {
   return (
     <SettingsShell
-      title="Configurações"
-      description="Gerencie dados da escola, financeiro, IA e preferências."
+      titleKey="settings.shell.title"
+      descriptionKey="settings.shell.desc.general"
     >
       <NotificationsSettingsSection />
     </SettingsShell>

@@ -128,7 +128,7 @@ function buildDashboardInsights(params: {
       description: `Existem ${params.quantidadePagamentosAtrasados} pagamento(s) atrasado(s) exigindo acompanhamento.`,
       action: {
         label: "Cobrar alunos",
-        href: "/financeiro?tab=overdue",
+        href: "/financeiro/cobrancas?tab=overdue",
       },
     });
   }

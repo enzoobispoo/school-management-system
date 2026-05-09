@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma, TipoEvento } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, requireSchool } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
+import { blockProfessorWhenPortalDisabled } from "@/lib/docente/professor-portal-policy";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -27,6 +28,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+
+    const portalDeniedPut = await blockProfessorWhenPortalDisabled(user);
+    if (portalDeniedPut) return portalDeniedPut;
+
     const { id } = await context.params;
     const body = await request.json();
 
@@ -96,6 +101,10 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+
+    const portalDeniedDel = await blockProfessorWhenPortalDisabled(user);
+    if (portalDeniedDel) return portalDeniedDel;
+
     const { id } = await context.params;
 
     const eventoExistente = await prisma.evento.findUnique({

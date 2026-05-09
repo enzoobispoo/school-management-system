@@ -11,9 +11,10 @@ interface SchoolSettingsForm {
   endereco: string;
   logoUrl: string;
   corPrimaria: string;
+  professorPortalEnabled: boolean;
 }
 
-export function useSchoolSettings() {
+export function useSchoolSettings(portalEditable: boolean) {
   const [form, setForm] = useState<SchoolSettingsForm>({
     nomeEscola: "",
     cnpj: "",
@@ -23,6 +24,7 @@ export function useSchoolSettings() {
     endereco: "",
     logoUrl: "",
     corPrimaria: "#111111",
+    professorPortalEnabled: true,
   });
 
   const [loading, setLoading] = useState(true);
@@ -62,6 +64,7 @@ export function useSchoolSettings() {
           endereco: result.endereco ?? "",
           logoUrl: result.logoUrl ?? "",
           corPrimaria: result.corPrimaria ?? "#111111",
+          professorPortalEnabled: result.professorPortalEnabled !== false,
         });
       } catch (err) {
         setError(
@@ -93,6 +96,9 @@ export function useSchoolSettings() {
           endereco: form.endereco || null,
           logoUrl: form.logoUrl || null,
           corPrimaria: form.corPrimaria || "#111111",
+          ...(portalEditable ?
+            { professorPortalEnabled: form.professorPortalEnabled }
+          : {}),
         }),
       });
 
@@ -102,7 +108,7 @@ export function useSchoolSettings() {
         throw new Error(result?.error || "Não foi possível salvar as configurações.");
       }
 
-      setSuccess("Configurações da escola salvas com sucesso.");
+      setSuccess("settings.school.saveSuccess");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Não foi possível salvar as configurações."

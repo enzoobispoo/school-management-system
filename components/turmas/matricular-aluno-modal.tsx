@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search } from "lucide-react";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 interface Aluno {
   id: string;
@@ -39,6 +40,7 @@ export function MatricularAlunoModal({
   turmaNome,
   onSuccess,
 }: MatricularAlunoModalProps) {
+  const { t } = useDashboardLanguage();
   const [search, setSearch] = useState("");
   const [alunos, setAlunos] = useState<Aluno[]>([]);
   const [loading, setLoading] = useState(false);
@@ -88,8 +90,11 @@ export function MatricularAlunoModal({
         body: JSON.stringify({ alunoId, turmaId, diaVencimentoMensal }),
       });
       const data = await res.json();
-      if (!res.ok) { toast.error(data.error || "Erro ao matricular aluno"); return; }
-      toast.success(`${alunoNome} matriculado com sucesso!`);
+      if (!res.ok) {
+        toast.error(data.error || t("turmas.enroll.error"));
+        return;
+      }
+      toast.success(t("turmas.enroll.success", { name: alunoNome }));
       onSuccess();
       onOpenChange(false);
     } finally {
@@ -101,15 +106,16 @@ export function MatricularAlunoModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[440px] rounded-[28px]">
         <DialogHeader>
-          <DialogTitle>Matricular aluno</DialogTitle>
+          <DialogTitle>{t("turmas.enroll.modalTitle")}</DialogTitle>
           <DialogDescription>
-            Busque um aluno ativo para matricular em <strong>{turmaNome}</strong>.
+            {t("turmas.enroll.modalDescBefore")}{" "}
+            <strong>{turmaNome}</strong>.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
           <div className="grid gap-2">
-            <Label className="text-xs font-medium">Vencimento das mensalidades (dia do mês)</Label>
+            <Label className="text-xs font-medium">{t("turmas.enroll.dueDayLabel")}</Label>
             <Select
               value={String(diaVencimentoMensal)}
               onValueChange={(v) => setDiaVencimentoMensal(Number(v))}
@@ -121,20 +127,20 @@ export function MatricularAlunoModal({
               <SelectContent className="max-h-[220px]">
                 {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                   <SelectItem key={d} value={String(d)}>
-                    Dia {d}
+                    {t("turmas.enroll.dayOption", { d })}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-[11px] text-muted-foreground leading-snug">
-              Por matrícula; meses curtos ajustam para o último dia.
+              {t("turmas.enroll.dueDayHint")}
             </p>
           </div>
 
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nome..."
+              placeholder={t("turmas.enroll.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-11 rounded-2xl pl-9"
@@ -144,13 +150,19 @@ export function MatricularAlunoModal({
 
           <div className="max-h-[280px] overflow-y-auto space-y-1.5">
             {loading && (
-              <p className="py-4 text-center text-sm text-muted-foreground">Buscando...</p>
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                {t("turmas.enroll.searching")}
+              </p>
             )}
             {!loading && search.trim().length >= 2 && alunos.length === 0 && (
-              <p className="py-4 text-center text-sm text-muted-foreground">Nenhum aluno ativo encontrado.</p>
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                {t("turmas.enroll.noneFound")}
+              </p>
             )}
             {!loading && search.trim().length < 2 && (
-              <p className="py-4 text-center text-sm text-muted-foreground">Digite pelo menos 2 caracteres.</p>
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                {t("turmas.enroll.typeTwoChars")}
+              </p>
             )}
             {alunos.map((aluno) => (
               <div
@@ -169,7 +181,7 @@ export function MatricularAlunoModal({
                   disabled={submitting === aluno.id}
                   onClick={() => handleMatricular(aluno.id, aluno.nome)}
                 >
-                  {submitting === aluno.id ? "..." : "Matricular"}
+                  {submitting === aluno.id ? "..." : t("turmas.enroll.enrollButton")}
                 </Button>
               </div>
             ))}
@@ -178,7 +190,7 @@ export function MatricularAlunoModal({
 
         <DialogFooter>
           <Button variant="outline" className="rounded-2xl" onClick={() => onOpenChange(false)}>
-            Fechar
+            {t("common.close")}
           </Button>
         </DialogFooter>
       </DialogContent>

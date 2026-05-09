@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, GraduationCap, BookOpen, UserCircle, DollarSign, FileText } from "lucide-react";
 import { isAiQuery } from "@/lib/search/is-ai-query";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 type SearchResult = {
   id: string;
@@ -13,12 +14,12 @@ type SearchResult = {
   href: string;
 };
 
-const TYPE_LABELS: Record<SearchResult["type"], string> = {
-  aluno: "Alunos",
-  curso: "Cursos",
-  professor: "Professores",
-  pagamento: "Pagamentos",
-  avaliacao: "Avaliações",
+const TYPE_LABEL_KEYS: Record<SearchResult["type"], string> = {
+  aluno: "search.type.students",
+  curso: "search.type.courses",
+  professor: "search.type.teachers",
+  pagamento: "search.type.payments",
+  avaliacao: "search.type.assessments",
 };
 
 const TYPE_ICONS: Record<SearchResult["type"], React.ElementType> = {
@@ -49,6 +50,7 @@ function highlight(text: string, query: string) {
 }
 
 export function GlobalSearch() {
+  const { t } = useDashboardLanguage();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -127,8 +129,12 @@ export function GlobalSearch() {
   const grouped = useMemo(() => {
     const map: Record<SearchResult["type"], SearchResult[]> = { aluno: [], curso: [], professor: [], pagamento: [], avaliacao: [] };
     for (const r of results) map[r.type].push(r);
-    return TYPE_ORDER.filter((t) => map[t].length > 0).map((t) => ({ type: t, label: TYPE_LABELS[t], items: map[t] }));
-  }, [results]);
+    return TYPE_ORDER.filter((kind) => map[kind].length > 0).map((kind) => ({
+      type: kind,
+      label: t(TYPE_LABEL_KEYS[kind]),
+      items: map[kind],
+    }));
+  }, [results, t]);
 
   const flat = useMemo(() => grouped.flatMap((g) => g.items), [grouped]);
 
@@ -171,7 +177,7 @@ export function GlobalSearch() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Buscar alunos, provas, questões, cursos, professores..."
+            placeholder={t("header.searchHint")}
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
           />
           <kbd className="hidden sm:inline-flex h-5 items-center rounded border border-border px-1.5 text-[10px] text-muted-foreground">
@@ -182,11 +188,11 @@ export function GlobalSearch() {
         {/* Results */}
         <div className="max-h-[360px] overflow-y-auto p-2">
           {loading ? (
-            <p className="px-3 py-4 text-sm text-muted-foreground">Buscando...</p>
+            <p className="px-3 py-4 text-sm text-muted-foreground">{t("header.searching")}</p>
           ) : query.trim().length < 2 ? (
-            <p className="px-3 py-4 text-sm text-muted-foreground">Digite pelo menos 2 caracteres para buscar.</p>
+            <p className="px-3 py-4 text-sm text-muted-foreground">{t("header.searchTypeAtLeast")}</p>
           ) : grouped.length === 0 ? (
-            <p className="px-3 py-4 text-sm text-muted-foreground">Nenhum resultado encontrado.</p>
+            <p className="px-3 py-4 text-sm text-muted-foreground">{t("header.noResults")}</p>
           ) : (
             <div className="space-y-3">
               {grouped.map((group) => (
@@ -232,9 +238,9 @@ export function GlobalSearch() {
 
         {/* Footer */}
         <div className="flex items-center gap-3 border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
-          <span><kbd className="rounded border border-border px-1">↑↓</kbd> navegar</span>
-          <span><kbd className="rounded border border-border px-1">↵</kbd> abrir</span>
-          <span><kbd className="rounded border border-border px-1">ESC</kbd> fechar</span>
+          <span><kbd className="rounded border border-border px-1">↑↓</kbd> {t("header.kbdNavigate")}</span>
+          <span><kbd className="rounded border border-border px-1">↵</kbd> {t("header.kbdOpen")}</span>
+          <span><kbd className="rounded border border-border px-1">ESC</kbd> {t("header.kbdClose")}</span>
         </div>
       </div>
     </div>

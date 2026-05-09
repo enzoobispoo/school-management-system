@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 type Meta = {
   nomeDestinatario: string;
@@ -38,6 +39,8 @@ export function DemonstrativoIrModal({
   alunoNome,
   initialSelectedYears,
 }: DemonstrativoIrModalProps) {
+  const { t } = useDashboardLanguage();
+
   const yearOptions = useMemo(() => {
     const y = new Date().getFullYear();
     return Array.from({ length: 8 }, (_, i) => y - i);
@@ -57,15 +60,15 @@ export function DemonstrativoIrModal({
     fetch(`/api/alunos/${alunoId}/demonstrativo-ir/meta`, { cache: "no-store" })
       .then(async (r) => {
         const data = await r.json();
-        if (!r.ok) throw new Error(data.error || "Erro ao carregar contatos");
+        if (!r.ok) throw new Error(data.error || t("tax.ir.metaLoadError"));
         setMeta(data as Meta);
       })
       .catch((e) => {
-        toast.error(e instanceof Error ? e.message : "Erro ao carregar contatos");
+        toast.error(e instanceof Error ? e.message : t("tax.ir.metaLoadError"));
         setMeta(null);
       })
       .finally(() => setLoadingMeta(false));
-  }, [open, alunoId]);
+  }, [open, alunoId, t]);
 
   useEffect(() => {
     if (!open) return;
@@ -89,7 +92,7 @@ export function DemonstrativoIrModal({
   async function handleDownload() {
     const anos = [...selectedYears].sort((a, b) => a - b);
     if (anos.length === 0) {
-      toast.error("Selecione pelo menos um ano-calendário.");
+      toast.error(t("tax.ir.pickYear"));
       return;
     }
     setDownloading(true);
@@ -100,7 +103,7 @@ export function DemonstrativoIrModal({
       );
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(err.error || "Falha ao gerar PDF");
+        throw new Error(err.error || t("tax.ir.pdfFail"));
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -110,10 +113,12 @@ export function DemonstrativoIrModal({
       a.click();
       URL.revokeObjectURL(url);
       toast.success(
-        anos.length > 1 ? "PDFs mesclados baixados." : "Demonstrativo baixado."
+        anos.length > 1
+          ? t("tax.ir.downloadSuccessMerged")
+          : t("tax.ir.downloadSuccessSingle")
       );
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao baixar");
+      toast.error(e instanceof Error ? e.message : t("tax.ir.downloadError"));
     } finally {
       setDownloading(false);
     }
@@ -122,19 +127,19 @@ export function DemonstrativoIrModal({
   async function handleSend() {
     const anos = [...selectedYears].sort((a, b) => a - b);
     if (anos.length === 0) {
-      toast.error("Selecione pelo menos um ano-calendário.");
+      toast.error(t("tax.ir.pickYear"));
       return;
     }
     if (!sendEmail && !sendWhatsApp) {
-      toast.error("Marque e-mail e/ou WhatsApp para enviar.");
+      toast.error(t("tax.ir.pickChannel"));
       return;
     }
     if (sendEmail && !meta?.hasEmail) {
-      toast.error("Cadastre um e-mail do aluno ou responsável.");
+      toast.error(t("tax.ir.needStudentEmail"));
       return;
     }
     if (sendWhatsApp && !meta?.hasWhatsApp) {
-      toast.error("Cadastre um telefone do aluno ou responsável.");
+      toast.error(t("tax.ir.needStudentPhone"));
       return;
     }
 
@@ -152,15 +157,20 @@ export function DemonstrativoIrModal({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error((data as { error?: string }).error || "Falha ao enviar");
+        throw new Error((data as { error?: string }).error || t("tax.ir.sendFail"));
       }
       const parts: string[] = [];
-      if ((data as { emailSent?: boolean }).emailSent) parts.push("e-mail");
-      if ((data as { whatsappSent?: boolean }).whatsappSent) parts.push("WhatsApp");
-      toast.success(`Enviado por ${parts.join(" e ")}.`);
+      if ((data as { emailSent?: boolean }).emailSent) parts.push(t("tax.ir.channelEmail"));
+      if ((data as { whatsappSent?: boolean }).whatsappSent)
+        parts.push(t("tax.ir.channelWhatsApp"));
+      toast.success(
+        t("tax.ir.sentVia", {
+          channels: parts.join(t("tax.ir.channelSeparator")),
+        })
+      );
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao enviar");
+      toast.error(e instanceof Error ? e.message : t("tax.ir.sendError"));
     } finally {
       setSending(false);
     }
@@ -170,18 +180,15 @@ export function DemonstrativoIrModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px] rounded-[28px]">
         <DialogHeader>
-          <DialogTitle>Demonstrativo IR</DialogTitle>
-          <DialogDescription>
-            Escolha os anos-calendário e, se quiser, envie ao responsável. PDFs listam apenas
-            pagamentos quitados com data registrada em cada ano.
-          </DialogDescription>
+          <DialogTitle>{t("tax.ir.title")}</DialogTitle>
+          <DialogDescription>{t("tax.ir.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <p className="text-sm font-medium text-foreground">{alunoNome}</p>
 
           <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Anos-calendário</Label>
+            <Label className="text-xs text-muted-foreground">{t("tax.ir.yearsLabel")}</Label>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {yearOptions.map((y) => (
                 <label
@@ -200,26 +207,22 @@ export function DemonstrativoIrModal({
 
           <div className="space-y-3 rounded-2xl border border-border/50 bg-muted/15 p-3">
             <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Enviar ao responsável
+              {t("tax.ir.sendSection")}
             </Label>
 
             {loadingMeta ? (
-              <p className="text-xs text-muted-foreground">Carregando contatos…</p>
+              <p className="text-xs text-muted-foreground">{t("tax.ir.loadingContacts")}</p>
             ) : meta ? (
               <div className="space-y-2 text-xs text-muted-foreground">
                 {meta.hasEmail ? (
-                  <p>E-mail: {meta.email}</p>
+                  <p>{t("tax.ir.emailLine", { value: meta.email ?? "" })}</p>
                 ) : (
-                  <p className="text-amber-700 dark:text-amber-400">
-                    Sem e-mail cadastrado — envio por e-mail indisponível.
-                  </p>
+                  <p className="text-amber-700 dark:text-amber-400">{t("tax.ir.noEmail")}</p>
                 )}
                 {meta.hasWhatsApp ? (
-                  <p>WhatsApp: {meta.telefone}</p>
+                  <p>{t("tax.ir.whatsappLine", { value: meta.telefone ?? "" })}</p>
                 ) : (
-                  <p className="text-amber-700 dark:text-amber-400">
-                    Sem telefone cadastrado — WhatsApp indisponível.
-                  </p>
+                  <p className="text-amber-700 dark:text-amber-400">{t("tax.ir.noPhone")}</p>
                 )}
               </div>
             ) : null}
@@ -231,7 +234,7 @@ export function DemonstrativoIrModal({
                   onCheckedChange={(v) => setSendEmail(v === true)}
                   disabled={!meta?.hasEmail}
                 />
-                <span>Enviar PDF(s) por e-mail</span>
+                <span>{t("tax.ir.sendPdfEmail")}</span>
               </label>
               <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <Checkbox
@@ -239,7 +242,7 @@ export function DemonstrativoIrModal({
                   onCheckedChange={(v) => setSendWhatsApp(v === true)}
                   disabled={!meta?.hasWhatsApp}
                 />
-                <span>Enviar resumo por WhatsApp</span>
+                <span>{t("tax.ir.sendWhatsAppSummary")}</span>
               </label>
             </div>
           </div>
@@ -253,7 +256,7 @@ export function DemonstrativoIrModal({
             onClick={() => onOpenChange(false)}
             disabled={downloading || sending}
           >
-            Fechar
+            {t("common.close")}
           </Button>
           <Button
             type="button"
@@ -262,7 +265,7 @@ export function DemonstrativoIrModal({
             disabled={downloading || sending || selectedYears.size === 0}
             onClick={handleDownload}
           >
-            {downloading ? "Baixando…" : "Baixar PDF"}
+            {downloading ? t("tax.ir.downloading") : t("tax.ir.downloadPdf")}
           </Button>
           <Button
             type="button"
@@ -275,7 +278,7 @@ export function DemonstrativoIrModal({
             }
             onClick={handleSend}
           >
-            {sending ? "Enviando…" : "Enviar"}
+            {sending ? t("tax.ir.sending") : t("tax.ir.send")}
           </Button>
         </DialogFooter>
       </DialogContent>

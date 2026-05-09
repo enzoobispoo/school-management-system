@@ -6,6 +6,7 @@ const allowedRoles = [
   "ADMIN",
   "FINANCEIRO",
   "SECRETARIA",
+  "SECRETARIA_FINANCEIRA",
   "PROFESSOR",
 ] as const;
 

@@ -1,14 +1,19 @@
 import { NextResponse } from "next/server";
 
-/** Perfis da escola com acesso ao painel executivo e métricas agregadas. */
-export const SCHOOL_EXECUTIVE_ROLES = ["ADMIN", "FINANCEIRO", "SECRETARIA"] as const;
+/** Perfis da escola com acesso ao painel executivo e métricas agregadas (`/`). */
+export const SCHOOL_EXECUTIVE_ROLES = [
+  "ADMIN",
+  "SECRETARIA",
+  "SECRETARIA_FINANCEIRA",
+] as const;
 
-/** Perfis que podem usar a EduIA do dashboard com ferramentas de gestão (financeiro, turmas, etc.). */
+/** Perfis que podem usar a EduIA da gestão (`/api/ai/dashboard`). O financeiro recebe conjunto restrito de tools no servidor. */
 export const EDUIA_EXECUTIVE_ROLES = [
   "ADMIN",
   "SUPER_ADMIN",
   "FINANCEIRO",
   "SECRETARIA",
+  "SECRETARIA_FINANCEIRA",
 ] as const;
 
 export type SchoolExecutiveRole = (typeof SCHOOL_EXECUTIVE_ROLES)[number];

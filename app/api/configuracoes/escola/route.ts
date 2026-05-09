@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/auth/current-user";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateSchoolSetting } from "@/lib/school";
+import { API_FORBIDDEN_PROFILE } from "@/lib/http/api-forbidden";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     if (!user || user.role !== "ADMIN") {
       return NextResponse.json(
-        { error: "Acesso negado." },
+        { error: API_FORBIDDEN_PROFILE },
         { status: 403 }
       );
     }
@@ -36,7 +37,7 @@ export async function PUT(request: NextRequest) {
 
     if (!user || user.role !== "ADMIN") {
       return NextResponse.json(
-        { error: "Acesso negado." },
+        { error: API_FORBIDDEN_PROFILE },
         { status: 403 }
       );
     }

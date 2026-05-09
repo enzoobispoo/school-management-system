@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma, StatusPagamento } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createPagamentoSchema } from "@/lib/validations/pagamento";
-import { getCurrentUser, requireSchool } from "@/lib/auth";
+import {
+  assertCoreFinanceWrite,
+  assertFinanceRead,
+  getCurrentUser,
+  requireSchool,
+} from "@/lib/auth";
+import { logSchoolAudit } from "@/lib/audit/school-audit-log";
 
 function getComputedPaymentStatus(pagamento: {
   status: string;
@@ -47,6 +53,9 @@ export async function GET(request: NextRequest) {
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
 
+    const deniedRead = assertFinanceRead(user);
+    if (deniedRead) return deniedRead;
+
     const { searchParams } = new URL(request.url);
 
     const paymentId = searchParams.get("paymentId")?.trim() || "";
@@ -64,6 +73,7 @@ export async function GET(request: NextRequest) {
     );
 
     const where: Prisma.PagamentoWhereInput = {
+      schoolId,
       ...(paymentId ? { id: paymentId } : {}),
       ...(matriculaId ? { matriculaId } : {}),
       ...(alunoId ? { matricula: { alunoId } } : {}),
@@ -221,6 +231,9 @@ export async function POST(request: NextRequest) {
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
 
+    const deniedWrite = assertCoreFinanceWrite(user);
+    if (deniedWrite) return deniedWrite;
+
     const body = await request.json();
     const parsed = createPagamentoSchema.safeParse(body);
 
@@ -326,6 +339,21 @@ export async function POST(request: NextRequest) {
         },
       });
     }
+
+    void logSchoolAudit({
+      schoolId,
+      userId: user.id,
+      role: user.role,
+      domain: "finance",
+      action: "PAYMENT_CREATE",
+      resourceId: pagamento.id,
+      summary: `Pagamento criado: ${pagamento.descricao} — R$ ${Number(pagamento.valor).toFixed(2)}`,
+      payload: {
+        matriculaId: pagamento.matriculaId,
+        competencia: `${pagamento.competenciaMes}/${pagamento.competenciaAno}`,
+        status: pagamento.status,
+      },
+    });
 
     return NextResponse.json(
       {

@@ -28,6 +28,7 @@ type UserRole =
   | "ADMIN"
   | "FINANCEIRO"
   | "SECRETARIA"
+  | "SECRETARIA_FINANCEIRA"
   | "PROFESSOR";
 
 function isPublicPath(pathname: string) {
@@ -38,10 +39,19 @@ function isPublicPath(pathname: string) {
   );
 }
 
+/** Apenas validação/ativação de convite por token (`/api/auth/invites/:token`), não gestão. */
+function isInviteActivationApi(pathname: string): boolean {
+  if (!pathname.startsWith("/api/auth/invites/")) return false;
+  const rest = pathname.slice("/api/auth/invites/".length);
+  if (!rest || rest.includes("/")) return false;
+  const reserved = new Set(["reenviar", "cancel"]);
+  return !reserved.has(rest);
+}
+
 function isPublicApi(pathname: string) {
   return (
     PUBLIC_API_PREFIXES.some((path) => pathname.startsWith(path)) ||
-    pathname.startsWith("/api/auth/invites/")
+    isInviteActivationApi(pathname)
   );
 }
 
@@ -76,62 +86,6 @@ function isCrossTenantUsersManagementRoute(pathname: string): boolean {
   return true;
 }
 
-// Rotas que FINANCEIRO pode acessar (além das compartilhadas)
-const FINANCEIRO_ROUTES = [
-  "/financeiro",
-  "/relatorios",
-  "/operacao",
-  "/api/pagamentos",
-  "/api/relatorios",
-  "/api/cobrancas",
-  "/api/operacao",
-];
-
-// Rotas que SECRETARIA pode acessar (além das compartilhadas)
-const SECRETARIA_ROUTES = [
-  "/alunos",
-  "/cursos",
-  "/turmas",
-  "/professores",
-  "/operacao",
-  "/api/alunos",
-  "/api/cursos",
-  "/api/turmas",
-  "/api/professores",
-  "/api/matriculas",
-  "/api/operacao",
-];
-
-// Rotas compartilhadas por todos os usuários autenticados
-const SHARED_ROUTES = [
-  "/api/dashboard",
-  "/api/schools",
-  "/api/notificacoes",
-  "/api/search",
-  "/api/settings/escola",
-  "/api/settings/aparencia",
-  "/api/settings/me",
-  "/api/auth/me",
-  "/api/users/me",
-  "/api/settings/notificacoes",
-  "/api/settings/escola-ia",
-  "/api/ai",
-  "/api/calendario",
-  "/api/eventos",
-  "/calendario",
-  "/docente",
-  "/api/docente",
-  "/configuracoes/aparencia",
-  "/configuracoes/conta",
-  "/configuracoes/notificacoes",
-  "/configuracoes/ia",
-  "/admin",
-  "/api/admin",
-  "/mensagens",
-  "/api/school-chat",
-  "/",
-];
-
 /** Rotas permitidas ao perfil PROFESSOR: sem dashboard executivo, sem EduIA global, sem busca escolar ampla. */
 function professorMayAccess(pathname: string): boolean {
   if (pathname === "/") return false;
@@ -146,6 +100,14 @@ function professorMayAccess(pathname: string): boolean {
   const prefixes = [
     "/docente",
     "/api/docente",
+    /** EduIA do workspace professor — antes ficava só sob `/api/ai` (gestão) e caía em 403. */
+    "/api/ai/docente",
+    /** Preferências do dashboard docente (GET todos; PUT só gestão). */
+    "/api/settings/docente-dashboard",
+    /** Leitura do que está configurado em IA na escola (PUT continua só administradores na rota). */
+    "/api/settings/escola-ia",
+    /** Página “Integrações / IA” para o professor consultar plano e limites. */
+    "/configuracoes/ia",
     "/professores",
     "/api/professores",
     "/notificacoes",
@@ -176,6 +138,65 @@ function professorMayAccess(pathname: string): boolean {
   return pathname === "/configuracoes";
 }
 
+/** FINANCEIRO: cobrança, relatórios de receita e conta — sem dashboard executivo, EduIA global nem rotas acadêmicas. */
+function financeMayAccess(pathname: string): boolean {
+  if (pathname === "/financeiro" || pathname.startsWith("/financeiro/"))
+    return true;
+  if (pathname === "/relatorios" || pathname.startsWith("/relatorios/"))
+    return true;
+  if (pathname === "/notificacoes" || pathname.startsWith("/notificacoes/"))
+    return true;
+  if (pathname === "/mensagens" || pathname.startsWith("/mensagens/"))
+    return true;
+  if (pathname === "/perfil" || pathname.startsWith("/perfil/")) return true;
+
+  if (pathname === "/configuracoes") return true;
+
+  const configFinanceSafe = [
+    "/configuracoes/conta",
+    "/configuracoes/aparencia",
+    "/configuracoes/notificacoes",
+  ];
+  if (
+    configFinanceSafe.some(
+      (p) => pathname === p || pathname.startsWith(`${p}/`)
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    pathname.startsWith("/api/alunos/") &&
+    pathname.includes("/demonstrativo-ir")
+  ) {
+    return true;
+  }
+
+  const apiPrefixes = [
+    "/api/auth/me",
+    "/api/auth/logout",
+    "/api/users/me",
+    "/api/pagamentos",
+    "/api/financeiro/",
+    "/api/ai/dashboard",
+    "/api/search",
+    "/api/relatorios",
+    "/api/notificacoes",
+    "/api/school-chat",
+    "/api/navigation/sidebar-badges",
+    "/api/settings/me",
+    "/api/settings/aparencia",
+    "/api/settings/notificacoes",
+    "/api/settings/escola",
+    "/api/cobrancas/",
+    "/api/schools",
+  ];
+
+  return apiPrefixes.some(
+    (p) => pathname === p || pathname.startsWith(p)
+  );
+}
+
 function hasAccessByRole(pathname: string, role: UserRole) {
   if (role === "SUPER_ADMIN") return true;
 
@@ -190,23 +211,16 @@ function hasAccessByRole(pathname: string, role: UserRole) {
 
   if (SUPER_ADMIN_ONLY.some((p) => pathname.startsWith(p))) return false;
 
-  if (role === "ADMIN") return true;
-
-  if (role !== "PROFESSOR") {
-    if (SHARED_ROUTES.some((p) => pathname === p || pathname.startsWith(p))) {
-      return true;
-    }
-  }
-
   if (role === "FINANCEIRO") {
-    return FINANCEIRO_ROUTES.some((p) => pathname.startsWith(p));
+    return financeMayAccess(pathname);
   }
 
-  if (role === "SECRETARIA") {
-    return (
-      SECRETARIA_ROUTES.some((p) => pathname.startsWith(p)) ||
-      FINANCEIRO_ROUTES.some((p) => pathname.startsWith(p))
-    );
+  if (
+    role === "ADMIN" ||
+    role === "SECRETARIA" ||
+    role === "SECRETARIA_FINANCEIRA"
+  ) {
+    return true;
   }
 
   if (role === "PROFESSOR") {
@@ -258,6 +272,21 @@ export async function proxy(request: NextRequest) {
           correlationId
         );
       }
+      if (session.role === "FINANCEIRO") {
+        return withCorrelationHeader(
+          NextResponse.redirect(new URL("/financeiro", request.url)),
+          correlationId
+        );
+      }
+      if (
+        session.role === "SECRETARIA" ||
+        session.role === "SECRETARIA_FINANCEIRA"
+      ) {
+        return withCorrelationHeader(
+          NextResponse.redirect(new URL("/secretaria", request.url)),
+          correlationId
+        );
+      }
     } catch {
       // ignore
     }
@@ -285,16 +314,36 @@ export async function proxy(request: NextRequest) {
     const session = await verifyAuthToken(token);
     const role = session.role as UserRole;
 
+    if (role === "FINANCEIRO" && pathname === "/eduia") {
+      return withCorrelationHeader(
+        NextResponse.redirect(new URL("/financeiro/eduia", request.url)),
+        correlationId
+      );
+    }
+
     if (!hasAccessByRole(pathname, role)) {
       if (pathname.startsWith("/api/")) {
         return withCorrelationHeader(
-          NextResponse.json({ error: "Acesso negado." }, { status: 403 }),
+          NextResponse.json(
+            {
+              error:
+                role === "PROFESSOR"
+                  ? "Este recurso faz parte do painel da gestão. No seu perfil, use Docente, Mensagens, Calendário e o assistente EduIA ao lado."
+                  : role === "FINANCEIRO"
+                    ? "Este recurso não faz parte do seu painel financeiro."
+                    : "Esta funcionalidade não está disponível para o seu perfil neste momento.",
+              code: "ROUTE_NOT_AVAILABLE_FOR_ROLE",
+            },
+            { status: 403 }
+          ),
           correlationId
         );
       }
 
       const fallback =
-        role === "PROFESSOR" ? "/docente" : "/";
+        role === "PROFESSOR" ? "/docente"
+        : role === "FINANCEIRO" ? "/financeiro"
+        : "/";
       return withCorrelationHeader(
         NextResponse.redirect(new URL(fallback, request.url)),
         correlationId

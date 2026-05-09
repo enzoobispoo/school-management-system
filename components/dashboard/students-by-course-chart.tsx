@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 interface StudentsByCourseChartProps {
   data: Array<{
@@ -22,18 +23,21 @@ export function StudentsByCourseChart({
   data,
   loading = false,
 }: StudentsByCourseChartProps) {
+  const { t } = useDashboardLanguage();
+  const seriesLabel = t("chart.students.series");
+
   return (
     <div className="rounded-xl border border-border/60 bg-card p-5 text-card-foreground">
       <div className="mb-4">
-        <p className="text-[13px] text-muted-foreground">Distribuição</p>
+        <p className="text-[13px] text-muted-foreground">{t("chart.students.eyebrow")}</p>
         <h3 className="mt-0.5 text-[15px] font-semibold tracking-tight text-foreground">
-          Alunos por curso
+          {t("chart.students.title")}
         </h3>
       </div>
 
       {loading ? (
         <div className="flex h-[320px] items-center justify-center text-sm text-muted-foreground">
-          Carregando gráfico...
+          {t("chart.students.loading")}
         </div>
       ) : (
         <div className="h-[320px] text-foreground">
@@ -60,7 +64,7 @@ export function StudentsByCourseChart({
               />
 
               <Tooltip
-                formatter={(value: number) => [value, "Alunos"]}
+                formatter={(value: number) => [value, seriesLabel]}
                 contentStyle={{
                   borderRadius: 18,
                   border: "1px solid var(--border)",

@@ -4,31 +4,71 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SettingsFeedback } from "@/components/configuracoes/shared/settings-feedback";
 import { useFinancialSettings } from "@/hooks/configuracoes/use-financial-settings";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
+import { PAYOUT_BANK_SLUGS } from "@/lib/finance/payout-bank-options";
 
 export function FinancialSettingsSection() {
+  const { t } = useDashboardLanguage();
   const { form, loading, saving, success, error, updateField, handleSave } =
     useFinancialSettings();
+
+  const successLabel =
+    success && success.startsWith("settings.") ? t(success) : success;
 
   return (
     <div className="grid gap-6">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">Financeiro</h2>
+        <h2 className="text-lg font-semibold text-foreground">
+          {t("settings.financial.title")}
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Defina regras padrão para mensalidades e automações de cobrança.
+          {t("settings.financial.intro")}
         </p>
       </div>
+
+      {form.planTier === "full" ?
+        <div className="rounded-2xl border border-primary/20 bg-primary/[0.04] p-4 dark:bg-primary/10">
+          <h3 className="text-sm font-semibold text-foreground">
+            {t("settings.financial.payoutSectionTitle")}
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t("settings.financial.payoutSectionIntro")}
+          </p>
+          <div className="mt-3 grid gap-2">
+            <label className="text-sm font-medium text-foreground">
+              {t("settings.financial.payoutBankLabel")}
+            </label>
+            <select
+              value={form.payoutBankSlug}
+              onChange={(e) => updateField("payoutBankSlug", e.target.value)}
+              className="h-11 rounded-2xl border border-input bg-background px-3 text-sm"
+              disabled={loading}
+            >
+              <option value="">{t("settings.financial.payoutBankPlaceholder")}</option>
+              {PAYOUT_BANK_SLUGS.map((slug) => (
+                <option key={slug} value={slug}>
+                  {t(`settings.payoutBank.${slug}`)}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              {t("settings.financial.payoutBankHint")}
+            </p>
+          </div>
+        </div>
+      : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="grid gap-2">
           <label className="text-sm font-medium text-foreground">
-            Meta mensal (R$)
+            {t("settings.financial.metaMonthly")}
           </label>
           <Input
             type="number"
             step="0.01"
             value={form.metaMensal}
             onChange={(e) => updateField("metaMensal", e.target.value)}
-            placeholder="Ex: 10000"
+            placeholder={t("settings.financial.metaMonthlyPlaceholder")}
             className="h-11 rounded-2xl"
             disabled={loading}
           />
@@ -36,7 +76,7 @@ export function FinancialSettingsSection() {
 
         <div className="grid gap-2">
           <label className="text-sm font-medium text-foreground">
-            Dia padrão de vencimento
+            {t("settings.financial.dueDay")}
           </label>
           <Input
             type="number"
@@ -49,12 +89,12 @@ export function FinancialSettingsSection() {
 
         <div className="grid gap-2">
           <label className="text-sm font-medium text-foreground">
-            Método de pagamento padrão
+            {t("settings.financial.paymentMethodDefault")}
           </label>
           <Input
             value={form.metodoPagamentoPadrao}
             onChange={(e) => updateField("metodoPagamentoPadrao", e.target.value)}
-            placeholder="Ex: PIX"
+            placeholder={t("settings.financial.paymentMethodPlaceholder")}
             className="h-11 rounded-2xl"
             disabled={loading}
           />
@@ -62,7 +102,7 @@ export function FinancialSettingsSection() {
 
         <div className="grid gap-2">
           <label className="text-sm font-medium text-foreground">
-            Multa por atraso (%)
+            {t("settings.financial.lateFee")}
           </label>
           <Input
             type="number"
@@ -76,7 +116,7 @@ export function FinancialSettingsSection() {
 
         <div className="grid gap-2">
           <label className="text-sm font-medium text-foreground">
-            Juros mensal (%)
+            {t("settings.financial.monthlyInterest")}
           </label>
           <Input
             type="number"
@@ -92,7 +132,7 @@ export function FinancialSettingsSection() {
       <div className="grid gap-4 md:grid-cols-2">
         <div className="grid gap-2">
           <label className="text-sm font-medium text-foreground">
-            Ação na assinatura por inadimplência
+            {t("settings.financial.subscriptionAction")}
           </label>
           <select
             value={form.subscriptionInadimplenciaAction}
@@ -105,13 +145,13 @@ export function FinancialSettingsSection() {
             className="h-11 rounded-2xl border border-input bg-background px-3 text-sm"
             disabled={loading}
           >
-            <option value="SUSPENDER">Suspender assinatura</option>
-            <option value="CANCELAR">Cancelar assinatura</option>
+            <option value="SUSPENDER">{t("settings.financial.subscriptionSuspend")}</option>
+            <option value="CANCELAR">{t("settings.financial.subscriptionCancel")}</option>
           </select>
         </div>
         <div className="grid gap-2">
           <label className="text-sm font-medium text-foreground">
-            Aplicar ação na assinatura após (dias)
+            {t("settings.financial.subscriptionActionDays")}
           </label>
           <Input
             type="number"
@@ -136,10 +176,10 @@ export function FinancialSettingsSection() {
           />
           <div>
             <span className="text-sm font-medium text-foreground">
-              Gerar mensalidades automaticamente
+              {t("settings.financial.autoInstallments")}
             </span>
             <p className="text-xs text-muted-foreground">
-              Cria novas mensalidades com base nas matrículas ativas.
+              {t("settings.financial.autoInstallmentsHint")}
             </p>
           </div>
         </label>
@@ -153,10 +193,10 @@ export function FinancialSettingsSection() {
           />
           <div>
             <span className="text-sm font-medium text-foreground">
-              Enviar lembretes automáticos de atraso
+              {t("settings.financial.autoReminders")}
             </span>
             <p className="text-xs text-muted-foreground">
-              O sistema envia mensagens automáticas para pagamentos vencidos.
+              {t("settings.financial.autoRemindersHint")}
             </p>
           </div>
         </label>
@@ -165,19 +205,19 @@ export function FinancialSettingsSection() {
       <div className="grid gap-4 md:grid-cols-2">
         <div className="grid gap-2">
           <label className="text-sm font-medium text-foreground">
-            Régua automática de cobrança (dias)
+            {t("settings.financial.collectionCadence")}
           </label>
           <Input
             value={form.reguaCobrancaDias}
             onChange={(e) => updateField("reguaCobrancaDias", e.target.value)}
-            placeholder="Ex: 1,3,7"
+            placeholder={t("settings.financial.collectionCadencePlaceholder")}
             className="h-11 rounded-2xl"
             disabled={loading}
           />
         </div>
         <div className="grid gap-2">
           <label className="text-sm font-medium text-foreground">
-            Suspender após inadimplência (dias)
+            {t("settings.financial.suspendAfterDays")}
           </label>
           <Input
             type="number"
@@ -194,15 +234,15 @@ export function FinancialSettingsSection() {
 
       <div>
         <Button
-          onClick={handleSave}
+          onClick={() => void handleSave()}
           disabled={saving || loading}
           className="h-8 rounded-md px-4"
         >
-          {saving ? "Salvando..." : "Salvar alterações"}
+          {saving ? t("settings.financial.saving") : t("settings.financial.save")}
         </Button>
       </div>
 
-      <SettingsFeedback error={error} success={success} />
+      <SettingsFeedback error={error} success={successLabel} />
     </div>
   );
 }

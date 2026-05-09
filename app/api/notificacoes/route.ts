@@ -12,6 +12,7 @@ import {
   isPrismaSchemaDriftError,
   PRISMA_MIGRATE_HINT_PT,
 } from "@/lib/prisma/known-request"
+import { blockProfessorWhenPortalDisabled } from "@/lib/docente/professor-portal-policy"
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,6 +21,10 @@ export async function GET(request: NextRequest) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const portalDenied = await blockProfessorWhenPortalDisabled(user);
+    if (portalDenied) return portalDenied;
+
     const { searchParams } = new URL(request.url)
 
     const lida = searchParams.get("lida")
@@ -93,6 +98,9 @@ export async function POST(request: NextRequest) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const portalDeniedPost = await blockProfessorWhenPortalDisabled(user);
+    if (portalDeniedPost) return portalDeniedPost;
 
     const body = await request.json()
 

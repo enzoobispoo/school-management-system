@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, requireSchool } from "@/lib/auth";
+import {
+  assertFinanceRead,
+  getCurrentUser,
+  requireSchool,
+} from "@/lib/auth";
 
 function monthLabel(month: number) {
   const labels = [
@@ -26,6 +30,9 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     }
+    const financeForbidden = assertFinanceRead(user);
+    if (financeForbidden) return financeForbidden;
+
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;

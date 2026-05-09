@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, requireSchool } from "@/lib/auth";
+import { assertFinanceRead, getCurrentUser, requireSchool } from "@/lib/auth";
 
 interface RouteContext {
   params: Promise<{
@@ -15,6 +15,10 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const denied = assertFinanceRead(user);
+    if (denied) return denied;
+
     const { id } = await context.params;
 
     const pagamento = await prisma.pagamento.findFirst({

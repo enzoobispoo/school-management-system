@@ -26,7 +26,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     if (!user) {
       return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     }
-    const ctx = requireProfessorContext(user);
+    const ctx = await requireProfessorContext(user);
     if (ctx instanceof NextResponse) return ctx;
     const { schoolId, professorId } = ctx;
 
@@ -94,7 +94,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (!user) {
       return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     }
-    const ctx = requireProfessorContext(user);
+    const ctx = await requireProfessorContext(user);
     if (ctx instanceof NextResponse) return ctx;
     const { schoolId, professorId } = ctx;
 
@@ -233,7 +233,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     if (!user) {
       return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     }
-    const ctx = requireProfessorContext(user);
+    const ctx = await requireProfessorContext(user);
     if (ctx instanceof NextResponse) return ctx;
     const { schoolId, professorId } = ctx;
 

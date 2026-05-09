@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { AiMessage } from "@/hooks/dashboard/use-dashboard-ai";
 import { AiSuggestionCard } from "@/components/dashboard/ai/ai-suggestion-card";
+import { sanitizeProfessorAiDisplayText } from "@/lib/ai/sanitize-professor-ai-display";
 
 interface AiChatMessageProps {
   message: AiMessage;
@@ -11,6 +12,8 @@ interface AiChatMessageProps {
   setIsTyping?: (value: boolean) => void;
   onSelectSuggestion?: (prompt: string) => void;
   onTypingProgress?: () => void;
+  /** Esconde jargão técnico (nomes internos de ferramentas, rodapé “Fontes” mono). */
+  professorFriendlyUi?: boolean;
 }
 
 function useTypewriter(
@@ -80,6 +83,7 @@ export function AiChatMessage({
   setIsTyping,
   onSelectSuggestion,
   onTypingProgress,
+  professorFriendlyUi = false,
 }: AiChatMessageProps) {
   const isUser = message.role === "user";
   const [visible, setVisible] = useState(false);
@@ -91,15 +95,21 @@ export function AiChatMessage({
 
   const shouldAnimateText = useMemo(() => !isUser, [isUser]);
 
+  const assistantDisplaySource = useMemo(() => {
+    if (isUser || !professorFriendlyUi) return message.content;
+    return sanitizeProfessorAiDisplayText(message.content);
+  }, [isUser, professorFriendlyUi, message.content]);
+
   const animatedContent = useTypewriter(
-    message.content,
+    assistantDisplaySource,
     shouldAnimateText,
     typingRef,
     setIsTyping,
     14
   );
 
-  const animationFinished = animatedContent.length >= message.content.length;
+  const animationFinished =
+    animatedContent.length >= assistantDisplaySource.length;
 
   useEffect(() => {
     if (!isUser) {
@@ -153,6 +163,7 @@ export function AiChatMessage({
 
       {!isUser &&
       animationFinished &&
+      !professorFriendlyUi &&
       (message.meta?.toolsUsed?.length || message.meta?.correlationId) ? (
         <div className="max-w-[90%] rounded-xl border border-dashed border-border/70 bg-muted/30 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
           <span className="font-medium text-foreground/80">Transparência · </span>

@@ -7,6 +7,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, requireSchool } from "@/lib/auth";
+import { blockProfessorWhenPortalDisabled } from "@/lib/docente/professor-portal-policy";
 import { userParticipatesInThread } from "@/lib/school-chat/thread-access";
 import { mapSchoolChatMessageForViewer } from "@/lib/school-chat/map-chat-message";
 import { viewerCanPostSchoolChat } from "@/lib/school-chat/write-policy";
@@ -44,6 +45,9 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const portalDeniedGet = await blockProfessorWhenPortalDisabled(user);
+    if (portalDeniedGet) return portalDeniedGet;
 
     const { threadId } = await ctx.params;
     const ok = await userParticipatesInThread(user.id, threadId);
@@ -239,6 +243,9 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const portalDeniedPost = await blockProfessorWhenPortalDisabled(user);
+    if (portalDeniedPost) return portalDeniedPost;
 
     const { threadId } = await ctx.params;
     const ok = await userParticipatesInThread(user.id, threadId);

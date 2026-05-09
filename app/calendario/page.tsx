@@ -11,7 +11,10 @@ export default function CalendarioPage() {
 
   return (
     <DashboardLayout>
-      <Header title="Calendário" description="Agenda semanal da escola" />
+      <Header
+        titleKey="page.calendar.title"
+        descriptionKey="page.calendar.description"
+      />
 
       <CalendarPageContent
         referenceDate={calendar.referenceDate}

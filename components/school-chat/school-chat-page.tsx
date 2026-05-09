@@ -48,6 +48,10 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import {
+  dashboardLocaleTag,
+  useDashboardLanguage,
+} from "@/lib/i18n/dashboard-language";
 
 type Contact = {
   id: string;
@@ -127,11 +131,11 @@ function isLikelyChatImage(url: string, name: string | null) {
   return /\.(png|jpe?g|webp|gif)(\?|$)/i.test(u) || /^image\//i.test(name ?? "");
 }
 
-function pinnedMessagePreview(m: MessageRow) {
-  const t = m.body.trim();
-  if (t) return `${t.slice(0, 72)}${t.length > 72 ? "…" : ""}`;
+function pinnedMessagePreview(m: MessageRow, emptyLabel: string) {
+  const text = m.body.trim();
+  if (text) return `${text.slice(0, 72)}${text.length > 72 ? "…" : ""}`;
   if (m.attachmentName) return `📎 ${m.attachmentName}`.slice(0, 72);
-  return "Mensagem";
+  return emptyLabel;
 }
 
 function initials(nome: string) {
@@ -159,7 +163,7 @@ function ChatAvatar(props: {
   );
 }
 
-async function downloadChatMedia(url: string, filename: string) {
+async function downloadChatMedia(url: string, filename: string, fallbackName: string) {
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error("fetch");
@@ -167,7 +171,8 @@ async function downloadChatMedia(url: string, filename: string) {
     const href = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = href;
-    a.download = filename.replace(/[^\w.\-()\s]/g, "_").slice(0, 180) || "arquivo";
+    a.download =
+      filename.replace(/[^\w.\-()\s]/g, "_").slice(0, 180) || fallbackName;
     a.rel = "noopener";
     document.body.appendChild(a);
     a.click();
@@ -178,22 +183,16 @@ async function downloadChatMedia(url: string, filename: string) {
   }
 }
 
-function roleLabel(role: string) {
-  switch (role) {
-    case "ADMIN":
-      return "Gestão";
-    case "SECRETARIA":
-      return "Secretaria";
-    case "FINANCEIRO":
-      return "Financeiro";
-    case "PROFESSOR":
-      return "Professor";
-    default:
-      return role;
-  }
-}
-
 export function SchoolChatPage() {
+  const { t, language } = useDashboardLanguage();
+  const localeTag = dashboardLocaleTag(language);
+
+  function roleLabel(role: string) {
+    const key = `chat.role.${role}`;
+    const raw = t(key);
+    return raw === key ? role : raw;
+  }
+
   const searchParams = useSearchParams();
   const threadFromUrl = searchParams.get("thread");
 
@@ -247,11 +246,11 @@ export function SchoolChatPage() {
       setThreads(j.data ?? []);
       setCanCreateGroups(Boolean(j.meta?.canCreateGroups));
     } catch {
-      toast.error("Não foi possível carregar conversas.");
+      toast.error(t("chat.toast.loadThreadsFail"));
     } finally {
       setLoadingThreads(false);
     }
-  }, [threadFilter]);
+  }, [threadFilter, t]);
 
   const loadContacts = useCallback(async () => {
     try {
@@ -260,9 +259,9 @@ export function SchoolChatPage() {
       if (!res.ok) throw new Error(j.error || "Erro");
       setContacts(j.data ?? []);
     } catch {
-      toast.error("Não foi possível carregar contatos.");
+      toast.error(t("chat.toast.loadContactsFail"));
     }
-  }, []);
+  }, [t]);
 
   const loadMedia = useCallback(async (threadId: string) => {
     try {
@@ -274,12 +273,12 @@ export function SchoolChatPage() {
       if (!res.ok) throw new Error(j.error || "Erro");
       setMediaItems(j.data ?? []);
     } catch {
-      toast.error("Não foi possível carregar mídias.");
+      toast.error(t("chat.toast.loadMediaFail"));
       setMediaItems([]);
     } finally {
       setMediaLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const loadMessages = useCallback(
     async (threadId: string, syncThreadsList = true) => {
@@ -300,12 +299,12 @@ export function SchoolChatPage() {
         }
         if (syncThreadsList) void loadThreads();
       } catch {
-        toast.error("Não foi possível carregar mensagens.");
+        toast.error(t("chat.toast.loadMessagesFail"));
       } finally {
         setLoadingMsgs(false);
       }
     },
-    [loadThreads]
+    [loadThreads, t]
   );
 
   useEffect(() => {
@@ -360,9 +359,9 @@ export function SchoolChatPage() {
       await loadThreads();
       setActiveId(j.threadId);
       setNewOpen(false);
-      toast.success("Conversa aberta.");
+      toast.success(t("chat.toast.threadOpened"));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao abrir.");
+      toast.error(e instanceof Error ? e.message : t("chat.toast.openThreadError"));
     }
   }
 
@@ -383,16 +382,16 @@ export function SchoolChatPage() {
       if (!res.ok) throw new Error(j.error || "Erro");
       await loadThreads();
       if (typeof patch.pinned === "boolean") {
-        toast.success(patch.pinned ? "Conversa fixada." : "Fixação removida.");
+        toast.success(
+          patch.pinned ? t("chat.toast.threadPinned") : t("chat.toast.threadUnpinned")
+        );
       }
       if (patch.hideForMe) {
-        toast.success(
-          "Removida para você. Ela volta quando houver mensagem nova."
-        );
+        toast.success(t("chat.toast.threadHiddenForYou"));
         if (activeId === threadId) setActiveId(null);
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao atualizar.");
+      toast.error(e instanceof Error ? e.message : t("chat.toast.threadPatchError"));
     }
   }
 
@@ -410,18 +409,16 @@ export function SchoolChatPage() {
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || "Erro");
       void loadMessages(activeId, true);
-      toast.success(pinned ? "Mensagem fixada." : "Fixação removida.");
+      toast.success(pinned ? t("chat.toast.msgPinned") : t("chat.toast.msgUnpinned"));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao fixar.");
+      toast.error(e instanceof Error ? e.message : t("chat.toast.pinError"));
     }
   }
 
   async function deleteMessageRow(m: MessageRow, scope: "me" | "all") {
     if (!activeId) return;
     if (scope === "all") {
-      const ok = window.confirm(
-        "Apagar esta mensagem para todos na conversa? Não dá para desfazer."
-      );
+      const ok = window.confirm(t("chat.confirm.deleteForAll"));
       if (!ok) return;
     }
     try {
@@ -433,12 +430,12 @@ export function SchoolChatPage() {
       if (!res.ok) throw new Error(j.error || "Erro");
       void loadMessages(activeId, true);
       toast.success(
-        scope === "all" ?
-          "Mensagem apagada para todos."
-        : "Mensagem removida para você."
+        scope === "all"
+          ? t("chat.toast.deletedForAll")
+          : t("chat.toast.deletedForMe")
       );
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao apagar.");
+      toast.error(e instanceof Error ? e.message : t("chat.toast.deleteError"));
     }
   }
 
@@ -452,7 +449,7 @@ export function SchoolChatPage() {
     if (!activeId || !editingMessage) return;
     const text = editDraft.trim();
     if (!text) {
-      toast.error("A mensagem não pode ficar vazia.");
+      toast.error(t("chat.toast.emptyMessage"));
       return;
     }
     try {
@@ -475,9 +472,9 @@ export function SchoolChatPage() {
       setEditOpen(false);
       setEditingMessage(null);
       void loadThreads();
-      toast.success("Mensagem atualizada.");
+      toast.success(t("chat.toast.messageUpdated"));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao salvar.");
+      toast.error(e instanceof Error ? e.message : t("chat.toast.saveEditError"));
     } finally {
       setSavingEdit(false);
     }
@@ -486,11 +483,11 @@ export function SchoolChatPage() {
   async function createGroup() {
     const title = groupTitle.trim();
     if (title.length < 2) {
-      toast.error("Informe um nome para o grupo (2–120 caracteres).");
+      toast.error(t("chat.toast.groupNameInvalid"));
       return;
     }
     if (selectedGroupMembers.length === 0) {
-      toast.error("Selecione pelo menos um participante.");
+      toast.error(t("chat.toast.groupPickMembers"));
       return;
     }
     try {
@@ -514,9 +511,9 @@ export function SchoolChatPage() {
       setGroupTitle("");
       setGroupOwnerOnly(false);
       setSelectedGroupMembers([]);
-      toast.success("Grupo criado.");
+      toast.success(t("chat.toast.groupCreated"));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao criar grupo.");
+      toast.error(e instanceof Error ? e.message : t("chat.toast.groupCreateError"));
     } finally {
       setCreatingGroup(false);
     }
@@ -555,7 +552,7 @@ export function SchoolChatPage() {
       setBody("");
       void loadThreads();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao enviar.");
+      toast.error(e instanceof Error ? e.message : t("chat.toast.sendError"));
     } finally {
       setSending(false);
     }
@@ -569,32 +566,36 @@ export function SchoolChatPage() {
 
   const capsKind = msgThreadCaps?.kind ?? activeThread?.kind ?? "direct";
 
+  function groupPeopleLabel(count: number) {
+    return count === 1 ?
+        t("chat.people.one", { n: count })
+      : t("chat.people.many", { n: count });
+  }
+
   const headerTitle =
     capsKind === "group" ?
-      activeThread?.title ?? msgThreadCaps?.title ?? "Grupo"
-    : activePeer?.nome ?? "Conversa";
+      activeThread?.title ?? msgThreadCaps?.title ?? t("chat.thread.title.group")
+    : activePeer?.nome ?? t("chat.thread.title.direct");
 
   const headerSubtitle =
     capsKind === "group" ?
       activeThread ?
-        `${activeThread.participantCount} pessoa${activeThread.participantCount === 1 ? "" : "s"} · ${
+        `${groupPeopleLabel(activeThread.participantCount)}${t("chat.meta.sep")}${
           activeThread.writePolicy === "OWNER_ONLY" ?
-            "Somente gestor envia"
-          : "Todos podem escrever"
+            t("chat.writePolicy.ownerOnly")
+          : t("chat.writePolicy.allMembers")
         }`
       : msgThreadCaps?.writePolicy === "OWNER_ONLY" ?
-        "Somente gestor envia"
-      : "Grupo · todos podem escrever"
+        t("chat.writePolicy.ownerOnly")
+      : t("chat.groupHeader.subtitle")
     : activePeer?.role ? roleLabel(activePeer.role) : "";
 
   return (
     <DashboardLayout>
       <Header
-        title="Mensagens da escola"
+        titleKey="chat.pageTitle"
         description={
-          canCreateGroups ?
-            "Chats diretos, grupos e avisos: fotos aparecem quando o usuário tiver URL de avatar cadastrada."
-          : "Converse com gestores e professores da mesma escola."
+          canCreateGroups ? t("chat.pageDesc.groups") : t("chat.pageDesc.direct")
         }
       />
 
@@ -602,7 +603,7 @@ export function SchoolChatPage() {
         <aside className="flex min-h-0 flex-col border-border/60 lg:border-r">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-4 py-3">
             <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              Conversas
+              {t("chat.sidebar.conversations")}
             </p>
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
               {canCreateGroups ?
@@ -614,7 +615,7 @@ export function SchoolChatPage() {
                   onClick={() => setGroupOpen(true)}
                 >
                   <Megaphone className="h-3.5 w-3.5" />
-                  Grupo
+                  {t("chat.action.group")}
                 </Button>
               : null}
               <Button
@@ -625,21 +626,21 @@ export function SchoolChatPage() {
                 onClick={() => setNewOpen(true)}
               >
                 <MessageSquarePlus className="h-3.5 w-3.5" />
-                Direta
+                {t("chat.action.direct")}
               </Button>
               <Dialog open={newOpen} onOpenChange={setNewOpen}>
                 <DialogContent className="max-h-[min(560px,80vh)] sm:max-w-md">
                   <DialogHeader>
-                    <DialogTitle>Nova conversa direta</DialogTitle>
+                    <DialogTitle>{t("chat.directDialog.title")}</DialogTitle>
                     <DialogDescription className="sr-only">
-                      Escolha um colega da escola para abrir ou retomar um chat direto.
+                      {t("chat.directDialog.desc")}
                     </DialogDescription>
                   </DialogHeader>
                   <ScrollArea className="max-h-[420px] pr-3">
                     <ul className="flex flex-col gap-1">
                       {contacts.length === 0 ? (
                         <li className="py-6 text-center text-sm text-muted-foreground">
-                          Nenhum contato disponível na escola.
+                          {t("chat.directDialog.empty")}
                         </li>
                       ) : (
                         contacts.map((c) => (
@@ -659,7 +660,9 @@ export function SchoolChatPage() {
                                   {c.nome}
                                 </span>
                                 <span className="block truncate text-[11px] text-muted-foreground">
-                                  {roleLabel(c.role)} · {c.email}
+                                  {roleLabel(c.role)}
+                                  {t("chat.meta.sep")}
+                                  {c.email}
                                 </span>
                               </span>
                             </button>
@@ -674,20 +677,17 @@ export function SchoolChatPage() {
               <Dialog open={groupOpen} onOpenChange={setGroupOpen}>
                 <DialogContent className="max-h-[min(640px,88vh)] sm:max-w-md">
                   <DialogHeader>
-                    <DialogTitle>Novo grupo</DialogTitle>
-                    <DialogDescription>
-                      Gestores podem criar grupos. Escolha quem participa e se todos podem
-                      escrever ou só quem criou o grupo.
-                    </DialogDescription>
+                    <DialogTitle>{t("chat.groupDialog.title")}</DialogTitle>
+                    <DialogDescription>{t("chat.groupDialog.desc")}</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="group-title">Nome do grupo</Label>
+                      <Label htmlFor="group-title">{t("chat.groupDialog.nameLabel")}</Label>
                       <Input
                         id="group-title"
                         value={groupTitle}
                         onChange={(e) => setGroupTitle(e.target.value)}
-                        placeholder="Ex.: Comunicados pedagógicos"
+                        placeholder={t("chat.groupDialog.namePlaceholder")}
                         maxLength={120}
                         className="rounded-xl"
                       />
@@ -699,16 +699,17 @@ export function SchoolChatPage() {
                         onCheckedChange={(v) => setGroupOwnerOnly(Boolean(v))}
                       />
                       <label htmlFor="owner-only" className="cursor-pointer text-sm leading-snug">
-                        <span className="font-medium">Somente eu envio mensagens</span>
+                        <span className="font-medium">
+                          {t("chat.groupDialog.ownerOnlyTitle")}
+                        </span>
                         <span className="mt-1 block text-muted-foreground text-[12px]">
-                          Os participantes leem e recebem notificações, mas não podem responder
-                          neste grupo.
+                          {t("chat.groupDialog.ownerOnlyHint")}
                         </span>
                       </label>
                     </div>
                     <div>
                       <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        Participantes
+                        {t("chat.groupDialog.membersLabel")}
                       </p>
                       <ScrollArea className="max-h-[220px] rounded-xl border border-border/50 pr-2">
                         <ul className="flex flex-col gap-1 p-2">
@@ -744,7 +745,7 @@ export function SchoolChatPage() {
                     >
                       {creatingGroup ?
                         <Loader2 className="h-4 w-4 animate-spin" />
-                      : "Criar grupo"}
+                      : t("chat.groupDialog.create")}
                     </Button>
                   </div>
                 </DialogContent>
@@ -755,9 +756,9 @@ export function SchoolChatPage() {
           <div className="flex flex-wrap gap-1 border-b border-border/50 px-3 py-2">
             {(
               [
-                { id: "all" as const, label: "Todas" },
-                { id: "direct" as const, label: "Diretas" },
-                { id: "group" as const, label: "Grupos" },
+                { id: "all" as const, labelKey: "chat.tabs.all" as const },
+                { id: "direct" as const, labelKey: "chat.tabs.direct" as const },
+                { id: "group" as const, labelKey: "chat.tabs.group" as const },
               ] as const
             ).map((tab) => (
               <Button
@@ -768,7 +769,7 @@ export function SchoolChatPage() {
                 className="h-7 rounded-full px-3 text-[11px]"
                 onClick={() => setThreadFilter(tab.id)}
               >
-                {tab.label}
+                {t(tab.labelKey)}
               </Button>
             ))}
           </div>
@@ -777,39 +778,37 @@ export function SchoolChatPage() {
             {loadingThreads ?
               <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Carregando…
+                {t("chat.list.loading")}
               </div>
             : threads.length === 0 ?
-              <p className="p-4 text-sm text-muted-foreground">
-                Suas conversas aparecerão aqui.
-              </p>
+              <p className="p-4 text-sm text-muted-foreground">{t("chat.list.empty")}</p>
             : <ul className="p-2">
-                {threads.map((t) => {
-                  const unread = Math.max(0, t.unreadCount ?? 0);
+                {threads.map((row) => {
+                  const unread = Math.max(0, row.unreadCount ?? 0);
                   return (
-                    <li key={t.id} className="mb-1">
+                    <li key={row.id} className="mb-1">
                       <button
                         type="button"
-                        onClick={() => setActiveId(t.id)}
+                        onClick={() => setActiveId(row.id)}
                         className={cn(
                           "flex w-full min-w-0 items-start gap-2 rounded-xl px-3 py-2.5 text-left transition-colors",
-                          activeId === t.id ?
+                          activeId === row.id ?
                             "bg-muted/80 ring-1 ring-border"
                           : "hover:bg-muted/40",
-                          t.isPinned && "ring-1 ring-amber-500/35"
+                          row.isPinned && "ring-1 ring-amber-500/35"
                         )}
                       >
                         <span className="relative shrink-0">
-                          {t.isPinned ?
+                          {row.isPinned ?
                             <Pin className="absolute -left-0.5 -top-0.5 h-3 w-3 text-amber-600 dark:text-amber-400" />
                           : null}
-                          {t.kind === "group" ?
+                          {row.kind === "group" ?
                             <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted ring-1 ring-border/60">
                               <Users className="h-4 w-4 text-muted-foreground" />
                             </div>
                           : <ChatAvatar
-                              nome={t.peer?.nome ?? "?"}
-                              avatarUrl={t.peer?.avatarUrl ?? null}
+                              nome={row.peer?.nome ?? "?"}
+                              avatarUrl={row.peer?.avatarUrl ?? null}
                               className="size-9 shrink-0"
                             />}
                         </span>
@@ -823,10 +822,10 @@ export function SchoolChatPage() {
                                 : "font-medium text-foreground/95"
                               )}
                             >
-                              {t.kind === "group" ?
-                                t.title ?? "Grupo"
-                              : t.peer?.nome ?? "Conversa"}
-                              {t.kind === "group" && t.writePolicy === "OWNER_ONLY" ?
+                              {row.kind === "group" ?
+                                row.title ?? t("chat.thread.title.group")
+                              : row.peer?.nome ?? t("chat.thread.title.direct")}
+                              {row.kind === "group" && row.writePolicy === "OWNER_ONLY" ?
                                 <Lock
                                   className="ml-1 inline h-3 w-3 shrink-0 text-muted-foreground align-text-bottom"
                                   aria-hidden
@@ -847,9 +846,9 @@ export function SchoolChatPage() {
                               : "text-muted-foreground"
                             )}
                           >
-                            {t.lastMessage ?
-                              `${t.lastMessage.fromSelf ? "Você: " : ""}${t.lastMessage.preview}`
-                            : "Sem mensagens ainda"}
+                            {row.lastMessage ?
+                              `${row.lastMessage.fromSelf ? t("chat.thread.youPrefix") : ""}${row.lastMessage.preview}`
+                            : t("chat.thread.noMessagesYet")}
                           </span>
                         </span>
                       </button>
@@ -869,7 +868,7 @@ export function SchoolChatPage() {
             >
               <Link href="/docente">
                 <ArrowLeft className="h-4 w-4" />
-                Voltar ao painel docente
+                {t("chat.backToDocente")}
               </Link>
             </Button>
           </div>
@@ -879,10 +878,7 @@ export function SchoolChatPage() {
           {!activeId ?
             <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center text-muted-foreground">
               <MessageSquarePlus className="h-10 w-10 opacity-40" />
-              <p className="max-w-sm text-sm">
-                Escolha uma conversa à esquerda ou inicie uma nova com professores e gestores da
-                mesma escola.
-              </p>
+              <p className="max-w-sm text-sm">{t("chat.emptyState.pickThread")}</p>
             </div>
           : <>
               <header className="flex items-center gap-3 border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur">
@@ -909,7 +905,7 @@ export function SchoolChatPage() {
                         variant="ghost"
                         size="icon"
                         className="shrink-0 rounded-xl text-muted-foreground hover:text-foreground"
-                        aria-label="Opções da conversa"
+                        aria-label={t("chat.threadMenu.aria")}
                       >
                         <MoreVertical className="h-5 w-5" />
                       </Button>
@@ -925,17 +921,17 @@ export function SchoolChatPage() {
                         {activeThread?.isPinned ?
                           <>
                             <PinOff className="mr-2 h-4 w-4" />
-                            Desafixar
+                            {t("chat.threadMenu.unpin")}
                           </>
                         : <>
                             <Pin className="mr-2 h-4 w-4" />
-                            Fixar conversa
+                            {t("chat.threadMenu.pin")}
                           </>
                         }
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setMediaOpen(true)}>
                         <Images className="mr-2 h-4 w-4" />
-                        Mídias e arquivos
+                        {t("chat.threadMenu.media")}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
@@ -943,7 +939,7 @@ export function SchoolChatPage() {
                         onClick={() => void patchThread(activeId, { hideForMe: true })}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Apagar para mim
+                        {t("chat.threadMenu.deleteForMe")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -960,7 +956,7 @@ export function SchoolChatPage() {
                       <div className="mb-4 rounded-2xl border border-amber-500/25 bg-amber-500/5 px-3 py-2 dark:bg-amber-950/25">
                         <p className="mb-2 flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-amber-900 dark:text-amber-400">
                           <Pin className="h-3 w-3" />
-                          Mensagens fixadas
+                          {t("chat.pinnedMessages.title")}
                         </p>
                         <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                           {pinnedMessages.map((pm) => (
@@ -978,10 +974,10 @@ export function SchoolChatPage() {
                               }
                             >
                               <span className="line-clamp-2 text-muted-foreground">
-                                {pinnedMessagePreview(pm)}
+                                {pinnedMessagePreview(pm, t("chat.emptyPreview"))}
                               </span>
                               <span className="mt-1 block truncate font-mono text-[9px] text-muted-foreground/80">
-                                {pm.fromSelf ? "Você" : pm.sender.nome}
+                                {pm.fromSelf ? t("chat.you") : pm.sender.nome}
                               </span>
                             </button>
                           ))}
@@ -999,7 +995,7 @@ export function SchoolChatPage() {
                             className="flex justify-center py-0.5"
                           >
                             <span className="rounded-full border border-border/50 bg-muted/40 px-4 py-1.5 font-mono text-[11px] italic text-muted-foreground">
-                              Mensagem apagada
+                              {t("chat.message.deletedStub")}
                             </span>
                           </li>
                         );
@@ -1038,7 +1034,7 @@ export function SchoolChatPage() {
                               {m.pinnedAt ?
                                 <span className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 font-mono text-[9px] font-medium uppercase tracking-wide text-amber-900 dark:text-amber-300">
                                   <Pin className="h-3 w-3 shrink-0" />
-                                  Fixada
+                                  {t("chat.message.pinnedBadge")}
                                 </span>
                               : null}
                             </div>
@@ -1049,7 +1045,7 @@ export function SchoolChatPage() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
-                                  aria-label="Ações da mensagem"
+                                  aria-label={t("chat.message.menu.aria")}
                                 >
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
@@ -1060,18 +1056,18 @@ export function SchoolChatPage() {
                                     onClick={() => void toggleMessagePin(m, false)}
                                   >
                                     <PinOff className="mr-2 h-3.5 w-3.5" />
-                                    Desafixar mensagem
+                                    {t("chat.message.unpin")}
                                   </DropdownMenuItem>
                                 : <DropdownMenuItem
                                     onClick={() => void toggleMessagePin(m, true)}
                                   >
                                     <Pin className="mr-2 h-3.5 w-3.5" />
-                                    Fixar mensagem
+                                    {t("chat.message.pin")}
                                   </DropdownMenuItem>}
                                 {m.fromSelf ?
                                   <DropdownMenuItem onClick={() => openEditMessage(m)}>
                                     <Pencil className="mr-2 h-3.5 w-3.5" />
-                                    Editar mensagem
+                                    {t("chat.message.edit")}
                                   </DropdownMenuItem>
                                 : null}
                                 {m.attachmentUrl ?
@@ -1079,12 +1075,13 @@ export function SchoolChatPage() {
                                     onClick={() =>
                                       void downloadChatMedia(
                                         m.attachmentUrl!,
-                                        m.attachmentName ?? "arquivo"
+                                        m.attachmentName ?? t("chat.fileFallback"),
+                                        t("chat.fileFallback")
                                       )
                                     }
                                   >
                                     <Download className="mr-2 h-3.5 w-3.5" />
-                                    Baixar arquivo
+                                    {t("chat.message.downloadFile")}
                                   </DropdownMenuItem>
                                 : null}
                                 <DropdownMenuSeparator />
@@ -1092,7 +1089,7 @@ export function SchoolChatPage() {
                                   onClick={() => void deleteMessageRow(m, "me")}
                                 >
                                   <Trash2 className="mr-2 h-3.5 w-3.5" />
-                                  Apagar para mim
+                                  {t("chat.message.deleteForMe")}
                                 </DropdownMenuItem>
                                 {m.fromSelf ?
                                   <DropdownMenuItem
@@ -1100,7 +1097,7 @@ export function SchoolChatPage() {
                                     onClick={() => void deleteMessageRow(m, "all")}
                                   >
                                     <Trash2 className="mr-2 h-3.5 w-3.5" />
-                                    Apagar para todos
+                                    {t("chat.message.deleteForAll")}
                                   </DropdownMenuItem>
                                 : null}
                               </DropdownMenuContent>
@@ -1132,7 +1129,7 @@ export function SchoolChatPage() {
                                 rel="noopener noreferrer"
                                 className="text-xs font-medium text-primary underline-offset-4 hover:underline"
                               >
-                                📎 {m.attachmentName ?? "Arquivo"}
+                                📎 {m.attachmentName ?? t("chat.fileGeneric")}
                               </a>
                               <Button
                                 type="button"
@@ -1142,18 +1139,19 @@ export function SchoolChatPage() {
                                 onClick={() =>
                                   void downloadChatMedia(
                                     m.attachmentUrl!,
-                                    m.attachmentName ?? "arquivo"
+                                    m.attachmentName ?? t("chat.fileFallback"),
+                                    t("chat.fileFallback")
                                   )
                                 }
                               >
                                 <Download className="h-3.5 w-3.5" />
-                                Baixar
+                                {t("chat.message.downloadShort")}
                               </Button>
                             </div>
                           : null}
                           <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 font-mono text-[10px] text-muted-foreground">
                             <span>
-                              {new Date(m.createdAt).toLocaleString("pt-BR", {
+                              {new Date(m.createdAt).toLocaleString(localeTag, {
                                 day: "2-digit",
                                 month: "short",
                                 hour: "2-digit",
@@ -1162,10 +1160,9 @@ export function SchoolChatPage() {
                               {m.editedAt ?
                                 <span
                                   className="italic text-muted-foreground/90"
-                                  title="Esta mensagem foi editada"
+                                  title={t("chat.message.editedTitle")}
                                 >
-                                  {" "}
-                                  · editada
+                                  {t("chat.message.editedSuffix")}
                                 </span>
                               : null}
                             </span>
@@ -1180,9 +1177,9 @@ export function SchoolChatPage() {
                                 title={
                                   read ?
                                     capsKind === "group" ?
-                                      "Lida por todos neste grupo"
-                                    : "Lida"
-                                  : "Entregue · aguardando leitura"
+                                      t("chat.readReceipt.group")
+                                    : t("chat.readReceipt.direct")
+                                  : t("chat.readReceipt.pending")
                                 }
                               >
                                 <CheckCheck className="h-3.5 w-3.5" strokeWidth={2.5} />
@@ -1203,8 +1200,7 @@ export function SchoolChatPage() {
                 {!viewerCanPost ?
                   <p className="mb-3 flex items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-[12px] text-muted-foreground">
                     <Lock className="h-3.5 w-3.5 shrink-0" />
-                    Neste grupo apenas quem criou pode enviar mensagens. Você pode ler o histórico e
-                    receber notificações.
+                    {t("chat.composer.readOnlyBanner")}
                   </p>
                 : null}
                 <input ref={fileRef} type="file" className="hidden" />
@@ -1223,7 +1219,9 @@ export function SchoolChatPage() {
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
                     placeholder={
-                      viewerCanPost ? "Escreva uma mensagem…" : "Somente leitura"
+                      viewerCanPost
+                        ? t("chat.composer.placeholder.write")
+                        : t("chat.composer.placeholder.readonly")
                     }
                     disabled={!viewerCanPost}
                     className="min-w-[120px] flex-1 rounded-xl border-border/70 bg-muted/30 font-[inherit]"
@@ -1244,12 +1242,12 @@ export function SchoolChatPage() {
                     {sending ?
                       <Loader2 className="h-4 w-4 animate-spin" />
                     : <Send className="h-4 w-4" />}
-                    Enviar
+                    {t("chat.composer.send")}
                   </Button>
                 </div>
                 {viewerCanPost ?
                   <p className="mt-2 font-mono text-[10px] text-muted-foreground">
-                    PDF, imagens, Word, PowerPoint ou ZIP até 12MB.
+                    {t("chat.composer.attachHint")}
                   </p>
                 : null}
               </footer>
@@ -1267,10 +1265,8 @@ export function SchoolChatPage() {
       >
         <DialogContent className="max-h-[min(640px,88vh)] sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Mídias e arquivos</DialogTitle>
-            <DialogDescription>
-              Fotos, PDFs e outros envios desta conversa.
-            </DialogDescription>
+            <DialogTitle>{t("chat.mediaDialog.title")}</DialogTitle>
+            <DialogDescription>{t("chat.mediaDialog.desc")}</DialogDescription>
           </DialogHeader>
           {mediaLoading ?
             <div className="flex justify-center py-16">
@@ -1278,7 +1274,7 @@ export function SchoolChatPage() {
             </div>
           : mediaItems.length === 0 ?
             <p className="py-10 text-center text-sm text-muted-foreground">
-              Nenhum arquivo foi enviado ainda.
+              {t("chat.mediaDialog.empty")}
             </p>
           : <ScrollArea className="max-h-[min(440px,60vh)] pr-3">
               <div className="grid grid-cols-3 gap-2 pb-2">
@@ -1308,7 +1304,7 @@ export function SchoolChatPage() {
                         />
                       : <div className="flex h-full flex-col justify-between gap-1 p-2">
                           <span className="line-clamp-3 font-mono text-[10px] font-semibold leading-tight">
-                            {item.attachmentName ?? "Arquivo"}
+                            {item.attachmentName ?? t("chat.fileGeneric")}
                           </span>
                           <span className="font-mono text-[9px] text-muted-foreground">
                             {item.senderNome}
@@ -1317,8 +1313,9 @@ export function SchoolChatPage() {
                       }
                       <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
                         <span className="block truncate font-mono text-[9px] text-white">
-                          {new Date(item.createdAt).toLocaleDateString("pt-BR")}{" "}
-                          · {item.fromSelf ? "Você" : item.senderNome}
+                          {new Date(item.createdAt).toLocaleDateString(localeTag)}{" "}
+                          {t("chat.meta.sep")}
+                          {item.fromSelf ? t("chat.you") : item.senderNome}
                         </span>
                       </span>
                     </button>
@@ -1338,7 +1335,7 @@ export function SchoolChatPage() {
       >
         <DialogContent className="max-w-[min(96vw,900px)] border-none bg-transparent p-4 shadow-none sm:rounded-2xl">
           <DialogHeader className="sr-only">
-            <DialogTitle>Pré-visualização</DialogTitle>
+            <DialogTitle>{t("chat.previewDialog.title")}</DialogTitle>
           </DialogHeader>
           {mediaPreview?.attachmentUrl ?
             <>
@@ -1355,12 +1352,13 @@ export function SchoolChatPage() {
                   onClick={() =>
                     void downloadChatMedia(
                       mediaPreview.attachmentUrl!,
-                      mediaPreview.attachmentName ?? "imagem"
+                      mediaPreview.attachmentName ?? t("chat.imageFallback"),
+                      t("chat.fileFallback")
                     )
                   }
                 >
                   <Download className="mr-2 h-4 w-4" />
-                  Baixar
+                  {t("chat.message.downloadShort")}
                 </Button>
                 <Button
                   type="button"
@@ -1373,7 +1371,7 @@ export function SchoolChatPage() {
                     )
                   }
                 >
-                  Abrir em nova aba
+                  {t("chat.preview.openNewTab")}
                 </Button>
               </div>
             </>
@@ -1384,10 +1382,8 @@ export function SchoolChatPage() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Editar mensagem</DialogTitle>
-            <DialogDescription>
-              A conversa mostrará que a mensagem foi editada.
-            </DialogDescription>
+            <DialogTitle>{t("chat.editDialog.title")}</DialogTitle>
+            <DialogDescription>{t("chat.editDialog.desc")}</DialogDescription>
           </DialogHeader>
           <Textarea
             value={editDraft}
@@ -1402,7 +1398,7 @@ export function SchoolChatPage() {
               className="rounded-xl"
               onClick={() => setEditOpen(false)}
             >
-              Cancelar
+              {t("chat.dialog.cancel")}
             </Button>
             <Button
               type="button"
@@ -1412,7 +1408,7 @@ export function SchoolChatPage() {
             >
               {savingEdit ?
                 <Loader2 className="h-4 w-4 animate-spin" />
-              : "Salvar"}
+              : t("chat.dialog.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

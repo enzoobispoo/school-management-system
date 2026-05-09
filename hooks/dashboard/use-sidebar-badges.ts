@@ -17,7 +17,7 @@ export const EMPTY_SIDEBAR_ROUTE_BADGES: SidebarRouteBadges = {
   academico: false,
 };
 
-const POLL_MS = 30_000;
+const POLL_MS = 45_000;
 
 export function useSidebarBadges() {
   const [badges, setBadges] = useState<SidebarRouteBadges>(
@@ -44,8 +44,22 @@ export function useSidebarBadges() {
 
   useEffect(() => {
     fetchBadges();
-    const id = setInterval(fetchBadges, POLL_MS);
-    return () => clearInterval(id);
+    const id = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+      }
+      void fetchBadges();
+    }, POLL_MS);
+
+    const onVis = () => {
+      if (document.visibilityState === "visible") void fetchBadges();
+    };
+    document.addEventListener("visibilitychange", onVis);
+
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, [fetchBadges]);
 
   return { badges, refresh: fetchBadges };

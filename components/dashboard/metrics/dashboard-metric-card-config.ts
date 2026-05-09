@@ -140,7 +140,7 @@ export const METRIC_CARD_ICON_COLOR =
     title: "Pagamentos Atrasados",
     changeType: "negative",
     icon: AlertCircle,
-    href: "/financeiro?tab=overdue",
+    href: "/financeiro/cobrancas?tab=overdue",
   },
   trocasProfessorNoMes: {
     title: "Trocas de Professor",

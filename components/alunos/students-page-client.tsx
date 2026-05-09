@@ -12,8 +12,8 @@ export function StudentsPageClient() {
   return (
     <DashboardLayout>
       <Header
-        title="Alunos"
-        description="Gerencie todos os alunos matriculados"
+        titleKey="page.students.title"
+        descriptionKey="page.students.description"
       />
 
       <StudentsPageContent

@@ -5,6 +5,7 @@ import {
   normalizePlanTier,
   planAllowsBillingProviderChoice,
 } from "@/lib/school-plan";
+import { isPayoutBankSlug } from "@/lib/finance/payout-bank-options";
 
 export async function GET() {
   try {
@@ -42,11 +43,29 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    }
     const result = requireSchool(user);
     if (result instanceof NextResponse) return result;
     const { schoolId } = result;
 
     const body = await request.json();
+
+    const professorPortalInBody =
+      body &&
+      typeof body === "object" &&
+      "professorPortalEnabled" in body;
+
+    if (professorPortalInBody && user.role !== "ADMIN") {
+      return NextResponse.json(
+        { error: "Apenas administradores podem alterar o portal do professor." },
+        { status: 403 }
+      );
+    }
+
+    const professorPortalEnabledValue =
+      professorPortalInBody ? Boolean(body.professorPortalEnabled) : undefined;
 
     const schoolRow = await prisma.school.findUnique({
       where: { id: schoolId },
@@ -57,6 +76,20 @@ export async function PUT(request: NextRequest) {
       planAllowsBillingProviderChoice(tier) && typeof body.billingProvider === "string"
         ? body.billingProvider
         : "asaas";
+
+    const payoutPatch: { payoutBankSlug?: string | null } = {};
+    if (
+      planAllowsBillingProviderChoice(tier) &&
+      body &&
+      typeof body === "object" &&
+      "payoutBankSlug" in body
+    ) {
+      const raw = (body as Record<string, unknown>).payoutBankSlug;
+      if (raw === null || raw === "") payoutPatch.payoutBankSlug = null;
+      else if (typeof raw === "string" && isPayoutBankSlug(raw)) {
+        payoutPatch.payoutBankSlug = raw;
+      }
+    }
 
     const settings = await prisma.escolaSettings.upsert({
       where: { schoolId },
@@ -85,6 +118,10 @@ export async function PUT(request: NextRequest) {
         asaasApiKey: body.asaasApiKey, asaasWalletId: body.asaasWalletId,
         asaasEnvironment: body.asaasEnvironment, defaultChargeMethod: body.defaultChargeMethod,
         autoGenerateBoleto: body.autoGenerateBoleto,
+        ...(professorPortalEnabledValue !== undefined ?
+          { professorPortalEnabled: professorPortalEnabledValue }
+        : {}),
+        ...payoutPatch,
       },
       create: {
         id: schoolId, schoolId, nomeEscola: body.nomeEscola || "Minha Escola",
@@ -117,6 +154,10 @@ export async function PUT(request: NextRequest) {
         asaasEnvironment: body.asaasEnvironment ?? "sandbox",
         defaultChargeMethod: body.defaultChargeMethod ?? "boleto",
         autoGenerateBoleto: body.autoGenerateBoleto ?? false,
+        ...(professorPortalEnabledValue !== undefined ?
+          { professorPortalEnabled: professorPortalEnabledValue }
+        : {}),
+        ...payoutPatch,
       },
     });
 

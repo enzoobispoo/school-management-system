@@ -9,7 +9,11 @@ import { useUsersSettings } from "@/hooks/configuracoes/use-users-settings";
 const roleOptions = [
   { value: "ADMIN", label: "Administrador" },
   { value: "FINANCEIRO", label: "Financeiro" },
-  { value: "SECRETARIA", label: "Secretaria" },
+  { value: "SECRETARIA", label: "Secretaria (acadêmica)" },
+  {
+    value: "SECRETARIA_FINANCEIRA",
+    label: "Secretaria (com financeiro no painel)",
+  },
   { value: "PROFESSOR", label: "Professor" },
 ] as const;
 
@@ -17,7 +21,8 @@ const roleLabel: Record<string, string> = {
   SUPER_ADMIN: "Super Admin",
   ADMIN: "Administrador",
   FINANCEIRO: "Financeiro",
-  SECRETARIA: "Secretaria",
+  SECRETARIA: "Secretaria (acadêmica)",
+  SECRETARIA_FINANCEIRA: "Secretaria (com financeiro no painel)",
   PROFESSOR: "Professor",
 };
 

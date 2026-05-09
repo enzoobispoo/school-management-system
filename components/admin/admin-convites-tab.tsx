@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -13,15 +14,14 @@ import {
   planAllowsOpenAi,
   type PlanTier,
 } from "@/lib/school-plan";
+import { InviteRoleHint } from "@/components/configuracoes/invite-role-hint";
 
-type UserRole = "ADMIN" | "FINANCEIRO" | "SECRETARIA" | "PROFESSOR";
-
-const ROLE_LABEL: Record<string, string> = {
-  ADMIN: "Administrador",
-  FINANCEIRO: "Financeiro",
-  SECRETARIA: "Secretaria",
-  PROFESSOR: "Professor",
-};
+type UserRole =
+  | "ADMIN"
+  | "FINANCEIRO"
+  | "SECRETARIA"
+  | "SECRETARIA_FINANCEIRA"
+  | "PROFESSOR";
 
 export type ConvitesSchoolRow = {
   id: string;
@@ -81,6 +81,19 @@ export function AdminConvitesTab({
   plansError,
   onReloadCatalog,
 }: Props) {
+  const { t } = useDashboardLanguage();
+
+  const ROLE_LABEL = useMemo(
+    (): Record<string, string> => ({
+      ADMIN: t("invites.role.administrator"),
+      FINANCEIRO: t("invites.role.financeiro"),
+      SECRETARIA: t("invites.role.secretariaAcademic"),
+      SECRETARIA_FINANCEIRA: t("invites.role.secretariaFinance"),
+      PROFESSOR: t("invites.role.professor"),
+    }),
+    [t]
+  );
+
   const [planDrafts, setPlanDrafts] = useState<Record<string, PlanDraft>>({});
   const [savingCatalogId, setSavingCatalogId] = useState<string | null>(null);
 
@@ -130,7 +143,9 @@ export function AdminConvitesTab({
   const fetchConvites = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/invites", { cache: "no-store" });
-      if (res.ok) setConvites(await res.json());
+      if (!res.ok) return;
+      const data = await res.json();
+      setConvites(Array.isArray(data) ? data : (data.invites ?? []));
     } finally {
       setLoadingConvites(false);
     }
@@ -160,7 +175,7 @@ export function AdminConvitesTab({
     if (!draft) return;
     const preco = Number(String(draft.preco).replace(",", "."));
     if (!Number.isFinite(preco) || preco <= 0) {
-      toast.error("Preço inválido.");
+      toast.error(t("admin.invites.invalidPrice"));
       return;
     }
     const parseLim = (s: string) => {
@@ -173,7 +188,7 @@ export function AdminConvitesTab({
     const limiteTurmas = parseLim(draft.limiteTurmas);
     const limiteUsuarios = parseLim(draft.limiteUsuarios);
     if ([limiteAlunos, limiteTurmas, limiteUsuarios].some((x) => x !== null && Number.isNaN(x))) {
-      toast.error("Limites inválidos.");
+      toast.error(t("admin.invites.invalidLimits"));
       return;
     }
     setSavingCatalogId(plan.id);
@@ -191,10 +206,10 @@ export function AdminConvitesTab({
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) {
-        toast.error(typeof d.error === "string" ? d.error : "Erro ao salvar.");
+        toast.error(typeof d.error === "string" ? d.error : t("admin.invites.saveFailToast"));
         return;
       }
-      toast.success("Salvo.");
+      toast.success(t("admin.invites.saved"));
       onReloadCatalog();
     } finally {
       setSavingCatalogId(null);
@@ -208,15 +223,15 @@ export function AdminConvitesTab({
     setInviteLink("");
     try {
       if (!schoolId) {
-        setFormError("Selecione a escola.");
+        setFormError(t("admin.invites.form.selectSchool"));
         return;
       }
       if (!planId) {
-        setFormError("Selecione o plano.");
+        setFormError(t("admin.invites.form.selectPlan"));
         return;
       }
       if (!email.trim()) {
-        setFormError("Informe o e-mail.");
+        setFormError(t("admin.invites.form.emailRequired"));
         return;
       }
 
@@ -246,10 +261,10 @@ export function AdminConvitesTab({
       });
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || "Erro ao criar convite.");
+        throw new Error(result.error || t("admin.invites.createInviteFail"));
       }
       setInviteLink(result.inviteLink as string);
-      setFormOk("Enviado.");
+      setFormOk(t("admin.invites.form.formOkSent"));
       setEmail("");
       setPlanId("");
       setAsaasApiKey("");
@@ -260,7 +275,7 @@ export function AdminConvitesTab({
       onReloadCatalog();
       fetchConvites();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Erro.");
+      setFormError(err instanceof Error ? err.message : t("admin.invites.form.errorGeneric"));
     } finally {
       setLoading(false);
     }
@@ -269,7 +284,7 @@ export function AdminConvitesTab({
   async function handleCopy() {
     if (!inviteLink) return;
     await navigator.clipboard.writeText(inviteLink);
-    setFormOk("Copiado.");
+    setFormOk(t("admin.invites.form.formOkCopied"));
   }
 
   async function handleReenviar(convite: ConvitePendente) {
@@ -282,10 +297,10 @@ export function AdminConvitesTab({
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || "Erro");
+        toast.error(data.error || t("admin.invites.genericError"));
         return;
       }
-      toast.success("Reenviado.");
+      toast.success(t("admin.invites.resent"));
       fetchConvites();
     } finally {
       setReenviando(null);
@@ -473,9 +488,13 @@ export function AdminConvitesTab({
                 >
                   <option value="ADMIN">Administrador</option>
                   <option value="FINANCEIRO">Financeiro</option>
-                  <option value="SECRETARIA">Secretaria</option>
+                  <option value="SECRETARIA">Secretaria (acadêmica)</option>
+                  <option value="SECRETARIA_FINANCEIRA">
+                    Secretaria (com financeiro no painel)
+                  </option>
                   <option value="PROFESSOR">Professor</option>
                 </select>
+                <InviteRoleHint role={role} />
               </div>
             </div>
 

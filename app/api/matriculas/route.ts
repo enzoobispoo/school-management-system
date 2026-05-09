@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server"
 import { Prisma, StatusMatricula } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { createMatriculaSchema } from "@/lib/validations/matricula"
-import { getCurrentUser, requireSchool } from "@/lib/auth"
+import {
+  assertEnrollmentRead,
+  assertEnrollmentWrite,
+  getCurrentUser,
+  requireSchool,
+} from "@/lib/auth"
+import { logSchoolAudit } from "@/lib/audit/school-audit-log"
 import { createMatriculaWithInitialPayments } from "@/lib/matricula/bootstrap-enrollment"
 
 export async function GET(request: NextRequest) {
@@ -12,6 +18,9 @@ export async function GET(request: NextRequest) {
     const _school = requireSchool(user);
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
+
+    const deniedRead = assertEnrollmentRead(user);
+    if (deniedRead) return deniedRead;
 
     const { searchParams } = new URL(request.url)
 
@@ -27,6 +36,7 @@ export async function GET(request: NextRequest) {
     )
 
     const where: Prisma.MatriculaWhereInput = {
+      schoolId,
       ...(alunoId ? { alunoId } : {}),
       ...(turmaId ? { turmaId } : {}),
       ...(cursoId ? { turma: { cursoId } } : {}),
@@ -140,6 +150,9 @@ export async function POST(request: NextRequest) {
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
 
+    const deniedWrite = assertEnrollmentWrite(user);
+    if (deniedWrite) return deniedWrite;
+
     const body = await request.json()
     const parsed = createMatriculaSchema.safeParse(body)
 
@@ -238,6 +251,21 @@ export async function POST(request: NextRequest) {
         fallbackDueDay,
       })
     )
+
+    void logSchoolAudit({
+      schoolId,
+      userId: user.id,
+      role: user.role,
+      domain: "enrollment",
+      action: "MATRICULA_CREATE",
+      resourceId: result.matricula.id,
+      summary: `Matrícula criada: aluno ${result.matricula.aluno.nome}, turma ${result.matricula.turma.nome}`,
+      payload: {
+        alunoId,
+        turmaId,
+        pagamentosGerados: result.pagamentos.length,
+      },
+    });
 
     return NextResponse.json(
       {

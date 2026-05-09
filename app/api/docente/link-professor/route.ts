@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { tryLinkProfessorUser } from "@/lib/docente/sync-professor-user-link";
+import { API_FORBIDDEN_PROFILE } from "@/lib/http/api-forbidden";
+import { blockProfessorWhenPortalDisabled } from "@/lib/docente/professor-portal-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,8 +17,11 @@ export async function POST() {
       return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     }
     if (user.role !== "PROFESSOR") {
-      return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+      return NextResponse.json({ error: API_FORBIDDEN_PROFILE }, { status: 403 });
     }
+
+    const portalDenied = await blockProfessorWhenPortalDisabled(user);
+    if (portalDenied) return portalDenied;
 
     const result = await tryLinkProfessorUser(user.id);
 

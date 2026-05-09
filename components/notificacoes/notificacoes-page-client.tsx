@@ -7,6 +7,10 @@ import { Header } from "@/components/dashboard/header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  dashboardLocaleTag,
+  useDashboardLanguage,
+} from "@/lib/i18n/dashboard-language";
 
 type InboxFilter = "todas" | "nao_lidas" | "lidas";
 
@@ -30,21 +34,10 @@ interface ListMeta {
   totalPages: number;
 }
 
-const tipoLabels: Record<string, string> = {
-  NOVO_ALUNO: "Novo aluno",
-  NOVA_MATRICULA: "Nova matrícula",
-  PAGAMENTO_CONFIRMADO: "Pagamento confirmado",
-  PAGAMENTO_ATRASADO: "Pagamento atrasado",
-  MATRICULA_CANCELADA: "Matrícula cancelada",
-  SISTEMA: "Sistema",
-  PAGAMENTO: "Pagamento",
-  TROCA_PROFESSOR_SOLICITADA: "Convite — troca de turma",
-};
-
-function formatWhen(iso: string) {
+function formatWhen(iso: string, localeTag: string) {
   try {
     const d = new Date(iso);
-    return d.toLocaleString("pt-BR", {
+    return d.toLocaleString(localeTag, {
       day: "2-digit",
       month: "short",
       hour: "2-digit",
@@ -55,7 +48,15 @@ function formatWhen(iso: string) {
   }
 }
 
+function notificationTypeLabel(tipo: string, t: (key: string) => string) {
+  const key = `notifications.type.${tipo}`;
+  const label = t(key);
+  return label !== key ? label : tipo;
+}
+
 export function NotificacoesPageClient() {
+  const { t, language } = useDashboardLanguage();
+  const localeTag = dashboardLocaleTag(language);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -168,8 +169,8 @@ export function NotificacoesPageClient() {
   return (
     <DashboardLayout>
       <Header
-        title="Notificações"
-        description="Alertas da escola conforme seu perfil — secretaria, financeiro ou professor."
+        title={t("page.notifications.title")}
+        description={t("page.notifications.description")}
       />
 
       <div className="space-y-6 px-6 pb-10">
@@ -177,11 +178,11 @@ export function NotificacoesPageClient() {
           <div className="flex flex-wrap gap-2">
             {(
               [
-                ["todas", "Todas"],
-                ["nao_lidas", "Não lidas"],
-                ["lidas", "Lidas"],
+                ["todas", "notifications.filter.all"],
+                ["nao_lidas", "notifications.filter.unread"],
+                ["lidas", "notifications.filter.read"],
               ] as const
-            ).map(([key, label]) => (
+            ).map(([key, labelKey]) => (
               <Button
                 key={key}
                 type="button"
@@ -190,7 +191,7 @@ export function NotificacoesPageClient() {
                 className="rounded-full"
                 onClick={() => setFilter(key)}
               >
-                {label}
+                {t(labelKey)}
                 {key === "nao_lidas" && meta.unreadCount > 0 ? (
                   <span className="ml-2 rounded-full bg-background/20 px-2 py-0.5 text-[11px] font-semibold">
                     {meta.unreadCount}
@@ -208,7 +209,7 @@ export function NotificacoesPageClient() {
             disabled={markAllBusy || meta.unreadCount === 0}
             onClick={markAllRead}
           >
-            Marcar todas como lidas
+            {t("notifications.markAllRead")}
           </Button>
         </div>
 
@@ -220,11 +221,11 @@ export function NotificacoesPageClient() {
 
         {loading ? (
           <div className="rounded-[24px] border border-border/50 bg-card p-8 text-sm text-muted-foreground">
-            Carregando…
+            {t("notifications.loading")}
           </div>
         ) : items.length === 0 ? (
           <div className="rounded-[24px] border border-border/50 bg-card p-10 text-center text-sm text-muted-foreground">
-            Nenhuma notificação neste filtro.
+            {t("notifications.emptyFilter")}
           </div>
         ) : (
           <ul className="flex flex-col gap-3">
@@ -240,11 +241,11 @@ export function NotificacoesPageClient() {
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        {tipoLabels[n.tipo] ?? n.tipo}
+                        {notificationTypeLabel(n.tipo, t)}
                       </span>
                       {!n.lida ? (
                         <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-primary">
-                          Nova
+                          {t("notifications.badgeNew")}
                         </span>
                       ) : null}
                     </div>
@@ -253,7 +254,7 @@ export function NotificacoesPageClient() {
                     </p>
                     <p className="text-sm text-muted-foreground">{n.mensagem}</p>
                     <p className="text-xs text-muted-foreground">
-                      {formatWhen(n.createdAt)}
+                      {formatWhen(n.createdAt, localeTag)}
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
@@ -264,7 +265,7 @@ export function NotificacoesPageClient() {
                         size="sm"
                         className="rounded-full"
                       >
-                        <Link href={n.linkHref}>Ver detalhes</Link>
+                        <Link href={n.linkHref}>{t("notifications.viewDetails")}</Link>
                       </Button>
                     ) : null}
                     {!n.lida ? (
@@ -276,7 +277,7 @@ export function NotificacoesPageClient() {
                         disabled={markOneBusy === n.id}
                         onClick={() => markOneRead(n.id)}
                       >
-                        Marcar como lida
+                        {t("notifications.markRead")}
                       </Button>
                     ) : null}
                   </div>
@@ -289,7 +290,10 @@ export function NotificacoesPageClient() {
         {!loading && meta.totalPages > 1 ? (
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span>
-              Página {meta.page} de {meta.totalPages}
+              {t("notifications.pageOf", {
+                page: meta.page,
+                total: meta.totalPages,
+              })}
             </span>
             <div className="flex gap-2">
               <Button
@@ -299,7 +303,7 @@ export function NotificacoesPageClient() {
                 disabled={page <= 1}
                 onClick={() => setPage(page - 1)}
               >
-                Anterior
+                {t("notifications.prev")}
               </Button>
               <Button
                 type="button"
@@ -308,7 +312,7 @@ export function NotificacoesPageClient() {
                 disabled={page >= meta.totalPages}
                 onClick={() => setPage(page + 1)}
               >
-                Próximo
+                {t("notifications.next")}
               </Button>
             </div>
           </div>

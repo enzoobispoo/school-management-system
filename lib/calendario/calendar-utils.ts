@@ -1,5 +1,84 @@
 import { CalendarEvent } from "./calendar-types";
 
+/** Layout horizontal quando vários eventos compartilham o mesmo intervalo de tempo. */
+export type TimedEventLayout = { col: number; cols: number };
+
+function eventsOverlap(a: CalendarEvent, b: CalendarEvent): boolean {
+  const as = +new Date(a.start);
+  const ae = +new Date(a.end);
+  const bs = +new Date(b.start);
+  const be = +new Date(b.end);
+  return as < be && bs < ae;
+}
+
+/**
+ * Agrupa eventos do mesmo dia que se interceptam e distribui em colunas (estilo agenda).
+ */
+export function layoutTimedEventsForDay(
+  dayEvents: CalendarEvent[]
+): Map<string, TimedEventLayout> {
+  const result = new Map<string, TimedEventLayout>();
+  if (dayEvents.length === 0) return result;
+
+  const visited = new Set<number>();
+  const clusters: number[][] = [];
+
+  function dfs(i: number, acc: number[]) {
+    visited.add(i);
+    acc.push(i);
+    for (let j = 0; j < dayEvents.length; j++) {
+      if (visited.has(j)) continue;
+      if (eventsOverlap(dayEvents[i], dayEvents[j])) dfs(j, acc);
+    }
+  }
+
+  for (let i = 0; i < dayEvents.length; i++) {
+    if (visited.has(i)) continue;
+    const comp: number[] = [];
+    dfs(i, comp);
+    clusters.push(comp);
+  }
+
+  for (const comp of clusters) {
+    const sortedIdx = [...comp].sort(
+      (a, b) => +new Date(dayEvents[a].start) - +new Date(dayEvents[b].start)
+    );
+
+    const colEnd: number[] = [];
+
+    for (const idx of sortedIdx) {
+      const ev = dayEvents[idx];
+      const s = +new Date(ev.start);
+      const e = +new Date(ev.end);
+
+      let col = -1;
+      for (let c = 0; c < colEnd.length; c++) {
+        if (colEnd[c] <= s) {
+          col = c;
+          break;
+        }
+      }
+      if (col === -1) {
+        col = colEnd.length;
+        colEnd.push(e);
+      } else {
+        colEnd[col] = Math.max(colEnd[col], e);
+      }
+
+      result.set(ev.id, { col, cols: 0 });
+    }
+
+    const cols = Math.max(1, colEnd.length);
+    for (const idx of comp) {
+      const ev = dayEvents[idx];
+      const cur = result.get(ev.id);
+      if (cur) cur.cols = cols;
+    }
+  }
+
+  return result;
+}
+
 export const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 export const HOURS = Array.from({ length: 16 }, (_, i) => i + 6);
 
@@ -76,7 +155,7 @@ export function getEventStyle(start: Date, end: Date) {
 
 // Paleta: [bgLight, borderLight, textLight, bgDark, borderDark, textDark]
 const EVENT_COLORS: Record<string, [string, string, string, string, string, string]> = {
-  automatic: ["#e9ecff", "#cfd7ff", "#2d3553", "rgba(59,91,219,0.15)", "rgba(99,120,255,0.3)", "#a5b4fc"],
+  automatic: ["#e9ecff", "#cfd7ff", "#2d3553", "rgba(59,91,219,0.35)", "rgba(129,140,248,0.55)", "#e0e7ff"],
   REUNIAO:   ["#f1e9ff", "#d9c8ff", "#4b3f66", "rgba(124,58,237,0.15)", "rgba(167,139,250,0.3)", "#c4b5fd"],
   PROVA:     ["#e8ebff", "#d7dcff", "#404b6b", "rgba(79,70,229,0.15)", "rgba(129,140,248,0.3)", "#a5b4fc"],
   FERIADO:   ["#ffe8e3", "#ffd5cd", "#6b4c46", "rgba(220,38,38,0.15)", "rgba(252,165,165,0.3)", "#fca5a5"],

@@ -27,6 +27,12 @@ export interface PaymentActionParams {
 export interface AiSuggestion {
   label: string;
   prompt: string;
+  /** Sugestões que dependem do modo OpenAI + ferramentas (não disponível no modo integrado). */
+  requiresOpenAi?: boolean;
+  /** Recursos restritos ao plano Full (ex.: disparar avaliação operacional pela EduIA). */
+  requiresFullPlan?: boolean;
+  /** Não exibir na EduIA executiva para perfil SECRETARIA (painel só acadêmico). */
+  hideForSecretariaAcademic?: boolean;
 }
 
 export interface AiActionResult {

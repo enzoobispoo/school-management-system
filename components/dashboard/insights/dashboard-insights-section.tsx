@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Info, TrendingDown, TrendingUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +19,8 @@ interface DashboardInsightsSectionProps {
   insights?: InsightItem[];
   loading: boolean;
   onDismiss?: (insightId: string) => void;
+  /** Só a visão executiva abre o modal de cobrar em massa; demais perfis vão ao financeiro. */
+  allowChargeStudentsShortcut?: boolean;
 }
 
 function getInsightIcon(tone: InsightItem["tone"]) {
@@ -52,6 +53,7 @@ export function DashboardInsightsSection({
   insights = [],
   loading,
   onDismiss,
+  allowChargeStudentsShortcut = false,
 }: DashboardInsightsSectionProps) {
   const router = useRouter();
   if (loading) {
@@ -116,10 +118,16 @@ export function DashboardInsightsSection({
                       size="sm"
                       className="rounded-xl border border-black/10 bg-black text-white hover:bg-black/90 dark:border-white/10 dark:bg-white dark:text-black dark:hover:bg-white/90"
                       onClick={() => {
-                        if (insight.action?.href === "/financeiro?tab=overdue") {
-                          window.dispatchEvent(new CustomEvent("openChargeStudentsModal"));
+                        const href = insight.action?.href || "/";
+                        if (
+                          href === "/financeiro/cobrancas?tab=overdue" &&
+                          allowChargeStudentsShortcut
+                        ) {
+                          window.dispatchEvent(
+                            new CustomEvent("openChargeStudentsModal")
+                          );
                         } else {
-                          router.push(insight.action?.href || "/");
+                          router.push(href);
                         }
                       }}
                     >

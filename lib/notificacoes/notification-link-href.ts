@@ -19,7 +19,7 @@ export function notificationLinkHref(
     case "PROFESSOR":
       return `/professores/${entidadeId}`;
     case "PAGAMENTO":
-      return `/financeiro?paymentId=${encodeURIComponent(entidadeId)}`;
+      return `/financeiro/cobrancas?paymentId=${encodeURIComponent(entidadeId)}`;
     case "MATRICULA": {
       const alunoId = matriculaIdToAlunoId?.get(entidadeId);
       return alunoId ? `/alunos/${alunoId}` : null;

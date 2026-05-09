@@ -11,10 +11,7 @@ export default function CursosPage() {
 
   return (
     <DashboardLayout>
-      <Header
-        title="Cursos"
-        description="Gerencie todos os cursos disponíveis"
-      />
+      <Header titleKey="page.courses.title" descriptionKey="page.courses.description" />
 
       <CoursesPageContent
         courses={coursesPage.courses}

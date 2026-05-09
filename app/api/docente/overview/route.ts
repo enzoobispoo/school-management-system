@@ -7,6 +7,8 @@ import {
   jsWeekdayToDiaSemana,
   labelDiaSemana,
 } from "@/lib/docente/dia-semana";
+import { API_FORBIDDEN_PROFILE } from "@/lib/http/api-forbidden";
+import { blockProfessorWhenPortalDisabled } from "@/lib/docente/professor-portal-policy";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -19,7 +21,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (user.role !== "PROFESSOR") {
-      return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+      return NextResponse.json({ error: API_FORBIDDEN_PROFILE }, { status: 403 });
     }
 
     if (!user.schoolId) {
@@ -28,6 +30,9 @@ export async function GET(request: NextRequest) {
         { status: 403 }
       );
     }
+
+    const portalDenied = await blockProfessorWhenPortalDisabled(user);
+    if (portalDenied) return portalDenied;
 
     const diaHoje = jsWeekdayToDiaSemana();
 

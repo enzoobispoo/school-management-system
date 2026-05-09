@@ -33,7 +33,15 @@ import {
   getTotalOverduePaymentsSummary,
   getTotalPendingPaymentsSummary,
 } from "@/lib/ai/actions";
-import { getEduiaQuickSuggestions } from "@/lib/ai/suggestions";
+import {
+  filterAndPublicAiSuggestionsForDashboardUser,
+  eduiaClientCapsFromResolvedSchoolAi,
+} from "@/lib/ai/eduia-client-caps";
+import {
+  getEduiaFinanceQuickSuggestions,
+  getEduiaQuickSuggestions,
+} from "@/lib/ai/suggestions";
+import type { AiSuggestion } from "@/lib/ai/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -118,6 +126,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const baseQuickSuggestions =
+      user.role === "FINANCEIRO"
+        ? getEduiaFinanceQuickSuggestions()
+        : getEduiaQuickSuggestions();
+
     let raw: unknown;
     try {
       raw = await request.json();
@@ -145,6 +158,7 @@ export async function POST(request: NextRequest) {
     );
 
     const schoolAi = await resolveSchoolAiForUser(user);
+    const eduiaCaps = eduiaClientCapsFromResolvedSchoolAi(schoolAi);
     const client =
       schoolAi?.useOpenAi &&
       schoolAi.apiKey &&
@@ -173,7 +187,11 @@ export async function POST(request: NextRequest) {
 
     if (localFollowUp) {
       resultMessage = localFollowUp.message;
-      suggestions = getEduiaQuickSuggestions().slice(0, 8);
+      suggestions = filterAndPublicAiSuggestionsForDashboardUser(
+        baseQuickSuggestions,
+        eduiaCaps,
+        user.role
+      ).slice(0, 8);
       executed = false;
       nextConversationContext = localFollowUp.conversationContext;
       toolsUsedMeta = [];
@@ -213,7 +231,9 @@ export async function POST(request: NextRequest) {
       case "TOTAL_STUDENTS": {
         const result = await getTotalStudents(user.schoolId);
         resultMessage = result.message;
-        suggestions = result.suggestions;
+        suggestions = result.suggestions
+          ? filterAndPublicAiSuggestionsForDashboardUser(result.suggestions, eduiaCaps, user.role)
+          : undefined;
         executed = !!result.executed;
         break;
       }
@@ -221,7 +241,9 @@ export async function POST(request: NextRequest) {
       case "TOTAL_ACTIVE_STUDENTS": {
         const result = await getTotalActiveStudents(user.schoolId);
         resultMessage = result.message;
-        suggestions = result.suggestions;
+        suggestions = result.suggestions
+          ? filterAndPublicAiSuggestionsForDashboardUser(result.suggestions, eduiaCaps, user.role)
+          : undefined;
         executed = !!result.executed;
         break;
       }
@@ -229,7 +251,9 @@ export async function POST(request: NextRequest) {
       case "TOTAL_ACTIVE_ENROLLMENTS": {
         const result = await getTotalActiveEnrollments(user.schoolId);
         resultMessage = result.message;
-        suggestions = result.suggestions;
+        suggestions = result.suggestions
+          ? filterAndPublicAiSuggestionsForDashboardUser(result.suggestions, eduiaCaps, user.role)
+          : undefined;
         executed = !!result.executed;
         break;
       }
@@ -237,7 +261,9 @@ export async function POST(request: NextRequest) {
       case "TOTAL_OVERDUE_PAYMENTS": {
         const result = await getTotalOverduePaymentsSummary(user.schoolId);
         resultMessage = result.message;
-        suggestions = result.suggestions;
+        suggestions = result.suggestions
+          ? filterAndPublicAiSuggestionsForDashboardUser(result.suggestions, eduiaCaps, user.role)
+          : undefined;
         executed = !!result.executed;
         break;
       }
@@ -245,7 +271,9 @@ export async function POST(request: NextRequest) {
       case "TOTAL_PENDING_PAYMENTS": {
         const result = await getTotalPendingPaymentsSummary(user.schoolId);
         resultMessage = result.message;
-        suggestions = result.suggestions;
+        suggestions = result.suggestions
+          ? filterAndPublicAiSuggestionsForDashboardUser(result.suggestions, eduiaCaps, user.role)
+          : undefined;
         executed = !!result.executed;
         break;
       }
@@ -253,7 +281,9 @@ export async function POST(request: NextRequest) {
       case "MONTHLY_REVENUE": {
         const result = await getMonthlyRevenue(user.schoolId);
         resultMessage = result.message;
-        suggestions = result.suggestions;
+        suggestions = result.suggestions
+          ? filterAndPublicAiSuggestionsForDashboardUser(result.suggestions, eduiaCaps, user.role)
+          : undefined;
         executed = !!result.executed;
         break;
       }
@@ -261,7 +291,9 @@ export async function POST(request: NextRequest) {
       case "MONTHLY_FINANCIAL_SUMMARY": {
         const result = await getMonthlyFinancialSummary(user.schoolId);
         resultMessage = result.message;
-        suggestions = result.suggestions;
+        suggestions = result.suggestions
+          ? filterAndPublicAiSuggestionsForDashboardUser(result.suggestions, eduiaCaps, user.role)
+          : undefined;
         executed = !!result.executed;
         break;
       }
@@ -269,16 +301,22 @@ export async function POST(request: NextRequest) {
       case "TOP_COURSES": {
         const result = await listTopCourses(user.schoolId);
         resultMessage = result.message;
-        suggestions = [
-          {
-            label: "Pagamentos atrasados",
-            prompt: "Quais pagamentos estão atrasados?",
-          },
-          {
-            label: "Resumo financeiro",
-            prompt: "Mostre um resumo financeiro do mês.",
-          },
-        ];
+        suggestions = filterAndPublicAiSuggestionsForDashboardUser(
+          [
+            {
+              label: "Pagamentos atrasados",
+              prompt: "Quais pagamentos estão atrasados?",
+              hideForSecretariaAcademic: true,
+            },
+            {
+              label: "Resumo financeiro",
+              prompt: "Mostre um resumo financeiro do mês.",
+              hideForSecretariaAcademic: true,
+            },
+          ] satisfies AiSuggestion[],
+          eduiaCaps,
+          user.role
+        );
         executed = true;
         nextConversationContext = result.conversationContext;
         break;
@@ -287,7 +325,9 @@ export async function POST(request: NextRequest) {
       case "UPCOMING_EVENTS": {
         const result = await getUpcomingEvents(user.schoolId);
         resultMessage = result.message;
-        suggestions = result.suggestions;
+        suggestions = result.suggestions
+          ? filterAndPublicAiSuggestionsForDashboardUser(result.suggestions, eduiaCaps, user.role)
+          : undefined;
         executed = !!result.executed;
         break;
       }
@@ -295,7 +335,9 @@ export async function POST(request: NextRequest) {
       case "LIST_OVERDUE_STUDENTS": {
         const result = await listOverdueStudents(user.schoolId);
         resultMessage = result.message;
-        suggestions = result.suggestions;
+        suggestions = result.suggestions
+          ? filterAndPublicAiSuggestionsForDashboardUser(result.suggestions, eduiaCaps, user.role)
+          : undefined;
         executed = !!result.executed;
         break;
       }
@@ -303,7 +345,9 @@ export async function POST(request: NextRequest) {
       case "LIST_OVERDUE_PAYMENTS": {
         const result = await listOverduePayments(user.schoolId);
         resultMessage = result.message;
-        suggestions = result.suggestions;
+        suggestions = result.suggestions
+          ? filterAndPublicAiSuggestionsForDashboardUser(result.suggestions, eduiaCaps, user.role)
+          : undefined;
         executed = !!result.executed;
         nextConversationContext = result.conversationContext;
         break;
@@ -315,7 +359,9 @@ export async function POST(request: NextRequest) {
           user.schoolId
         );
         resultMessage = result.message;
-        suggestions = result.suggestions;
+        suggestions = result.suggestions
+          ? filterAndPublicAiSuggestionsForDashboardUser(result.suggestions, eduiaCaps, user.role)
+          : undefined;
         executed = !!result.executed;
         break;
       }
@@ -339,7 +385,9 @@ export async function POST(request: NextRequest) {
         });
 
         resultMessage = result.message;
-        suggestions = result.suggestions;
+        suggestions = result.suggestions
+          ? filterAndPublicAiSuggestionsForDashboardUser(result.suggestions, eduiaCaps, user.role)
+          : undefined;
         executed = !!result.executed;
         break;
       }
@@ -348,7 +396,11 @@ export async function POST(request: NextRequest) {
         if (!client) {
           resultMessage = messageWhenOpenAiUnavailable(schoolAi);
 
-          suggestions = getEduiaQuickSuggestions();
+          suggestions = filterAndPublicAiSuggestionsForDashboardUser(
+            baseQuickSuggestions,
+            eduiaCaps,
+            user.role
+          );
           executed = false;
           toolsUsedMeta = [`consulta:${classification.intent}`];
           break;
@@ -385,14 +437,22 @@ export async function POST(request: NextRequest) {
             aiRun.toolRuns.length > 0
               ? [...new Set(aiRun.toolRuns.map((r) => r.tool))]
               : ["openai_sem_tools"];
-          suggestions = getEduiaQuickSuggestions();
+          suggestions = filterAndPublicAiSuggestionsForDashboardUser(
+            baseQuickSuggestions,
+            eduiaCaps,
+            user.role
+          );
           executed = false;
         } catch (fallbackError) {
           console.error("Erro no modo tools da EduIA:", fallbackError);
 
           resultMessage =
             "No momento o modo avançado da EduIA está indisponível, mas posso continuar respondendo consultas operacionais do sistema.";
-          suggestions = getEduiaQuickSuggestions();
+          suggestions = filterAndPublicAiSuggestionsForDashboardUser(
+            baseQuickSuggestions,
+            eduiaCaps,
+            user.role
+          );
           executed = false;
           toolsUsedMeta = ["openai_tools_erro"];
         }

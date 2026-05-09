@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, requireSchool } from "@/lib/auth";
+import { assertFinanceRead, getCurrentUser, requireSchool } from "@/lib/auth";
 
 const monthNames = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
@@ -12,7 +12,11 @@ export async function GET() {
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
 
+    const denied = assertFinanceRead(user);
+    if (denied) return denied;
+
     const rows = await prisma.pagamento.findMany({
+      where: { schoolId },
       select: { competenciaMes: true, competenciaAno: true },
       distinct: ["competenciaMes", "competenciaAno"],
       orderBy: [{ competenciaAno: "desc" }, { competenciaMes: "desc" }],

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/shared/error-state";
@@ -15,8 +15,31 @@ import {
   useDashboardInsightsPreferences,
   type DashboardInsightItem,
 } from "@/hooks/dashboard/use-dashboard-insights-preferences";
-import type { DashboardMetricsView } from "@/components/dashboard/metrics/dashboard-metric-card-config";
+import type {
+  DashboardMetricsView,
+  DashboardMetricKey,
+} from "@/components/dashboard/metrics/dashboard-metric-card-config";
 import { ChargeStudentsModal } from "@/components/dashboard/modals/charge-students-modal";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
+
+export type DashboardPageAudience =
+  | "executive"
+  | "secretaria"
+  /** Mesmo hub /secretaria; indicadores e gráficos incluem visão de cobrança (sem cobrança em massa no modal). */
+  | "secretaria_financeira";
+
+/** Insights que citam receita/cobrança — não exibidos na visão secretaria. */
+const SECRETARIA_BLOCKED_INSIGHT_IDS = new Set([
+  "receita-alta",
+  "receita-baixa",
+  "pagamentos-atrasados",
+]);
+
+const SECRETARIA_EXCLUDED_METRICS: readonly DashboardMetricKey[] = [
+  "receitaMensal",
+  "pagamentosAtrasados",
+  "receitaPrevistaMes",
+];
 
 interface DashboardPageContentProps {
   data: {
@@ -41,6 +64,8 @@ interface DashboardPageContentProps {
     initials: string;
   }>;
   insights: DashboardInsightItem[];
+  /** Secretaria acadêmica vs secretaria com métricas financeiras no painel. */
+  audience?: DashboardPageAudience;
 }
 
 export function DashboardPageContent({
@@ -50,8 +75,25 @@ export function DashboardPageContent({
   metrics,
   recentActivities,
   insights,
+  audience = "executive",
 }: DashboardPageContentProps) {
+  const { t } = useDashboardLanguage();
   const [showSettings, setShowSettings] = useState(false);
+  const isSecretariaAcademicOnly = audience === "secretaria";
+  const isSecretariaFinance = audience === "secretaria_financeira";
+  const showCustomizeIndicators =
+    audience === "executive" || isSecretariaFinance;
+  const showChargeStudentsModal = audience === "executive";
+
+  const insightsForViewer = useMemo(() => {
+    if (!isSecretariaAcademicOnly) return insights;
+    return insights.filter((i) => !SECRETARIA_BLOCKED_INSIGHT_IDS.has(i.id));
+  }, [insights, isSecretariaAcademicOnly]);
+
+  const activitiesForViewer = useMemo(() => {
+    if (!isSecretariaAcademicOnly) return recentActivities;
+    return recentActivities.filter((a) => a.type !== "payment");
+  }, [recentActivities, isSecretariaAcademicOnly]);
 
   const {
     optionalCards,
@@ -63,7 +105,7 @@ export function DashboardPageContent({
   } = useDashboardCardsPreferences();
 
   const { dismissInsight, visibleInsights, loadingInsightsPreferences } =
-    useDashboardInsightsPreferences(insights);
+    useDashboardInsightsPreferences(insightsForViewer);
 
   if (error) {
     return <ErrorState message={error} />;
@@ -74,25 +116,33 @@ export function DashboardPageContent({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
-            Painel da escola
+            {isSecretariaAcademicOnly || isSecretariaFinance ?
+              t("dashboard.panelEyebrow.secretaria")
+            : t("dashboard.panelEyebrow.school")}
           </p>
           <p className="text-sm text-muted-foreground">
-            Visão executiva para alto volume: prioridades primeiro, depois indicadores e histórico.
+            {isSecretariaAcademicOnly ?
+              t("dashboard.panelIntro.secretariaAcademic")
+            : isSecretariaFinance ?
+              t("dashboard.panelIntro.secretariaFinance")
+            : t("dashboard.panelIntro.executive")}
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="shrink-0 rounded-xl"
-          onClick={() => setShowSettings((prev) => !prev)}
-        >
-          <Settings2 className="mr-2 h-4 w-4" />
-          Personalizar indicadores
-        </Button>
+        {showCustomizeIndicators ?
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0 rounded-xl"
+            onClick={() => setShowSettings((prev) => !prev)}
+          >
+            <Settings2 className="mr-2 h-4 w-4" />
+            {t("dashboard.customizeIndicators")}
+          </Button>
+        : null}
       </div>
 
-      {showSettings && (
+      {showCustomizeIndicators && showSettings ?
         <DashboardCustomizePanel
           optionalCards={optionalCards}
           cardsOrder={cardsOrder}
@@ -100,23 +150,32 @@ export function DashboardPageContent({
           onMoveUp={moveCardUp}
           onMoveDown={moveCardDown}
         />
-      )}
+      : null}
 
       <DashboardInsightsSection
         insights={visibleInsights}
         loading={loading || loadingPreferences || loadingInsightsPreferences}
         onDismiss={dismissInsight}
+        allowChargeStudentsShortcut={audience === "executive"}
       />
 
-      <DashboardCommandCenter metrics={metrics} loading={loading} />
+      <DashboardCommandCenter
+        metrics={metrics}
+        loading={loading}
+        variant={isSecretariaAcademicOnly ? "secretaria" : "default"}
+      />
 
       <section className="space-y-3">
         <div>
           <h3 className="text-base font-semibold tracking-tight text-foreground">
-            Indicadores principais
+            {t("dashboard.section.metricsTitle")}
           </h3>
           <p className="text-xs text-muted-foreground">
-            Números consolidados da sua escola (personalize quais cartões aparecem acima).
+            {isSecretariaAcademicOnly ?
+              t("dashboard.section.metricsHint.secretaria")
+            : isSecretariaFinance ?
+              t("dashboard.section.metricsHint.secf")
+            : t("dashboard.section.metricsHint.exec")}
           </p>
         </div>
         <DashboardMetricsGrid
@@ -124,34 +183,52 @@ export function DashboardPageContent({
           optionalCards={optionalCards}
           cardsOrder={cardsOrder}
           loading={loading || loadingPreferences}
+          excludeMetricKeys={
+            isSecretariaAcademicOnly ? SECRETARIA_EXCLUDED_METRICS : undefined
+          }
         />
       </section>
 
       <section className="space-y-3">
         <div>
           <h3 className="text-base font-semibold tracking-tight text-foreground">
-            Tendências e distribuição
+            {isSecretariaAcademicOnly ?
+              t("dashboard.section.chartsTitle.secretaria")
+            : t("dashboard.section.chartsTitle.default")}
           </h3>
           <p className="text-xs text-muted-foreground">
-            Receita ao longo do tempo e alunos por curso.
+            {isSecretariaAcademicOnly ?
+              t("dashboard.section.chartsHint.secretaria")
+            : t("dashboard.section.chartsHint.default")}
           </p>
         </div>
-        <DashboardChartsSection data={data} loading={loading} />
+        <DashboardChartsSection
+          data={data}
+          loading={loading}
+          omitRevenue={isSecretariaAcademicOnly}
+        />
       </section>
 
       <section className="space-y-3">
         <div>
           <h3 className="text-base font-semibold tracking-tight text-foreground">
-            Movimentação recente
+            {t("dashboard.section.activityTitle")}
           </h3>
           <p className="text-xs text-muted-foreground">
-            Últimos eventos registrados pelo sistema.
+            {isSecretariaAcademicOnly ?
+              t("dashboard.section.activityHint.secretaria")
+            : isSecretariaFinance ?
+              t("dashboard.section.activityHint.secf")
+            : t("dashboard.section.activityHint.exec")}
           </p>
         </div>
-        <DashboardActivitySection recentActivities={recentActivities} loading={loading} />
+        <DashboardActivitySection
+          recentActivities={activitiesForViewer}
+          loading={loading}
+        />
       </section>
 
-      <ChargeStudentsModal />
+      {showChargeStudentsModal ? <ChargeStudentsModal /> : null}
     </div>
   );
 }

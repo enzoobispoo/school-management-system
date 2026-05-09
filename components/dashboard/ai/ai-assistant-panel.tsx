@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDashboardSessionOptional } from "@/components/providers/dashboard-session-provider";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -15,12 +16,24 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AiChatMessage } from "@/components/dashboard/ai/ai-chat-message";
 import { AiQuickPrompts } from "@/components/dashboard/ai/ai-quick-prompts";
-import { useDashboardAi } from "@/hooks/dashboard/use-dashboard-ai";
+import {
+  useDashboardAi,
+  type UseDashboardAiOptions,
+} from "@/hooks/dashboard/use-dashboard-ai";
 import type { DashboardMetricsView } from "@/components/dashboard/metrics/dashboard-metric-card-config";
 import { buildEduiaPulseFromMetrics } from "@/lib/dashboard/eduia-pulse";
 import { EduiaLivePulse } from "@/components/dashboard/eduia-live-pulse";
 import { DOCENTE_JARVIS_PILLS } from "@/lib/ai/docente-jarvis-context";
+import {
+  DEFAULT_EDUIA_CLIENT_CAPS,
+  suggestionAllowedForCaps,
+  type EduiaClientCaps,
+} from "@/lib/ai/eduia-client-caps";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+
+const EDUIA_HISTORY_OPT_IN = "eduia.history.optIn";
 
 const JARVIS_PILL_ICONS = [
   ClipboardList,
@@ -42,6 +55,8 @@ interface AiAssistantPanelProps {
   dashboardMetrics?: DashboardMetricsView | null;
   dashboardMetricsLoading?: boolean;
   dashboardMetricsError?: boolean;
+  /** Dispara envio programático (ex.: cartão de diagnóstico de lentidão). */
+  submitQueuedPrompt?: { nonce: number; prompt: string };
 }
 
 export function AiAssistantPanel({
@@ -53,8 +68,101 @@ export function AiAssistantPanel({
   dashboardMetrics = null,
   dashboardMetricsLoading = false,
   dashboardMetricsError = false,
+  submitQueuedPrompt,
 }: AiAssistantPanelProps) {
   const router = useRouter();
+  const sessionOptional = useDashboardSessionOptional();
+
+  const [persistUserId, setPersistUserId] = useState<string | null>(null);
+  const [eduiaCaps, setEduiaCaps] = useState<EduiaClientCaps | null>(null);
+  const [dashboardUserRole, setDashboardUserRole] = useState<string | null>(
+    null
+  );
+  const [historyOptIn, setHistoryOptIn] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setHistoryOptIn(window.localStorage.getItem(EDUIA_HISTORY_OPT_IN) === "1");
+  }, []);
+
+  useEffect(() => {
+    if (sessionOptional !== null) {
+      if (sessionOptional.loading) return;
+      const u = sessionOptional.user;
+      if (u?.id && typeof u.id === "string" && u.id.length > 0) {
+        setPersistUserId(u.id);
+      }
+      setDashboardUserRole(
+        typeof u?.role === "string" ? u.role : null
+      );
+      if (sessionOptional.eduiaCaps) {
+        setEduiaCaps(sessionOptional.eduiaCaps);
+      }
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        const data = (await res.json()) as {
+          user?: { id?: string; role?: string };
+          eduiaCaps?: EduiaClientCaps | null;
+        };
+        if (
+          !cancelled &&
+          typeof data.user?.id === "string" &&
+          data.user.id.length > 0
+        ) {
+          setPersistUserId(data.user.id);
+        }
+        if (!cancelled && typeof data.user?.role === "string") {
+          setDashboardUserRole(data.user.role);
+        }
+        if (!cancelled && data.eduiaCaps) {
+          setEduiaCaps(data.eduiaCaps);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionOptional]);
+
+  const persistConversationKey =
+    historyOptIn && persistUserId ?
+      `eduia.messages.v1.${persistUserId}.${variant === "professor" ? "docente" : "gestao"}`
+    : null;
+
+  function toggleHistoryOptIn(next: boolean) {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(EDUIA_HISTORY_OPT_IN, next ? "1" : "0");
+      if (!next && persistUserId) {
+        try {
+          window.localStorage.removeItem(
+            `eduia.messages.v1.${persistUserId}.docente`
+          );
+          window.localStorage.removeItem(
+            `eduia.messages.v1.${persistUserId}.gestao`
+          );
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    setHistoryOptIn(next);
+  }
+
+  const dashboardAiOptions = useMemo<UseDashboardAiOptions>(() => {
+    const base: UseDashboardAiOptions = { persistConversationKey };
+    if (variant === "professor") {
+      return { ...base, forcedEndpoint: "/api/ai/docente" };
+    }
+    return base;
+  }, [variant, persistConversationKey]);
+
   const {
     messages,
     input,
@@ -66,16 +174,38 @@ export function AiAssistantPanel({
     clearMessages,
     typingRef,
     setIsTyping,
-  } = useDashboardAi();
+  } = useDashboardAi(dashboardAiOptions);
 
   /** Área rolável do histórico — não usar scrollIntoView aqui (rolava o viewport inteiro). */
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
   const hasSentInitialPrompt = useRef(false);
+  const lastQueuedNonce = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!submitQueuedPrompt) return;
+    if (lastQueuedNonce.current === submitQueuedPrompt.nonce) return;
+    lastQueuedNonce.current = submitQueuedPrompt.nonce;
+    const p = submitQueuedPrompt.prompt.trim();
+    if (!p) return;
+    sendMessage(p);
+  }, [submitQueuedPrompt, sendMessage]);
 
   const isProfessorJarvis = embedded && variant === "professor";
+  const isGestaoEmbedded = embedded && variant === "executive";
+  const workspaceInnerChrome = isProfessorJarvis || isGestaoEmbedded;
 
   const shortProfessorName =
     professorDisplayName?.trim()?.split(/\s+/)[0] ?? "Professor";
+
+  const effectiveCaps = eduiaCaps ?? DEFAULT_EDUIA_CLIENT_CAPS;
+
+  const docenteJarvisPills = useMemo(
+    () =>
+      DOCENTE_JARVIS_PILLS.filter((pill) =>
+        suggestionAllowedForCaps(pill, effectiveCaps)
+      ),
+    [effectiveCaps]
+  );
 
   const pulse = useMemo(() => {
     if (
@@ -124,13 +254,13 @@ export function AiAssistantPanel({
         embedded
           ? cn(
               "flex h-full min-h-0 flex-col overflow-hidden",
-              isProfessorJarvis && "gap-1"
+              workspaceInnerChrome && "gap-1"
             )
           : "flex min-h-[520px] flex-col overflow-hidden rounded-[28px] border border-border bg-card p-5 text-card-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
       }
     >
       {!embedded ? (
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h3 className="text-sm font-semibold text-foreground">
               EduIA · Copiloto escolar
@@ -140,40 +270,67 @@ export function AiAssistantPanel({
             </p>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-xl"
-            onClick={clearMessages}
-          >
-            Limpar
-          </Button>
+          <div className="flex flex-col gap-2 sm:items-end">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl sm:self-end"
+              onClick={clearMessages}
+            >
+              Limpar
+            </Button>
+            <div className="flex max-w-xs items-start gap-2 rounded-xl border border-border/55 bg-muted/25 px-3 py-2">
+              <Checkbox
+                id="eduia-history-opt-exec"
+                checked={historyOptIn}
+                onCheckedChange={(v) => toggleHistoryOptIn(v === true)}
+                className="mt-0.5"
+              />
+              <Label
+                htmlFor="eduia-history-opt-exec"
+                className="cursor-pointer text-[11px] font-normal leading-snug text-muted-foreground"
+              >
+                Lembrar esta conversa neste aparelho (opcional; permanece só no seu navegador).
+              </Label>
+            </div>
+          </div>
         </div>
       ) : null}
 
-      {!embedded ? null : isProfessorJarvis ? (
-        messages.length > 0 ?
-          <div className="flex shrink-0 justify-end px-0.5 pb-1">
-            <Button
-              type="button"
-              variant="link"
-              className="h-auto p-0 text-[11px] font-medium text-muted-foreground hover:text-foreground"
-              onClick={clearMessages}
+      {!embedded ? null : workspaceInnerChrome && messages.length > 0 ?
+        <div className="flex shrink-0 flex-col items-end gap-2 px-0.5 pb-1">
+          <Button
+            type="button"
+            variant="link"
+            className="h-auto p-0 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+            onClick={clearMessages}
+          >
+            Nova conversa
+          </Button>
+          <div className="flex max-w-[18rem] items-start gap-2 rounded-xl border border-border/50 bg-muted/20 px-2.5 py-2">
+            <Checkbox
+              id={
+                isProfessorJarvis ?
+                  "eduia-history-opt-prof-inline"
+                : "eduia-history-opt-gestao-inline"
+              }
+              checked={historyOptIn}
+              onCheckedChange={(v) => toggleHistoryOptIn(v === true)}
+              className="mt-0.5"
+            />
+            <Label
+              htmlFor={
+                isProfessorJarvis ?
+                  "eduia-history-opt-prof-inline"
+                : "eduia-history-opt-gestao-inline"
+              }
+              className="cursor-pointer text-[10px] font-normal leading-snug text-muted-foreground"
             >
-              Nova conversa
-            </Button>
+              Opcional: guardar histórico só neste dispositivo.
+            </Label>
           </div>
-        : null
-      ) : (
-        <div className="mb-2 shrink-0 px-0.5">
-          <h4 className="text-base font-semibold leading-snug tracking-tight text-foreground">
-            À sua disposição
-          </h4>
-          <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-            Pergunte ou use um atalho abaixo — os dados vêm do sistema.
-          </p>
         </div>
-      )}
+      : null}
 
       {!embedded ? (
         <div className="mb-4">
@@ -189,14 +346,19 @@ export function AiAssistantPanel({
       <div
         ref={scrollAreaRef}
         className={
-          isProfessorJarvis ?
+          workspaceInnerChrome ?
             "min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-[24px] border border-border/45 bg-muted/20 p-4 dark:bg-muted/10"
           : embedded ?
             "min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-xl border border-border/80 bg-muted/35 p-3"
           : "min-h-0 flex-1 overflow-y-auto rounded-[24px] bg-muted/40 p-4"
         }
       >
-        <div className={cn("space-y-4", isProfessorJarvis && messages.length === 0 && "space-y-0")}>
+        <div
+          className={cn(
+            "space-y-4",
+            isProfessorJarvis && messages.length === 0 && "space-y-0"
+          )}
+        >
           {messages.length === 0 ?
             isProfessorJarvis ?
               <div className="flex min-h-[min(100%,460px)] flex-col pb-2">
@@ -214,7 +376,7 @@ export function AiAssistantPanel({
                   </p>
 
                   <div className="mt-6 flex max-w-md flex-wrap justify-center gap-2">
-                    {DOCENTE_JARVIS_PILLS.map((pill, i) => {
+                    {docenteJarvisPills.map((pill, i) => {
                       const Icon = JARVIS_PILL_ICONS[i] ?? ClipboardList;
                       return (
                         <button
@@ -241,22 +403,90 @@ export function AiAssistantPanel({
                   <AiQuickPrompts
                     preset="professor"
                     presentation="jarvis"
+                    caps={effectiveCaps}
                     onSelect={sendMessage}
                   />
+
+                  <div className="rounded-2xl border border-border/50 bg-muted/20 px-3 py-3 text-[11px] leading-relaxed text-muted-foreground dark:bg-muted/12">
+                    <p className="font-semibold text-foreground">
+                      O que a EduIA faz neste painel
+                    </p>
+                    <ul className="mt-2 list-disc space-y-1.5 pl-4 marker:text-primary/60">
+                      <li>
+                        <span className="font-medium text-foreground/90">
+                          Modo integrado
+                        </span>{" "}
+                        (sem OpenAI ou quando o limite acaba): uso dados reais das suas turmas titulares e avisos — no mesmo espírito do copiloto do dashboard escolar, só que voltado ao professor.
+                      </li>
+                      <li>
+                        <span className="font-medium text-foreground/90">
+                          IA completa
+                        </span>{" "}
+                        (escola com chave OpenAI e cota): além disso, consulto diário, provas recentes e preparo pré-visualizações de avaliações e slides;{" "}
+                        <strong className="text-foreground">nada é gravado sem você confirmar</strong>.
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="flex items-start gap-2 rounded-xl border border-border/45 bg-muted/15 px-2.5 py-2 dark:bg-muted/12">
+                    <Checkbox
+                      id="eduia-history-opt-prof-welcome"
+                      checked={historyOptIn}
+                      onCheckedChange={(v) => toggleHistoryOptIn(v === true)}
+                      className="mt-0.5"
+                    />
+                    <Label
+                      htmlFor="eduia-history-opt-prof-welcome"
+                      className="cursor-pointer text-[10px] font-normal leading-snug text-muted-foreground"
+                    >
+                      Opcional: continuar de onde parei neste aparelho (histórico só no seu navegador).
+                    </Label>
+                  </div>
                 </div>
               </div>
             : <>
-                <p className="text-[13px] text-muted-foreground">
-                  Pergunte em linguagem natural ou toque em um atalho.
-                </p>
-                {dashboardMetrics != null && !dashboardMetricsError ?
-                  <EduiaLivePulse
-                    loading={dashboardMetricsLoading}
-                    pulse={pulse}
-                    onAskEduia={sendMessage}
-                  />
-                : null}
-                <AiQuickPrompts onSelect={sendMessage} />
+                <div className="space-y-4 pb-1">
+                  <div className="text-center sm:text-left">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/75">
+                      Copiloto da gestão
+                    </p>
+                    <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+                      Pergunte em linguagem natural ou toque em um atalho — os dados vêm do sistema.
+                    </p>
+                  </div>
+                  {dashboardMetrics != null && !dashboardMetricsError ?
+                    <EduiaLivePulse
+                      loading={dashboardMetricsLoading}
+                      pulse={pulse}
+                      onAskEduia={sendMessage}
+                      showBriefingShortcut={!effectiveCaps.integratedOnly}
+                    />
+                  : null}
+                  <div className="space-y-3">
+                    <p className="text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70 sm:text-left">
+                      Sugestões rápidas
+                    </p>
+                    <AiQuickPrompts
+                      caps={effectiveCaps}
+                      userRole={dashboardUserRole}
+                      onSelect={sendMessage}
+                    />
+                  </div>
+                  <div className="flex items-start gap-2 rounded-xl border border-border/45 bg-muted/15 px-2.5 py-2 dark:bg-muted/12">
+                    <Checkbox
+                      id="eduia-history-opt-gestao-welcome"
+                      checked={historyOptIn}
+                      onCheckedChange={(v) => toggleHistoryOptIn(v === true)}
+                      className="mt-0.5"
+                    />
+                    <Label
+                      htmlFor="eduia-history-opt-gestao-welcome"
+                      className="cursor-pointer text-[10px] font-normal leading-snug text-muted-foreground"
+                    >
+                      Opcional: continuar de onde parei neste aparelho (histórico só no seu navegador).
+                    </Label>
+                  </div>
+                </div>
               </>
 
           : messages.map((message) => (
@@ -267,6 +497,7 @@ export function AiAssistantPanel({
                 setIsTyping={setIsTyping}
                 onSelectSuggestion={sendMessage}
                 onTypingProgress={() => scrollToBottom("auto")}
+                professorFriendlyUi={variant === "professor"}
               />
             ))
           }
@@ -275,7 +506,7 @@ export function AiAssistantPanel({
             <div
               className={cn(
                 "max-w-[90%] rounded-2xl border px-4 py-3 text-sm text-muted-foreground",
-                isProfessorJarvis ?
+                workspaceInnerChrome ?
                   "border-border/50 bg-card/60"
                 : "border-border"
               )}
@@ -288,7 +519,7 @@ export function AiAssistantPanel({
         </div>
       </div>
 
-      {isProfessorJarvis ?
+      {workspaceInnerChrome ?
         <div className="mt-2 shrink-0 px-0.5 pb-0.5 pt-1">
           <div className="flex items-center gap-1 rounded-[22px] border border-border/60 bg-muted/35 p-1.5 pl-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] dark:bg-muted/25">
             <Button
@@ -312,7 +543,11 @@ export function AiAssistantPanel({
               <Paperclip className="h-[18px] w-[18px]" strokeWidth={1.75} />
             </Button>
             <Input
-              placeholder="Em que posso ajudar hoje?"
+              placeholder={
+                isProfessorJarvis ?
+                  "Em que posso ajudar hoje?"
+                : "Ex.: briefing do dia; turmas lotadas; inadimplência?"
+              }
               value={input}
               onChange={(e) => setInput(e.target.value)}
               className="h-10 min-w-0 flex-1 border-0 bg-transparent px-2 text-[13px] shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0"

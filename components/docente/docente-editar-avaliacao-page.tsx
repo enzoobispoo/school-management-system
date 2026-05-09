@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 type QuestaoForm = {
   tipo: "OBJETIVA" | "DISSERTATIVA";
@@ -28,6 +29,7 @@ function toDatetimeLocalValue(d: Date) {
 
 export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
   const { avaliacaoId } = props;
+  const { t } = useDashboardLanguage();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -83,7 +85,7 @@ export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
           cache: "no-store",
         });
         const json = await res.json();
-        if (!res.ok) throw new Error(json.error || "Erro ao carregar avaliação.");
+        if (!res.ok) throw new Error(json.error || t("docente.assessment.edit.loadError"));
         setNaLixeira(Boolean(json.naLixeira));
         setPodeEditar(Boolean(json.podeEditar));
         setMotivoBloqueio(json.motivoBloqueioEdicao ?? null);
@@ -98,12 +100,12 @@ export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
         );
         setQuestoes(mapLoadedQuestoes(Array.isArray(json.questoes) ? json.questoes : []));
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Erro.");
+        toast.error(e instanceof Error ? e.message : t("common.errorShort"));
       } finally {
         setLoading(false);
       }
     })();
-  }, [avaliacaoId, mapLoadedQuestoes]);
+  }, [avaliacaoId, mapLoadedQuestoes, t]);
 
   async function restaurarDaLixeira() {
     try {
@@ -112,11 +114,11 @@ export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
         method: "POST",
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error || "Não foi possível restaurar.");
-      toast.success("Prova restaurada.");
+      if (!res.ok) throw new Error(json.error || t("docente.assessment.edit.restoreFail"));
+      toast.success(t("docente.assessment.edit.restored"));
       router.push("/docente/avaliacoes");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro.");
+      toast.error(err instanceof Error ? err.message : t("common.errorShort"));
     } finally {
       setRestaurando(false);
     }
@@ -125,16 +127,16 @@ export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!podeEditar) {
-      toast.error(motivoBloqueio ?? "Edição não permitida.");
+      toast.error(motivoBloqueio ?? t("docente.assessment.edit.editBlocked"));
       return;
     }
     if (!titulo.trim() || !dataAvaliacao) {
-      toast.error("Título e data são obrigatórios.");
+      toast.error(t("docente.assessment.edit.titleDateRequired"));
       return;
     }
     const pesoNum = peso.trim() ? Number(peso.replace(",", ".")) : null;
     if (peso.trim() && Number.isNaN(pesoNum)) {
-      toast.error("Peso inválido.");
+      toast.error(t("docente.assessment.new.invalidWeight"));
       return;
     }
 
@@ -166,11 +168,11 @@ export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Não foi possível salvar.");
-      toast.success("Avaliação atualizada.");
+      if (!res.ok) throw new Error(json.error || t("docente.assessment.edit.saveFail"));
+      toast.success(t("docente.assessment.edit.updated"));
       router.push("/docente/avaliacoes");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro.");
+      toast.error(err instanceof Error ? err.message : t("common.errorShort"));
     } finally {
       setSaving(false);
     }
@@ -195,8 +197,8 @@ export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
   return (
     <DashboardLayout>
       <Header
-        title="Editar avaliação"
-        description="Alterações só são permitidas antes de notas ou participação no modo jogo."
+        title={t("docente.assessment.edit.pageTitle")}
+        description={t("docente.assessment.edit.pageDescription")}
       />
 
       <DashboardMainLayout rightPanel={null}>
@@ -204,7 +206,7 @@ export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
           <Button variant="ghost" size="sm" className="rounded-xl" asChild>
             <Link href="/docente/avaliacoes">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Voltar à lista
+              {t("docente.assessment.edit.backToList")}
             </Link>
           </Button>
 
@@ -212,14 +214,12 @@ export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
             {loading ? (
               <p className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Carregando…
+                {t("common.loading")}
               </p>
             ) : naLixeira ? (
               <div className="space-y-4">
-                <p className="text-sm font-medium text-foreground">Esta prova está na lixeira</p>
-                <p className="text-sm text-muted-foreground">
-                  Restaure para editar ou use &quot;Visualizar&quot; para consultar o conteúdo e o gabarito.
-                </p>
+                <p className="text-sm font-medium text-foreground">{t("docente.assessment.edit.trashTitle")}</p>
+                <p className="text-sm text-muted-foreground">{t("docente.assessment.edit.trashHint")}</p>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     className="rounded-xl"
@@ -229,24 +229,28 @@ export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
                     {restaurando ?
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Restaurando…
+                        {t("docente.assessment.edit.restoring")}
                       </>
-                    : "Restaurar prova"}
+                    : t("docente.assessment.edit.restoreButton")}
                   </Button>
                   <Button variant="outline" className="rounded-xl" asChild>
-                    <Link href={`/docente/avaliacoes/${avaliacaoId}/ver`}>Visualizar</Link>
+                    <Link href={`/docente/avaliacoes/${avaliacaoId}/ver`}>
+                      {t("docente.assessment.edit.viewButton")}
+                    </Link>
                   </Button>
                   <Button variant="ghost" className="rounded-xl" asChild>
-                    <Link href="/docente/avaliacoes">Voltar à lista</Link>
+                    <Link href="/docente/avaliacoes">{t("docente.assessment.edit.backToList")}</Link>
                   </Button>
                 </div>
               </div>
             ) : !podeEditar ? (
               <div className="space-y-3">
-                <p className="text-sm font-medium text-foreground">Esta prova não pode ser editada</p>
+                <p className="text-sm font-medium text-foreground">
+                  {t("docente.assessment.edit.cannotEditTitle")}
+                </p>
                 <p className="text-sm text-muted-foreground">{motivoBloqueio}</p>
                 <Button variant="outline" className="rounded-xl" asChild>
-                  <Link href="/docente/avaliacoes">Voltar</Link>
+                  <Link href="/docente/avaliacoes">{t("common.back")}</Link>
                 </Button>
               </div>
             ) : (
@@ -255,13 +259,11 @@ export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
                   <span className="font-medium text-foreground">{turmaNome}</span>
                   {" · "}
                   <span>{disciplinaNome}</span>
-                  <p className="mt-1 text-xs">
-                    Turma e disciplina não podem ser alteradas aqui. Duplique a prova para usar em outra turma.
-                  </p>
+                  <p className="mt-1 text-xs">{t("docente.assessment.edit.turmaDisciplinaHint")}</p>
                 </div>
 
                 <div className="grid gap-2">
-                  <Label>Título</Label>
+                  <Label>{t("docente.novaAssessment.form.titleLabel")}</Label>
                   <Input
                     value={titulo}
                     onChange={(e) => setTitulo(e.target.value)}
@@ -271,18 +273,18 @@ export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2">
-                    <Label>Formato</Label>
+                    <Label>{t("docente.novaAssessment.form.formatLabel")}</Label>
                     <select
                       className="flex h-11 w-full rounded-xl border border-border/70 bg-muted/25 px-3 py-2 text-sm"
                       value={formato}
                       onChange={(e) => setFormato(e.target.value === "JOGO" ? "JOGO" : "CLASSICA")}
                     >
-                      <option value="CLASSICA">Clássica</option>
-                      <option value="JOGO">Modo jogo</option>
+                      <option value="CLASSICA">{t("docente.novaAssessment.form.formatClassic")}</option>
+                      <option value="JOGO">{t("docente.novaAssessment.form.formatGame")}</option>
                     </select>
                   </div>
                   <div className="grid gap-2">
-                    <Label>Data da avaliação</Label>
+                    <Label>{t("docente.novaAssessment.form.dateLabel")}</Label>
                     <Input
                       type="datetime-local"
                       value={dataAvaliacao}
@@ -291,33 +293,33 @@ export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label>Peso (opcional)</Label>
+                    <Label>{t("docente.novaAssessment.form.weightOptional")}</Label>
                     <Input value={peso} onChange={(e) => setPeso(e.target.value)} className="rounded-xl" />
                   </div>
                 </div>
 
                 <div className="grid gap-2">
-                  <Label>Descrição (opcional)</Label>
+                  <Label>{t("docente.novaAssessment.form.descriptionOptional")}</Label>
                   <Textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} className="rounded-xl min-h-[88px]" />
                 </div>
 
                 <div className="rounded-2xl border border-border/70 bg-muted/10 p-4">
                   <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm font-semibold">Questões</p>
+                    <p className="text-sm font-semibold">{t("docente.novaAssessment.questions.title")}</p>
                     <Button type="button" size="sm" variant="outline" className="rounded-xl" onClick={addQuestao}>
                       <Plus className="mr-1.5 h-3.5 w-3.5" />
-                      Adicionar questão
+                      {t("docente.novaAssessment.questions.add")}
                     </Button>
                   </div>
                   <div className="space-y-3">
                     {questoes.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">Nenhuma questão.</p>
+                      <p className="text-xs text-muted-foreground">{t("docente.novaAssessment.questions.empty")}</p>
                     ) : (
                       questoes.map((questao, qIdx) => (
                         <div key={`q-${qIdx}`} className="rounded-xl border border-border/60 bg-background/50 p-3">
                           <div className="mb-2 flex justify-between gap-2">
                             <p className="text-xs font-semibold uppercase text-muted-foreground">
-                              Questão {qIdx + 1}
+                              {t("docente.novaAssessment.questions.questionN", { n: qIdx + 1 })}
                             </p>
                             <Button
                               type="button"
@@ -338,7 +340,7 @@ export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
                                 )
                               )
                             }
-                            placeholder="Enunciado"
+                            placeholder={t("docente.novaAssessment.questions.stemPlaceholder")}
                             className="rounded-xl mb-2"
                           />
                           <div className="grid gap-2 sm:grid-cols-2 mb-2">
@@ -361,8 +363,8 @@ export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
                                 )
                               }
                             >
-                              <option value="OBJETIVA">Objetiva</option>
-                              <option value="DISSERTATIVA">Dissertativa</option>
+                              <option value="OBJETIVA">{t("docente.novaAssessment.questions.typeMcq")}</option>
+                              <option value="DISSERTATIVA">{t("docente.novaAssessment.questions.typeEssay")}</option>
                             </select>
                             <Input
                               value={questao.pontos}
@@ -373,7 +375,7 @@ export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
                                   )
                                 )
                               }
-                              placeholder="Pontos"
+                              placeholder={t("docente.novaAssessment.questions.pointsOptional")}
                               className="rounded-xl"
                             />
                             <Input
@@ -385,12 +387,12 @@ export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
                                   )
                                 )
                               }
-                              placeholder="Explicação"
+                              placeholder={t("docente.novaAssessment.questions.explanationOptional")}
                               className="rounded-xl sm:col-span-2"
                             />
                           </div>
                           {questao.tipo === "DISSERTATIVA" ? (
-                            <p className="text-xs text-muted-foreground">Sem alternativas.</p>
+                            <p className="text-xs text-muted-foreground">{t("docente.assessment.edit.noAlternatives")}</p>
                           ) : (
                             <div className="space-y-2 rounded-xl border border-border/60 bg-muted/10 p-2">
                               {questao.alternativas.map((alt, aIdx) => (
@@ -414,7 +416,7 @@ export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
                                     }
                                   >
                                     {alt.correta ? <CheckCircle2 className="mr-1 h-3 w-3" /> : null}
-                                    OK
+                                    {t("docente.assessment.edit.markOk")}
                                   </button>
                                   <Input
                                     value={alt.texto}
@@ -455,7 +457,7 @@ export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
                                 }
                               >
                                 <Plus className="mr-1 h-3 w-3" />
-                                Alternativa
+                                {t("docente.assessment.edit.addAlternativeShort")}
                               </Button>
                             </div>
                           )}
@@ -467,7 +469,7 @@ export function DocenteEditarAvaliacaoPage(props: { avaliacaoId: string }) {
 
                 <Button type="submit" disabled={saving} className="w-fit rounded-xl gap-2">
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Salvar alterações
+                  {t("docente.assessment.edit.saveChanges")}
                 </Button>
               </form>
             )}

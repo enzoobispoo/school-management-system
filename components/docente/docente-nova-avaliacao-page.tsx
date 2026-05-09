@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Loader2, Plus, Send, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Header } from "@/components/dashboard/header";
 import { DashboardMainLayout } from "@/components/dashboard/dashboard-main-layout";
@@ -17,6 +18,7 @@ type TurmaOpt = { id: string; nome: string; cursoNome: string };
 type DiscOpt = { id: string; nome: string };
 
 export function DocenteNovaAvaliacaoPage() {
+  const { t } = useDashboardLanguage();
   const router = useRouter();
   const [needsLink, setNeedsLink] = useState(false);
   const [turmas, setTurmas] = useState<TurmaOpt[]>([]);
@@ -54,12 +56,12 @@ export function DocenteNovaAvaliacaoPage() {
   const loadOverview = useCallback(async () => {
     const res = await fetch("/api/docente/overview", { cache: "no-store" });
     const json = await res.json();
-    if (!res.ok) throw new Error(json.error || "Erro ao carregar turmas.");
+    if (!res.ok) throw new Error(json.error || t("docente.assessment.loadTurmasError"));
     setNeedsLink(Boolean(json.needsLink));
     const list = (json.turmas || []) as TurmaOpt[];
     setTurmas(list);
     setTurmaId((prev) => prev || list[0]?.id || "");
-  }, []);
+  }, [t]);
 
   const loadDisciplinas = useCallback(async (tid: string) => {
     if (!tid) {
@@ -84,12 +86,12 @@ export function DocenteNovaAvaliacaoPage() {
         setLoading(true);
         await loadOverview();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Erro.");
+        toast.error(e instanceof Error ? e.message : t("common.errorShort"));
       } finally {
         setLoading(false);
       }
     })();
-  }, [loadOverview]);
+  }, [loadOverview, t]);
 
   useEffect(() => {
     void loadDisciplinas(turmaId);
@@ -115,27 +117,30 @@ export function DocenteNovaAvaliacaoPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (needsLink) {
-      toast.error("Vincule sua conta ao professor antes.");
+      toast.error(t("docente.assessment.new.needLink"));
       return;
     }
     if (!turmaId || !disciplinaId || !titulo.trim() || !dataAvaliacao) {
-      toast.error("Preencha turma, disciplina, título e data.");
+      toast.error(t("docente.assessment.new.fillFields"));
       return;
     }
 
     const pesoNum = peso.trim() ? Number(peso.replace(",", ".")) : null;
     if (peso.trim() && Number.isNaN(pesoNum)) {
-      toast.error("Peso inválido.");
+      toast.error(t("docente.assessment.new.invalidWeight"));
       return;
     }
     if (aiReviewRequired) {
       if (!aiReview) {
-        toast.error("Esta escola exige revisão IA antes da criação.");
+        toast.error(t("docente.assessment.new.aiReviewRequired"));
         return;
       }
       if (aiReview.qualityScore < aiReviewMinScore) {
         toast.error(
-          `Qualidade abaixo do mínimo (${Math.floor(aiReview.qualityScore)}/${aiReviewMinScore}).`
+          t("docente.assessment.new.qualityBelowMin", {
+            score: Math.floor(aiReview.qualityScore),
+            min: aiReviewMinScore,
+          })
         );
         return;
       }
@@ -171,11 +176,11 @@ export function DocenteNovaAvaliacaoPage() {
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Não foi possível criar.");
+      if (!res.ok) throw new Error(json.error || t("docente.assessment.new.createFail"));
       toast.success(
         formato === "JOGO"
-          ? "Avaliação em modo jogo criada com questões."
-          : "Avaliação criada na turma. Você pode lançar notas na página da turma."
+          ? t("docente.assessment.new.successGame")
+          : t("docente.assessment.new.successClassic")
       );
       if (formato === "JOGO" && typeof json.id === "string") {
         router.push(`/docente/avaliacoes/${json.id}/jogo`);
@@ -183,7 +188,7 @@ export function DocenteNovaAvaliacaoPage() {
         router.push(`/docente/turmas/${turmaId}`);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro.");
+      toast.error(err instanceof Error ? err.message : t("common.errorShort"));
     } finally {
       setSaving(false);
     }
@@ -191,11 +196,11 @@ export function DocenteNovaAvaliacaoPage() {
 
   async function runAiReview() {
     if (!aiReviewEnabled) {
-      toast.error("Seu plano/configuração atual não possui revisão por IA.");
+      toast.error(t("docente.assessment.ai.noFeature"));
       return;
     }
     if (!titulo.trim()) {
-      toast.error("Preencha ao menos o título antes da revisão por IA.");
+      toast.error(t("docente.assessment.ai.needTitle"));
       return;
     }
     try {
@@ -224,16 +229,16 @@ export function DocenteNovaAvaliacaoPage() {
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Falha na revisão por IA.");
+      if (!res.ok) throw new Error(json.error || t("docente.assessment.ai.reviewFail"));
       setAiReview({
-        summary: String(json.summary ?? "Revisão concluída."),
+        summary: String(json.summary ?? t("docente.assessment.ai.defaultSummary")),
         issues: Array.isArray(json.issues) ? json.issues.map(String) : [],
         suggestions: Array.isArray(json.suggestions) ? json.suggestions.map(String) : [],
         qualityScore: Number.isFinite(json.qualityScore) ? Number(json.qualityScore) : 0,
       });
-      toast.success("Revisão por IA concluída.");
+      toast.success(t("docente.assessment.ai.reviewDone"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro na revisão por IA.");
+      toast.error(err instanceof Error ? err.message : t("docente.assessment.ai.reviewErrorGeneric"));
     } finally {
       setReviewingAi(false);
     }
@@ -258,8 +263,8 @@ export function DocenteNovaAvaliacaoPage() {
   return (
     <DashboardLayout>
       <Header
-        title="Nova avaliação no sistema"
-        description="Prova ou atividade avaliada — disciplina, título, data e peso opcional."
+        title={t("docente.novaAssessment.headerTitle")}
+        description={t("docente.novaAssessment.headerDesc")}
       />
 
       <DashboardMainLayout rightPanel={null}>
@@ -272,19 +277,18 @@ export function DocenteNovaAvaliacaoPage() {
           <Button variant="ghost" size="sm" className="relative rounded-xl" asChild>
             <Link href="/docente">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Voltar ao workspace
+              {t("docente.novaAssessment.backWorkspace")}
             </Link>
           </Button>
 
           <section className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/60 p-6 shadow-sm backdrop-blur-md dark:border-white/[0.07] dark:bg-zinc-900/45 sm:p-8">
             <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              Avaliação estruturada
+              {t("docente.novaAssessment.eyebrow")}
             </p>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-              Esta avaliação aparece na turma para lançamento de notas. Para apenas guardar um PDF
-              de prova ou lista, use os ambientes em{" "}
+              {t("docente.novaAssessment.intro")}{" "}
               <Link href="/docente/materiais" className="font-medium text-primary underline-offset-4 hover:underline">
-                Materiais
+                {t("docente.novaAssessment.introMaterialsLink")}
               </Link>
               .
             </p>
@@ -292,32 +296,32 @@ export function DocenteNovaAvaliacaoPage() {
             {loading ? (
               <p className="mt-8 flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Carregando turmas…
+                {t("docente.novaAssessment.loadingTurmas")}
               </p>
             ) : needsLink ? (
               <p className="mt-8 text-sm text-muted-foreground">
-                Associe sua conta ao cadastro de professor para criar avaliações.
+                {t("docente.novaAssessment.needsLink")}
               </p>
             ) : (
               <form className="relative mt-8 grid max-w-xl gap-5" onSubmit={handleSubmit}>
                 <div className="grid gap-2">
-                  <Label>Turma</Label>
+                  <Label>{t("docente.novaAssessment.form.classLabel")}</Label>
                   <select
                     className="flex h-11 w-full rounded-xl border border-border/70 bg-muted/25 px-3 py-2 text-sm dark:bg-zinc-950/40"
                     value={turmaId}
                     onChange={(e) => setTurmaId(e.target.value)}
                   >
-                    <option value="">Selecione</option>
-                    {turmas.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.nome} — {t.cursoNome}
+                    <option value="">{t("docente.novaAssessment.form.selectPlaceholder")}</option>
+                    {turmas.map((turma) => (
+                      <option key={turma.id} value={turma.id}>
+                        {turma.nome} — {turma.cursoNome}
                       </option>
                     ))}
                   </select>
                 </div>
 
                 <div className="grid gap-2">
-                  <Label>Disciplina</Label>
+                  <Label>{t("docente.novaAssessment.form.subjectLabel")}</Label>
                   <select
                     className="flex h-11 w-full rounded-xl border border-border/70 bg-muted/25 px-3 py-2 text-sm dark:bg-zinc-950/40"
                     value={disciplinaId}
@@ -325,7 +329,11 @@ export function DocenteNovaAvaliacaoPage() {
                     disabled={!turmaId || disciplinas.length === 0}
                   >
                     <option value="">
-                      {!turmaId ? "Escolha uma turma" : disciplinas.length === 0 ? "Sem disciplinas" : "Selecione"}
+                      {!turmaId ?
+                        t("docente.novaAssessment.form.subjectPickClass")
+                      : disciplinas.length === 0 ?
+                        t("docente.novaAssessment.form.subjectNone")
+                      : t("docente.novaAssessment.form.selectPlaceholder")}
                     </option>
                     {disciplinas.map((d) => (
                       <option key={d.id} value={d.id}>
@@ -336,29 +344,29 @@ export function DocenteNovaAvaliacaoPage() {
                 </div>
 
                 <div className="grid gap-2">
-                  <Label>Título</Label>
+                  <Label>{t("docente.novaAssessment.form.titleLabel")}</Label>
                   <Input
                     value={titulo}
                     onChange={(e) => setTitulo(e.target.value)}
-                    placeholder="Ex.: Prova — funções afins"
+                    placeholder={t("docente.novaAssessment.form.titlePlaceholder")}
                     className="rounded-xl border-border/70 bg-muted/20 dark:bg-zinc-950/35"
                   />
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2">
-                    <Label>Formato</Label>
+                    <Label>{t("docente.novaAssessment.form.formatLabel")}</Label>
                     <select
                       className="flex h-11 w-full rounded-xl border border-border/70 bg-muted/25 px-3 py-2 text-sm dark:bg-zinc-950/40"
                       value={formato}
                       onChange={(e) => setFormato(e.target.value === "JOGO" ? "JOGO" : "CLASSICA")}
                     >
-                      <option value="CLASSICA">Clássica</option>
-                      <option value="JOGO">Modo jogo (estilo quiz ao vivo)</option>
+                      <option value="CLASSICA">{t("docente.novaAssessment.form.formatClassic")}</option>
+                      <option value="JOGO">{t("docente.novaAssessment.form.formatGame")}</option>
                     </select>
                   </div>
                   <div className="grid gap-2">
-                    <Label>Data da avaliação</Label>
+                    <Label>{t("docente.novaAssessment.form.dateLabel")}</Label>
                     <Input
                       type="datetime-local"
                       value={dataAvaliacao}
@@ -367,18 +375,18 @@ export function DocenteNovaAvaliacaoPage() {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label>Peso (opcional)</Label>
+                    <Label>{t("docente.novaAssessment.form.weightOptional")}</Label>
                     <Input
                       value={peso}
                       onChange={(e) => setPeso(e.target.value)}
-                      placeholder="Ex.: 2 ou 1.5"
+                      placeholder={t("docente.novaAssessment.form.weightPlaceholder")}
                       className="rounded-xl border-border/70 bg-muted/20 dark:bg-zinc-950/35"
                     />
                   </div>
                 </div>
 
                 <div className="grid gap-2">
-                  <Label>Descrição (opcional)</Label>
+                  <Label>{t("docente.novaAssessment.form.descriptionOptional")}</Label>
                   <Textarea
                     value={descricao}
                     onChange={(e) => setDescricao(e.target.value)}
@@ -389,28 +397,30 @@ export function DocenteNovaAvaliacaoPage() {
                 <div className="rounded-2xl border border-border/70 bg-muted/10 p-4">
                   <div className="mb-3 flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-foreground">Questões e alternativas</p>
+                      <p className="text-sm font-semibold text-foreground">
+                        {t("docente.novaAssessment.questions.title")}
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        Monte sua prova/atividade diretamente no sistema.
+                        {t("docente.novaAssessment.questions.subtitle")}
                       </p>
                     </div>
                     <Button type="button" size="sm" variant="outline" className="rounded-xl" onClick={addQuestao}>
                       <Plus className="mr-1.5 h-3.5 w-3.5" />
-                      Adicionar questão
+                      {t("docente.novaAssessment.questions.add")}
                     </Button>
                   </div>
 
                   <div className="space-y-3">
                     {questoes.length === 0 ? (
                       <p className="text-xs text-muted-foreground">
-                        Nenhuma questão adicionada ainda. Você pode criar avaliação simples sem questões ou montar tudo agora.
+                        {t("docente.novaAssessment.questions.empty")}
                       </p>
                     ) : (
                       questoes.map((questao, qIdx) => (
                         <div key={`q-${qIdx}`} className="rounded-xl border border-border/60 bg-background/50 p-3">
                           <div className="mb-2 flex items-center justify-between gap-2">
                             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                              Questão {qIdx + 1}
+                              {t("docente.novaAssessment.questions.questionN", { n: qIdx + 1 })}
                             </p>
                             <Button
                               type="button"
@@ -434,7 +444,7 @@ export function DocenteNovaAvaliacaoPage() {
                                   )
                                 )
                               }
-                              placeholder="Enunciado da questão"
+                              placeholder={t("docente.novaAssessment.questions.stemPlaceholder")}
                               className="rounded-xl"
                             />
                             <div className="grid gap-2 sm:grid-cols-2">
@@ -457,8 +467,12 @@ export function DocenteNovaAvaliacaoPage() {
                                   )
                                 }
                               >
-                                <option value="OBJETIVA">Objetiva (alternativas)</option>
-                                <option value="DISSERTATIVA">Dissertativa</option>
+                                <option value="OBJETIVA">
+                                  {t("docente.novaAssessment.questions.typeMcq")}
+                                </option>
+                                <option value="DISSERTATIVA">
+                                  {t("docente.novaAssessment.questions.typeEssay")}
+                                </option>
                               </select>
                               <Input
                                 value={questao.pontos}
@@ -469,7 +483,7 @@ export function DocenteNovaAvaliacaoPage() {
                                     )
                                   )
                                 }
-                                placeholder="Pontos (opcional)"
+                                placeholder={t("docente.novaAssessment.questions.pointsOptional")}
                                 className="rounded-xl"
                               />
                               <Input
@@ -481,13 +495,13 @@ export function DocenteNovaAvaliacaoPage() {
                                     )
                                   )
                                 }
-                                placeholder="Explicação (opcional)"
+                                placeholder={t("docente.novaAssessment.questions.explanationOptional")}
                                 className="rounded-xl"
                               />
                             </div>
                             {questao.tipo === "DISSERTATIVA" ? (
                               <div className="rounded-xl border border-border/60 bg-muted/10 p-3 text-xs text-muted-foreground">
-                                Questão dissertativa não precisa de alternativas.
+                                {t("docente.novaAssessment.questions.essayHint")}
                               </div>
                             ) : (
                               <div className="space-y-2 rounded-xl border border-border/60 bg-muted/10 p-2">
@@ -512,7 +526,7 @@ export function DocenteNovaAvaliacaoPage() {
                                       }
                                     >
                                       {alt.correta ? <CheckCircle2 className="mr-1 h-3 w-3" /> : null}
-                                      Correta
+                                      {t("docente.novaAssessment.questions.correctBadge")}
                                     </button>
                                     <Input
                                       value={alt.texto}
@@ -530,7 +544,10 @@ export function DocenteNovaAvaliacaoPage() {
                                           )
                                         )
                                       }
-                                      placeholder={`Alternativa ${aIdx + 1}`}
+                                      placeholder={t(
+                                        "docente.novaAssessment.questions.altPlaceholder",
+                                        { n: aIdx + 1 }
+                                      )}
                                       className="rounded-xl"
                                     />
                                   </div>
@@ -554,7 +571,7 @@ export function DocenteNovaAvaliacaoPage() {
                                   }
                                 >
                                   <Plus className="mr-1 h-3 w-3" />
-                                  Adicionar alternativa
+                                  {t("docente.novaAssessment.questions.addAlt")}
                                 </Button>
                               </div>
                             )}
@@ -575,7 +592,7 @@ export function DocenteNovaAvaliacaoPage() {
                       className="rounded-xl gap-2"
                     >
                       {reviewingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                      Revisar com IA
+                      {t("docente.novaAssessment.aiReviewButton")}
                     </Button>
                   ) : null}
                   <Button type="submit" disabled={saving} className="w-fit rounded-xl gap-2">
@@ -584,14 +601,16 @@ export function DocenteNovaAvaliacaoPage() {
                     ) : (
                       <Send className="h-4 w-4" />
                     )}
-                    Criar avaliação na turma
+                    {t("docente.novaAssessment.submitCreate")}
                   </Button>
                 </div>
 
                 {aiReview ? (
                   <div className="rounded-xl border border-violet-200/70 bg-violet-50/70 p-3 text-sm dark:border-violet-500/30 dark:bg-violet-500/10">
                     <p className="font-medium text-foreground">
-                      Revisão IA (nota {Math.max(0, Math.min(100, aiReview.qualityScore))}/100)
+                      {t("docente.novaAssessment.aiScoreLine", {
+                        score: Math.max(0, Math.min(100, aiReview.qualityScore)),
+                      })}
                     </p>
                     <p className="mt-1 text-muted-foreground">{aiReview.summary}</p>
                     {aiReview.issues.length > 0 ? (
@@ -612,7 +631,9 @@ export function DocenteNovaAvaliacaoPage() {
                 ) : null}
                 {aiReviewRequired ? (
                   <p className="text-xs text-muted-foreground">
-                    Política da escola: revisão IA obrigatória com nota mínima {aiReviewMinScore}/100.
+                    {t("docente.novaAssessment.aiPolicyRequired", {
+                      min: aiReviewMinScore,
+                    })}
                   </p>
                 ) : null}
               </form>

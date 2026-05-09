@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, requireSchool } from "@/lib/auth";
+import { assertCoreFinanceWrite, getCurrentUser, requireSchool } from "@/lib/auth";
+import { logSchoolAudit } from "@/lib/audit/school-audit-log";
 import { createBoleto } from "@/lib/billing/provider";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { buildPaymentReminderMessage } from "@/lib/templates/payment-reminder";
@@ -46,6 +47,9 @@ export async function POST(request: NextRequest) {
     if (_school instanceof NextResponse) return _school;
     const { schoolId } = _school;
 
+    const denied = assertCoreFinanceWrite(user);
+    if (denied) return denied;
+
     const body = await request.json();
     const { paymentId, method } = body as { paymentId?: string; method?: string };
 
@@ -87,6 +91,17 @@ export async function POST(request: NextRequest) {
     }
 
     if (hasExistingBoleto(payment)) {
+      void logSchoolAudit({
+        schoolId,
+        userId: user.id,
+        role: user.role,
+        domain: "finance",
+        action: "BOLETO_VIEW_EXISTING",
+        resourceId: payment.id,
+        summary: `Consulta de boleto já existente: ${payment.descricao}`,
+        payload: { reused: true },
+      });
+
       return NextResponse.json({
         success: true,
         reused: true,
@@ -203,6 +218,20 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+
+    void logSchoolAudit({
+      schoolId,
+      userId: user.id,
+      role: user.role,
+      domain: "finance",
+      action: "BOLETO_GENERATE",
+      resourceId: payment.id,
+      summary: `Boleto/cobrança gerada: ${payment.descricao}`,
+      payload: {
+        billingType: boleto.billingType,
+        externalPaymentId: boleto.paymentId,
+      },
+    });
 
     return NextResponse.json({
       success: true,

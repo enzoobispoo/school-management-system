@@ -3,7 +3,7 @@
  *
  * - starter: EduIA sem OpenAI; WhatsApp pelo número da plataforma; apenas Asaas.
  * - basic: OpenAI com chave da escola; WhatsApp plataforma; apenas Asaas.
- * - full: OpenAI com limites maiores; Twilio próprio; pode escolher provedor de cobrança.
+ * - full: OpenAI com limites maiores; Twilio próprio; pode escolher provedor de cobrança; pode registrar banco de recebimento de mensalidades (`EscolaSettings.payoutBankSlug`); Open Finance via Pluggy.
  */
 
 export type PlanTier = "starter" | "basic" | "full";
@@ -28,6 +28,11 @@ export function planAllowsCustomTwilio(tier: PlanTier): boolean {
 
 /** Apenas Asaas no starter/basic; full pode alterar `billingProvider`. */
 export function planAllowsBillingProviderChoice(tier: PlanTier): boolean {
+  return tier === "full";
+}
+
+/** Integração Pluggy / Open Finance — exclusivo do plano Full. */
+export function planAllowsPluggyOpenFinance(tier: PlanTier): boolean {
   return tier === "full";
 }
 

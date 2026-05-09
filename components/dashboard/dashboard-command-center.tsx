@@ -9,12 +9,14 @@ import {
   ClipboardCheck,
   Clock3,
   Layers,
+  MessageSquare,
   UserPlus,
   Wallet,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { DashboardMetricsView } from "@/components/dashboard/metrics/dashboard-metric-card-config";
+import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 function parseCount(value: string): number | null {
   if (!value || value === "...") return null;
@@ -30,6 +32,7 @@ interface OpTileProps {
   badge?: string | null;
   emphasize?: boolean;
   loading: boolean;
+  openLabel: string;
 }
 
 function OpTile({
@@ -40,6 +43,7 @@ function OpTile({
   badge,
   emphasize,
   loading,
+  openLabel,
 }: OpTileProps) {
   return (
     <Link
@@ -74,7 +78,7 @@ function OpTile({
         </div>
         <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{description}</p>
         <p className="mt-1 text-[11px] font-medium text-muted-foreground/80 group-hover:text-foreground">
-          Abrir →
+          {openLabel}
         </p>
       </div>
     </Link>
@@ -84,9 +88,16 @@ function OpTile({
 interface DashboardCommandCenterProps {
   metrics: DashboardMetricsView;
   loading: boolean;
+  /** Sem atalhos diretos para cobrança / financeiro. */
+  variant?: "default" | "secretaria";
 }
 
-export function DashboardCommandCenter({ metrics, loading }: DashboardCommandCenterProps) {
+export function DashboardCommandCenter({
+  metrics,
+  loading,
+  variant = "default",
+}: DashboardCommandCenterProps) {
+  const { t } = useDashboardLanguage();
   const atrasados = metrics.quantidadePagamentosAtrasados ?? 0;
   const pendentes = metrics.quantidadePagamentosPendentes ?? 0;
   const novos = parseCount(metrics.novosAlunosNoMes);
@@ -94,19 +105,29 @@ export function DashboardCommandCenter({ metrics, loading }: DashboardCommandCen
   const ociosas = parseCount(metrics.turmasComVagasOciosas);
   const incAbertos = metrics.incidentesOperacionaisAbertos ?? 0;
   const incCrit = metrics.incidentesOperacionaisCriticos ?? 0;
+  const isSecretaria = variant === "secretaria";
+
+  const incidentBadge =
+    incAbertos > 0 ?
+      incCrit > 0 ?
+        t("cmd.badge.incidents", { open: incAbertos, crit: incCrit })
+      : t("cmd.badge.incidentsOpen", { open: incAbertos })
+    : t("cmd.badge.noAlerts");
+
+  const openLabel = t("cmd.openArrow");
 
   return (
     <section className="rounded-2xl border border-border/70 bg-card/60 p-4 shadow-sm">
       <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
-            Operações
+            {t("cmd.sectionEyebrow")}
           </p>
           <h3 className="text-base font-semibold tracking-tight text-foreground">
-            Central de operações
+            {t("cmd.title")}
           </h3>
           <p className="text-xs text-muted-foreground">
-            Atalhos pensados para secretarias com alto volume de alunos e cobranças.
+            {isSecretaria ? t("cmd.intro.secretaria") : t("cmd.intro.default")}
           </p>
         </div>
       </div>
@@ -114,79 +135,113 @@ export function DashboardCommandCenter({ metrics, loading }: DashboardCommandCen
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         <OpTile
           href="/operacao"
-          title="Central operacional"
-          description="Alertas automáticos: financeiro, acadêmico e matrícula."
-          icon={Activity}
-          badge={
-            incAbertos > 0
-              ? incCrit > 0
-                ? `${incAbertos} aberto(s) · ${incCrit} crítico(s)`
-                : `${incAbertos} em aberto`
-              : "Sem alertas"
+          title={t("cmd.tile.operational.title")}
+          description={
+            isSecretaria ?
+              t("cmd.tile.operational.desc.secretaria")
+            : t("cmd.tile.operational.desc.default")
           }
+          icon={Activity}
+          badge={incidentBadge}
           emphasize={incCrit > 0}
           loading={loading}
+          openLabel={openLabel}
         />
-        <OpTile
-          href="/financeiro?tab=overdue"
-          title="Inadimplência"
-          description="Priorize cobrança e regularização."
-          icon={Wallet}
-          badge={atrasados > 0 ? `${atrasados} atrasado(s)` : "Em dia"}
-          emphasize={atrasados > 0}
-          loading={loading}
-        />
-        <OpTile
-          href="/financeiro?tab=pending"
-          title="Pagamentos pendentes"
-          description="Mensalidades em aberto neste período."
-          icon={Clock3}
-          badge={pendentes > 0 ? `${pendentes} pendente(s)` : "Nenhum"}
-          loading={loading}
-        />
+        {!isSecretaria ?
+          <OpTile
+            href="/financeiro/cobrancas?tab=overdue"
+            title={t("cmd.tile.overdue.title")}
+            description={t("cmd.tile.overdue.desc")}
+            icon={Wallet}
+            badge={
+              atrasados > 0 ?
+                t("cmd.badge.overdueCount", { n: atrasados })
+              : t("cmd.badge.onTrack")
+            }
+            emphasize={atrasados > 0}
+            loading={loading}
+            openLabel={openLabel}
+          />
+        : null}
+        {!isSecretaria ?
+          <OpTile
+            href="/financeiro/cobrancas?tab=pending"
+            title={t("cmd.tile.pending.title")}
+            description={t("cmd.tile.pending.desc")}
+            icon={Clock3}
+            badge={
+              pendentes > 0 ?
+                t("cmd.badge.pendingCount", { n: pendentes })
+              : t("cmd.badge.nonePending")
+            }
+            loading={loading}
+            openLabel={openLabel}
+          />
+        : null}
         <OpTile
           href="/alunos?recent=true"
-          title="Novos alunos (mês)"
-          description="Últimas matrículas recentes."
+          title={t("cmd.tile.newStudents.title")}
+          description={t("cmd.tile.newStudents.desc")}
           icon={UserPlus}
-          badge={novos !== null ? `${novos} novo(s)` : undefined}
+          badge={novos !== null ? t("cmd.badge.newCount", { n: novos }) : undefined}
           loading={loading}
+          openLabel={openLabel}
         />
         <OpTile
           href="/turmas"
-          title="Capacidade das turmas"
-          description="Lotadas vs vagas disponíveis."
+          title={t("cmd.tile.capacity.title")}
+          description={t("cmd.tile.capacity.desc")}
           icon={Layers}
           badge={
-            lotadas !== null && ociosas !== null
-              ? `${lotadas} lotada(s) · ${ociosas} com vaga(s)`
-              : undefined
+            lotadas !== null && ociosas !== null ?
+              t("cmd.badge.capacity", { lot: lotadas, vac: ociosas })
+            : undefined
           }
           loading={loading}
+          openLabel={openLabel}
         />
         <OpTile
           href="/academico"
-          title="Acadêmico"
-          description="Boletins, frequência e turmas."
+          title={t("cmd.tile.academic.title")}
+          description={t("cmd.tile.academic.desc")}
           icon={ClipboardCheck}
           loading={loading}
+          openLabel={openLabel}
         />
         <OpTile
           href="/relatorios"
-          title="Relatórios"
-          description="Consolidados para gestão e reuniões."
+          title={t("cmd.tile.reports.title")}
+          description={t("cmd.tile.reports.desc")}
           icon={BarChart3}
           loading={loading}
+          openLabel={openLabel}
         />
-        <OpTile
-          href="/alunos?status=overdue"
-          title="Alunos com cobrança atrasada"
-          description="Lista filtrada por situação financeira."
-          icon={AlertTriangle}
-          badge={atrasados > 0 ? `${atrasados} com atraso` : undefined}
-          emphasize={atrasados > 0}
-          loading={loading}
-        />
+        {isSecretaria ?
+          <OpTile
+            href="/mensagens"
+            title={t("cmd.tile.messages.title")}
+            description={t("cmd.tile.messages.desc")}
+            icon={MessageSquare}
+            loading={loading}
+            openLabel={openLabel}
+          />
+        : null}
+        {!isSecretaria ?
+          <OpTile
+            href="/alunos?status=overdue"
+            title={t("cmd.tile.studentsOverdue.title")}
+            description={t("cmd.tile.studentsOverdue.desc")}
+            icon={AlertTriangle}
+            badge={
+              atrasados > 0 ?
+                t("cmd.badge.studentsOverdue", { n: atrasados })
+              : undefined
+            }
+            emphasize={atrasados > 0}
+            loading={loading}
+            openLabel={openLabel}
+          />
+        : null}
       </div>
     </section>
   );
