@@ -11,6 +11,34 @@ function formatDateToYMD(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
+/** Usa contrato financeiro da matrícula quando existir (base, % desconto, bolsa); senão valor do curso. */
+function resolveMonthlyAmount(
+  cursoValorMensal: number,
+  contrato: {
+    valorMensalidadeBase: { toString(): string } | null;
+    descontoPercentual: { toString(): string } | null;
+    bolsaValor: { toString(): string } | null;
+  } | null
+): number {
+  let base =
+    contrato?.valorMensalidadeBase != null ?
+      Number(contrato.valorMensalidadeBase.toString())
+    : cursoValorMensal;
+
+  const descPct =
+    contrato?.descontoPercentual != null ?
+      Number(contrato.descontoPercentual.toString())
+    : 0;
+  const bolsa =
+    contrato?.bolsaValor != null ? Number(contrato.bolsaValor.toString()) : 0;
+
+  const pct = Math.min(100, Math.max(0, Number.isFinite(descPct) ? descPct : 0));
+  base *= 1 - pct / 100;
+  base -= Number.isFinite(bolsa) ? bolsa : 0;
+  const rounded = Math.round(Math.max(0, base) * 100) / 100;
+  return rounded > 0 ? rounded : cursoValorMensal;
+}
+
 export async function generateNextMonthlyPayments(schoolId: string) {
   const schoolSettings = await prisma.escolaSettings.findUnique({
     where: { schoolId },
@@ -48,6 +76,7 @@ export async function generateNextMonthlyPayments(schoolId: string) {
           { competenciaMes: "desc" },
         ],
       },
+      contratoFinanceiro: true,
     },
   });
 
@@ -96,6 +125,11 @@ export async function generateNextMonthlyPayments(schoolId: string) {
 
     const vencimento = buildDueDateClamped(proximoAno, proximoMes - 1, dueDay);
 
+    const valorParcela = resolveMonthlyAmount(
+      Number(matricula.turma.curso.valorMensal),
+      matricula.contratoFinanceiro
+    );
+
     const pagamento = await prisma.pagamento.create({
       data: {
         schoolId,
@@ -103,7 +137,7 @@ export async function generateNextMonthlyPayments(schoolId: string) {
         competenciaMes: proximoMes,
         competenciaAno: proximoAno,
         descricao: `Mensalidade ${String(proximoMes).padStart(2, "0")}/${proximoAno} - ${matricula.turma.curso.nome}`,
-        valor: matricula.turma.curso.valorMensal,
+        valor: valorParcela,
         vencimento,
         status: StatusPagamento.PENDENTE,
       },

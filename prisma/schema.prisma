@@ -49,6 +49,12 @@ model School {
   jogoParticipantes       JogoParticipante[]
   jogoRespostas           JogoResposta[]
   pluggyConnection SchoolPluggyConnection?
+  matriculaContratosFinanceiro MatriculaContratoFinanceiro[]
+  contasPagar                  ContaPagar[]
+  negociacoesMensalidade       NegociacaoMensalidade[]
+  schoolInvoices               SchoolInvoice[]
+  perfisProfessorFinanceiro    ProfessorPerfilFinanceiro[]
+  pagamentosProfessor          ProfessorPagamento[]
 
   @@index([slug])
   @@index([ativo])
@@ -314,6 +320,9 @@ model Professor {
   notificacoesDirigidas Notificacao[]
   trocaPropostasRecebidas TrocaProfessorProposta[] @relation("TrocaProfessorAlvo")
   trocaPropostasComoSaida TrocaProfessorProposta[] @relation("TrocaProfessorAnterior")
+  perfilFinanceiro        ProfessorPerfilFinanceiro?
+  pagamentosProfessor   ProfessorPagamento[]
+  schoolInvoices        SchoolInvoice[]
 
   @@unique([schoolId, email])
   @@index([schoolId])
@@ -387,6 +396,9 @@ model Matricula {
   pagamentos Pagamento[]
   notas      NotaAvaliacao[]
   presencas  PresencaAula[]
+  contratoFinanceiro       MatriculaContratoFinanceiro?
+  negociacoesMensalidade   NegociacaoMensalidade[]
+  schoolInvoices           SchoolInvoice[]
 
   @@index([schoolId])
   @@index([alunoId])
@@ -1462,6 +1474,202 @@ model SchoolChatMessage {
 
   @@index([threadId, createdAt])
   @@index([threadId, pinnedAt])
+}
+
+enum StatusContaPagar {
+  PENDENTE
+  PAGO
+  CANCELADO
+}
+
+enum ProfessorRegimeTrabalho {
+  CLT
+  PJ
+  AUTONOMO
+  ESTAGIO
+  OUTRO
+}
+
+enum ProfessorSituacaoFinanceira {
+  REGULAR
+  PENDENCIA_DOCUMENTACAO
+  INATIVO
+}
+
+enum StatusProfessorPagamento {
+  RASCUNHO
+  APROVADO
+  PAGO
+  CANCELADO
+}
+
+enum SchoolInvoiceStatus {
+  RASCUNHO
+  EMITIDA
+  CANCELADA
+}
+
+enum SchoolInvoiceTipo {
+  COBRANCA_ALUNO
+  SERVICO_PROFESSOR
+  OUTRO
+}
+
+/// Termos financeiros do contrato por matrícula (base para mensalidades, descontos e reajuste).
+model MatriculaContratoFinanceiro {
+  id                      String    @id @default(cuid())
+  schoolId                String
+  matriculaId             String    @unique
+  valorMensalidadeBase    Decimal?  @db.Decimal(10, 2)
+  descontoPercentual      Decimal?  @db.Decimal(5, 2)
+  bolsaValor              Decimal?  @db.Decimal(10, 2)
+  dataInicioContrato      DateTime?
+  dataFimContrato         DateTime?
+  reajusteAnualPercentual Decimal?  @db.Decimal(5, 2)
+  observacoes             String?   @db.VarChar(8000)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  matricula Matricula @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+}
+
+/// Contas a pagar da escola (fornecedores, aluguel, etc.).
+model ContaPagar {
+  id              String           @id @default(cuid())
+  schoolId        String
+  fornecedorNome  String           @db.VarChar(500)
+  descricao       String           @db.VarChar(2000)
+  categoria       String?          @db.VarChar(120)
+  valor           Decimal          @db.Decimal(12, 2)
+  vencimento      DateTime
+  dataPagamento   DateTime?
+  status          StatusContaPagar @default(PENDENTE)
+  observacoes     String?          @db.VarChar(4000)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([schoolId, status])
+  @@index([vencimento])
+}
+
+/// Histórico simples de negociação / acordo sobre mensalidades (workflow futuro pode evoluir status).
+model NegociacaoMensalidade {
+  id                String   @id @default(cuid())
+  schoolId          String
+  matriculaId       String
+  status            String   @default("ABERTA")
+  valorProposto     Decimal? @db.Decimal(10, 2)
+  parcelasPropostas Int?
+  observacoes       String?  @db.VarChar(4000)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  matricula Matricula @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([matriculaId])
+}
+
+/// Perfil financeiro do professor (CLT/PJ, documentos, pagamentos — não substitui folha legal externa).
+model ProfessorPerfilFinanceiro {
+  id                    String                      @id @default(cuid())
+  schoolId              String
+  professorId           String                      @unique
+  regime                ProfessorRegimeTrabalho     @default(CLT)
+  situacao              ProfessorSituacaoFinanceira @default(REGULAR)
+  documento             String?                     @db.VarChar(20)
+  chavePix              String?                     @db.VarChar(200)
+  dadosBancarios        Json?
+  valorReferenciaMensal Decimal?                    @db.Decimal(12, 2)
+  dataAdmissao          DateTime?
+  observacoes           String?                     @db.VarChar(4000)
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+
+  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  professor Professor @relation(fields: [professorId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+}
+
+/// Pagamentos à professores (honorários / repasses — controle interno).
+model ProfessorPagamento {
+  id              String                   @id @default(cuid())
+  schoolId        String
+  professorId     String
+  competenciaMes  Int
+  competenciaAno  Int
+  valorBruto      Decimal                  @db.Decimal(12, 2)
+  descontos       Decimal                  @default(0) @db.Decimal(12, 2)
+  valorLiquido    Decimal                  @db.Decimal(12, 2)
+  status          StatusProfessorPagamento @default(RASCUNHO)
+  dataPagamento   DateTime?
+  descricao       String?                  @db.VarChar(500)
+  observacoes     String?                  @db.VarChar(4000)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  professor Professor @relation(fields: [professorId], references: [id], onDelete: Cascade)
+
+  @@unique([professorId, competenciaMes, competenciaAno])
+  @@index([schoolId])
+  @@index([professorId])
+}
+
+/// Documento fiscal interno / prefatura — campos `providerFiscal` e `idExternoFiscal` para NFS-e/NF-e futura.
+model SchoolInvoice {
+  id                 String              @id @default(cuid())
+  schoolId           String
+  sequencial         Int
+  tipo               SchoolInvoiceTipo   @default(OUTRO)
+  status             SchoolInvoiceStatus @default(RASCUNHO)
+  tomadorNome        String              @db.VarChar(500)
+  tomadorDocumento   String?             @db.VarChar(20)
+  tomadorEmail       String?             @db.VarChar(255)
+  dataEmissao        DateTime            @default(now())
+  dataVencimento     DateTime?
+  subtotal           Decimal             @db.Decimal(14, 2)
+  descontoTotal      Decimal             @default(0) @db.Decimal(14, 2)
+  total              Decimal             @db.Decimal(14, 2)
+  observacoes        String?             @db.VarChar(4000)
+  matriculaId        String?
+  professorId        String?
+  providerFiscal     String?             @db.VarChar(80)
+  idExternoFiscal    String?             @db.VarChar(120)
+  pdfUrl             String?             @db.VarChar(2000)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  school    School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  matricula Matricula? @relation(fields: [matriculaId], references: [id], onDelete: SetNull)
+  professor Professor? @relation(fields: [professorId], references: [id], onDelete: SetNull)
+  linhas    SchoolInvoiceLine[]
+
+  @@unique([schoolId, sequencial])
+  @@index([schoolId])
+  @@index([schoolId, status])
+}
+
+model SchoolInvoiceLine {
+  id            String   @id @default(cuid())
+  invoiceId     String
+  descricao     String   @db.VarChar(500)
+  quantidade    Decimal  @db.Decimal(12, 4)
+  valorUnitario Decimal  @db.Decimal(12, 2)
+  desconto      Decimal  @default(0) @db.Decimal(12, 2)
+  ordem         Int      @default(0)
+
+  invoice SchoolInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
 }
 
 model PasswordResetToken {

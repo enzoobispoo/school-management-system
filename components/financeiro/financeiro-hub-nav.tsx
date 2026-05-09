@@ -6,19 +6,23 @@ import { cn } from "@/lib/utils";
 import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 const TABS = [
-  { href: "/financeiro", label: "Visão geral", exact: true },
-  { href: "/financeiro/cobrancas", label: "Cobranças", exact: false },
-  { href: "/financeiro/eduia", label: "EduIA", exact: false },
+  { href: "/financeiro", labelKey: "finance.nav.overview", exact: true },
+  { href: "/financeiro/cobrancas", labelKey: "finance.nav.charges", exact: false },
+  { href: "/financeiro/contratos", labelKey: "finance.nav.contracts", exact: false },
+  { href: "/financeiro/professores", labelKey: "finance.nav.teachers", exact: false },
+  { href: "/financeiro/notas", labelKey: "finance.nav.invoices", exact: false },
+  { href: "/financeiro/contas-pagar", labelKey: "finance.nav.payables", exact: false },
+  { href: "/financeiro/negociacoes", labelKey: "finance.nav.negotiations", exact: false },
+  { href: "/financeiro/eduia", labelKey: "finance.nav.ai", exact: false },
 ] as const;
 
 export function FinanceiroHubNav() {
   const { t } = useDashboardLanguage();
   const pathname = usePathname();
-  const tabs = [
-    { ...TABS[0], label: t("finance.nav.overview") },
-    { ...TABS[1], label: t("finance.nav.charges") },
-    { ...TABS[2], label: t("finance.nav.ai") },
-  ];
+  const tabs = TABS.map(({ labelKey, ...tab }) => ({
+    ...tab,
+    label: t(labelKey),
+  }));
 
   return (
     <div className="border-b border-border/60 bg-background">

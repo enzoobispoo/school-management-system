@@ -11,6 +11,7 @@ import { DashboardChartsSection } from "@/components/dashboard/charts/dashboard-
 import { useFinanceiroOverviewData } from "@/hooks/financeiro/use-financeiro-overview-data";
 import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 import { FinanceiroPluggyPanel } from "@/components/financeiro/financeiro-pluggy-panel";
+import { FinanceiroProfessionalSummary } from "@/components/financeiro/financeiro-professional-summary";
 import { usePluggyOverviewSnapshot } from "@/hooks/financeiro/use-pluggy-overview-snapshot";
 
 export function FinanceiroOverviewContent() {
@@ -54,6 +55,8 @@ export function FinanceiroOverviewContent() {
       : null}
 
       <FinanceiroPluggyPanel />
+
+      <FinanceiroProfessionalSummary />
 
       {loadingMetricas ?
         <FinancialSummarySkeleton />
