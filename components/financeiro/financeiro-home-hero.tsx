@@ -1,11 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Wallet, TrendingDown, Clock, Percent } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { formatDistanceToNow } from "date-fns";
+import { enUS, es, ptBR } from "date-fns/locale";
+import { Landmark, Wallet, TrendingDown, Clock, Percent } from "lucide-react";
 import { useDashboardSessionOptional } from "@/components/providers/dashboard-session-provider";
+import {
+  dashboardLocaleTag,
+  useDashboardLanguage,
+  type DashboardLanguage,
+} from "@/lib/i18n/dashboard-language";
 
 function formatCurrency(value: number) {
   return `R$ ${value.toFixed(2).replace(".", ",")}`;
+}
+
+function formatCurrencyI18n(value: number, language: DashboardLanguage) {
+  return new Intl.NumberFormat(dashboardLocaleTag(language), {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
+}
+
+function dfnsLocale(lang: DashboardLanguage) {
+  if (lang === "en") return enUS;
+  if (lang === "es") return es;
+  return ptBR;
 }
 
 function formatPercentage(value: number) {
@@ -18,6 +38,16 @@ function firstName(fullName: string) {
   return t.split(/\s+/)[0] ?? t;
 }
 
+export interface PluggyHeroSlice {
+  loading: boolean;
+  pluggyAllowed: boolean;
+  connected: boolean;
+  institutionName: string | null;
+  consolidatedBankBalance: number | null;
+  lastSyncAt: Date | null;
+  lastSyncError: string | null;
+}
+
 interface FinanceiroHomeHeroProps {
   loadingTotals: boolean;
   recebidoMes: number;
@@ -26,6 +56,8 @@ interface FinanceiroHomeHeroProps {
   valoresPendentes: number;
   quantidadePendentes: number;
   taxaInadimplencia: number;
+  /** Open Finance: mesmo snapshot do `/pluggy/overview`, espelhado no topo do Financeiro. */
+  pluggy?: PluggyHeroSlice;
 }
 
 export function FinanceiroHomeHero({
@@ -36,7 +68,9 @@ export function FinanceiroHomeHero({
   valoresPendentes,
   quantidadePendentes,
   taxaInadimplencia,
+  pluggy,
 }: FinanceiroHomeHeroProps) {
+  const { t, language } = useDashboardLanguage();
   const sessionOpt = useDashboardSessionOptional();
   const [nomeCompleto, setNomeCompleto] = useState<string | null>(null);
 
@@ -73,38 +107,88 @@ export function FinanceiroHomeHero({
 
   const nome = nomeCompleto ? firstName(nomeCompleto) : null;
 
-  const mini = [
-    {
-      label: "Recebido no mês",
-      value: loadingTotals ? "—" : formatCurrency(recebidoMes),
-      hint: "Confirmados no mês corrente",
-      icon: Wallet,
-    },
-    {
-      label: "Em atraso",
-      value: loadingTotals ? "—" : formatCurrency(valoresAtrasados),
-      hint:
-        loadingTotals ?
-          "—"
-        : `${quantidadeAtrasados} cobrança(ões)`,
-      icon: TrendingDown,
-    },
-    {
-      label: "Pendentes",
-      value: loadingTotals ? "—" : formatCurrency(valoresPendentes),
-      hint:
-        loadingTotals ?
-          "—"
-        : `${quantidadePendentes} em aberto`,
-      icon: Clock,
-    },
-    {
-      label: "Inadimplência",
-      value: loadingTotals ? "—" : formatPercentage(taxaInadimplencia),
-      hint: "Sobre carteira ativa",
-      icon: Percent,
-    },
-  ];
+  const mini = useMemo(() => {
+    const base: Array<{
+      label: string;
+      value: string;
+      hint: string;
+      icon: typeof Wallet;
+    }> = [
+      {
+        label: "Recebido no mês",
+        value: loadingTotals ? "—" : formatCurrency(recebidoMes),
+        hint: "Confirmados no mês corrente",
+        icon: Wallet,
+      },
+      {
+        label: "Em atraso",
+        value: loadingTotals ? "—" : formatCurrency(valoresAtrasados),
+        hint:
+          loadingTotals ? "—" : `${quantidadeAtrasados} cobrança(ões)`,
+        icon: TrendingDown,
+      },
+      {
+        label: "Pendentes",
+        value: loadingTotals ? "—" : formatCurrency(valoresPendentes),
+        hint: loadingTotals ? "—" : `${quantidadePendentes} em aberto`,
+        icon: Clock,
+      },
+      {
+        label: "Inadimplência",
+        value: loadingTotals ? "—" : formatPercentage(taxaInadimplencia),
+        hint: "Sobre carteira ativa",
+        icon: Percent,
+      },
+    ];
+
+    if (!pluggy?.pluggyAllowed) return base;
+
+    const locale = dfnsLocale(language);
+    const bankLoading = pluggy.loading || loadingTotals;
+    let bankValue = "—";
+    if (!bankLoading) {
+      if (!pluggy.connected) bankValue = t("finance.pluggy.reflect.notLinked");
+      else if (pluggy.consolidatedBankBalance != null) {
+        bankValue = formatCurrencyI18n(pluggy.consolidatedBankBalance, language);
+      } else bankValue = "—";
+    }
+
+    let bankHint = t("finance.pluggy.reflect.heroHintConnect");
+    if (pluggy.connected) {
+      if (pluggy.lastSyncError) bankHint = t("finance.pluggy.statusError");
+      else if (pluggy.lastSyncAt) {
+        bankHint = `${t("finance.pluggy.lastSync")}: ${formatDistanceToNow(pluggy.lastSyncAt, { addSuffix: true, locale })}`;
+      } else bankHint = t("finance.pluggy.neverSynced");
+      if (pluggy.institutionName) {
+        bankHint = `${pluggy.institutionName}. ${bankHint}`;
+      }
+    }
+
+    base.push({
+      label: t("finance.pluggy.reflect.heroTitle"),
+      value: bankValue,
+      hint: bankHint,
+      icon: Landmark,
+    });
+
+    return base;
+  }, [
+    loadingTotals,
+    recebidoMes,
+    valoresAtrasados,
+    quantidadeAtrasados,
+    valoresPendentes,
+    quantidadePendentes,
+    taxaInadimplencia,
+    pluggy,
+    t,
+    language,
+  ]);
+
+  const gridCols =
+    pluggy?.pluggyAllowed ?
+      "sm:grid-cols-2 xl:grid-cols-5"
+    : "sm:grid-cols-2 xl:grid-cols-4";
 
   return (
     <div className="mb-6 rounded-2xl border border-border/70 bg-gradient-to-br from-muted/45 via-background to-background px-5 py-5 shadow-sm dark:from-muted/12">
@@ -124,9 +208,10 @@ export function FinanceiroHomeHero({
       <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
         Acompanhe recebimentos, pendências e inadimplência. Os números abaixo
         refletem apenas a sua escola e o que você pode operar neste perfil.
+        {pluggy?.pluggyAllowed ? ` ${t("finance.pluggy.reflect.heroFootnote")}` : null}
       </p>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className={`mt-5 grid gap-3 ${gridCols}`}>
         {mini.map((item) => {
           const Icon = item.icon;
           return (

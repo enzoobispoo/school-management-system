@@ -11,9 +11,11 @@ import { DashboardChartsSection } from "@/components/dashboard/charts/dashboard-
 import { useFinanceiroOverviewData } from "@/hooks/financeiro/use-financeiro-overview-data";
 import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 import { FinanceiroPluggyPanel } from "@/components/financeiro/financeiro-pluggy-panel";
+import { usePluggyOverviewSnapshot } from "@/hooks/financeiro/use-pluggy-overview-snapshot";
 
 export function FinanceiroOverviewContent() {
   const { t } = useDashboardLanguage();
+  const pluggySnap = usePluggyOverviewSnapshot();
   const {
     loadingMetricas,
     loadingReports,
@@ -34,6 +36,15 @@ export function FinanceiroOverviewContent() {
         valoresPendentes={financialTotals.valoresPendentes}
         quantidadePendentes={financialTotals.quantidadePendentes}
         taxaInadimplencia={advancedMetrics.taxaInadimplencia}
+        pluggy={{
+          loading: pluggySnap.loading,
+          pluggyAllowed: pluggySnap.pluggyAllowed,
+          connected: pluggySnap.connected,
+          institutionName: pluggySnap.institutionName,
+          consolidatedBankBalance: pluggySnap.consolidatedBankBalance,
+          lastSyncAt: pluggySnap.lastSyncAt,
+          lastSyncError: pluggySnap.lastSyncError,
+        }}
       />
 
       {error ?

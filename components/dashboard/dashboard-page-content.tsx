@@ -20,6 +20,7 @@ import type {
   DashboardMetricKey,
 } from "@/components/dashboard/metrics/dashboard-metric-card-config";
 import { ChargeStudentsModal } from "@/components/dashboard/modals/charge-students-modal";
+import { PluggyReflectBanner } from "@/components/financeiro/pluggy-reflect-banner";
 import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 export type DashboardPageAudience =
@@ -158,6 +159,8 @@ export function DashboardPageContent({
         onDismiss={dismissInsight}
         allowChargeStudentsShortcut={audience === "executive"}
       />
+
+      <PluggyReflectBanner />
 
       <DashboardCommandCenter
         metrics={metrics}

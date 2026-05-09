@@ -121,6 +121,16 @@ const DASHBOARD_TRANSLATIONS: Record<
     "finance.pluggy.noTransactions": "Nenhuma movimentação importada ainda.",
     "finance.pluggy.loading": "Carregando Open Finance…",
     "finance.pluggy.reconciledBadge": "Conciliado",
+    "finance.pluggy.reflect.dashboardEyebrow": "Conta real (Pluggy)",
+    "finance.pluggy.reflect.dashboardConnect":
+      "Conecte no módulo Financeiro para ver o saldo consolidado no dashboard.",
+    "finance.pluggy.reflect.dashboardOpen": "Abrir Financeiro",
+    "finance.pluggy.reflect.notLinked": "Sem conexão ativa",
+    "finance.pluggy.reflect.heroTitle": "Saldo no banco",
+    "finance.pluggy.reflect.heroHintConnect": "Conecte em Financeiro → Open Finance",
+    "finance.pluggy.reflect.pendConc": "· {{count}} créditos não conciliados",
+    "finance.pluggy.reflect.heroFootnote":
+      "Com plano Full, o cartão “Saldo no banco” segue a conta conectada via Pluggy (após sincronizar).",
     "finance.overview.trendsTitle": "Tendências e cursos",
     "finance.overview.trendsSubtitle":
       "Evolução da receita e distribuição de alunos por curso (ano corrente).",
@@ -1295,6 +1305,16 @@ const DASHBOARD_TRANSLATIONS: Record<
     "finance.pluggy.noTransactions": "No imported movements yet.",
     "finance.pluggy.loading": "Loading Open Finance…",
     "finance.pluggy.reconciledBadge": "Reconciled",
+    "finance.pluggy.reflect.dashboardEyebrow": "Live account (Pluggy)",
+    "finance.pluggy.reflect.dashboardConnect":
+      "Connect under Finance to show consolidated balance on the dashboard.",
+    "finance.pluggy.reflect.dashboardOpen": "Open Finance",
+    "finance.pluggy.reflect.notLinked": "No active connection",
+    "finance.pluggy.reflect.heroTitle": "Bank balance",
+    "finance.pluggy.reflect.heroHintConnect": "Connect under Finance → Open Finance",
+    "finance.pluggy.reflect.pendConc": "· {{count}} unreconciled credits",
+    "finance.pluggy.reflect.heroFootnote":
+      "On the Full plan, the “Bank balance” tile reflects your Pluggy-linked account (after sync).",
     "finance.overview.trendsTitle": "Trends & courses",
     "finance.overview.trendsSubtitle":
       "Revenue evolution and student distribution by course (current year).",
@@ -2459,6 +2479,16 @@ const DASHBOARD_TRANSLATIONS: Record<
     "finance.pluggy.noTransactions": "Aún no hay movimientos importados.",
     "finance.pluggy.loading": "Cargando Open Finance…",
     "finance.pluggy.reconciledBadge": "Conciliado",
+    "finance.pluggy.reflect.dashboardEyebrow": "Cuenta real (Pluggy)",
+    "finance.pluggy.reflect.dashboardConnect":
+      "Conecta en el módulo Finanzas para ver el saldo consolidado en el panel.",
+    "finance.pluggy.reflect.dashboardOpen": "Abrir Finanzas",
+    "finance.pluggy.reflect.notLinked": "Sin conexión activa",
+    "finance.pluggy.reflect.heroTitle": "Saldo en el banco",
+    "finance.pluggy.reflect.heroHintConnect": "Conecta en Finanzas → Open Finance",
+    "finance.pluggy.reflect.pendConc": "· {{count}} créditos sin conciliar",
+    "finance.pluggy.reflect.heroFootnote":
+      "En plan Full, la tarjeta “Saldo en el banco” refleja la cuenta conectada con Pluggy (tras sincronizar).",
     "finance.overview.trendsTitle": "Tendencias y cursos",
     "finance.overview.trendsSubtitle":
       "Evolución de ingresos y distribución de alumnos por curso (año en curso).",
