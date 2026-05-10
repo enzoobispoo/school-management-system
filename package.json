@@ -13,7 +13,8 @@
     "db:seed-plans": "node scripts/seed-plans.mjs",
     "db:seed-demo-student": "node scripts/seed-demo-student.mjs",
     "db:cleanup-demo-student": "node scripts/cleanup-demo-student.mjs",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "trigger:dev": "npx trigger.dev@latest dev"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -46,6 +47,9 @@
     "@radix-ui/react-toggle": "1.1.10",
     "@radix-ui/react-toggle-group": "1.1.11",
     "@radix-ui/react-tooltip": "1.2.8",
+    "@sentry/nextjs": "^10.52.0",
+    "@sentry/react": "^10.52.0",
+    "@trigger.dev/sdk": "^4.4.5",
     "@vercel/analytics": "1.6.1",
     "@vercel/blob": "^2.3.3",
     "autoprefixer": "^10.4.20",
@@ -86,6 +90,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
     "@tailwindcss/postcss": "^4.2.0",
+    "@trigger.dev/build": "^4.4.5",
     "@types/node": "^22",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",

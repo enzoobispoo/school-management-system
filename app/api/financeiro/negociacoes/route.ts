@@ -35,6 +35,7 @@ export async function GET() {
             turma: { select: { nome: true } },
           },
         },
+        decididoPor: { select: { id: true, nome: true, email: true } },
       },
     });
 

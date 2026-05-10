@@ -21,6 +21,7 @@ import type {
 } from "@/components/dashboard/metrics/dashboard-metric-card-config";
 import { ChargeStudentsModal } from "@/components/dashboard/modals/charge-students-modal";
 import { PluggyReflectBanner } from "@/components/financeiro/pluggy-reflect-banner";
+import { TriggerWhatsappTestCard } from "@/components/dashboard/trigger-whatsapp-test-card";
 import { useDashboardLanguage } from "@/lib/i18n/dashboard-language";
 
 export type DashboardPageAudience =
@@ -161,6 +162,12 @@ export function DashboardPageContent({
       />
 
       <PluggyReflectBanner />
+
+      <TriggerWhatsappTestCard
+        allowBillingTest={
+          audience === "executive" || audience === "secretaria_financeira"
+        }
+      />
 
       <DashboardCommandCenter
         metrics={metrics}

@@ -11,18 +11,27 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+type ProfPerfil = {
+  regime: string;
+  situacao: string;
+  documento: string | null;
+  chavePix?: string | null;
+  valorReferenciaMensal: unknown;
+  dataAdmissao?: string | null;
+  observacoes?: string | null;
+  cargoFuncao?: string | null;
+  salarioBaseCLT?: unknown;
+  valeTransporte?: unknown;
+  valeRefeicao?: unknown;
+};
+
 type Prof = {
   id: string;
   nome: string;
   email: string | null;
   ativo: boolean;
   turmasAtivas: number;
-  perfil: {
-    regime: string;
-    situacao: string;
-    documento: string | null;
-    valorReferenciaMensal: unknown;
-  } | null;
+  perfil: ProfPerfil | null;
 };
 
 const REGIMES = ["CLT", "PJ", "AUTONOMO", "ESTAGIO", "OUTRO"] as const;
@@ -41,6 +50,10 @@ export function FinanceiroProfessoresClient() {
     valorReferenciaMensal: "",
     dataAdmissao: "",
     observacoes: "",
+    cargoFuncao: "",
+    salarioBaseCLT: "",
+    valeTransporte: "",
+    valeRefeicao: "",
   });
   const [payOpen, setPayOpen] = useState(false);
   const [payForm, setPayForm] = useState({
@@ -71,18 +84,28 @@ export function FinanceiroProfessoresClient() {
     void load();
   }, [load]);
 
+  function fmtDec(v: unknown) {
+    return v != null && String(v) !== "" ? String(v) : "";
+  }
+
   function openProfile(p: Prof) {
     setSel(p);
     const pf = p.perfil;
+    const adm = pf?.dataAdmissao;
     setForm({
       regime: pf?.regime ?? "CLT",
       situacao: pf?.situacao ?? "REGULAR",
       documento: pf?.documento ?? "",
-      chavePix: "",
+      chavePix: pf?.chavePix ?? "",
       valorReferenciaMensal:
         pf?.valorReferenciaMensal != null ? String(pf.valorReferenciaMensal) : "",
-      dataAdmissao: "",
-      observacoes: "",
+      dataAdmissao:
+        typeof adm === "string" && adm.length >= 10 ? adm.slice(0, 10) : "",
+      observacoes: pf?.observacoes ?? "",
+      cargoFuncao: pf?.cargoFuncao ?? "",
+      salarioBaseCLT: fmtDec(pf?.salarioBaseCLT),
+      valeTransporte: fmtDec(pf?.valeTransporte),
+      valeRefeicao: fmtDec(pf?.valeRefeicao),
     });
     setOpen(true);
   }
@@ -104,6 +127,19 @@ export function FinanceiroProfessoresClient() {
             : null,
           dataAdmissao: form.dataAdmissao || null,
           observacoes: form.observacoes || null,
+          cargoFuncao: form.cargoFuncao.trim() || null,
+          salarioBaseCLT:
+            form.salarioBaseCLT.trim() ?
+              Number(form.salarioBaseCLT.replace(",", "."))
+            : null,
+          valeTransporte:
+            form.valeTransporte.trim() ?
+              Number(form.valeTransporte.replace(",", "."))
+            : null,
+          valeRefeicao:
+            form.valeRefeicao.trim() ?
+              Number(form.valeRefeicao.replace(",", "."))
+            : null,
         }),
       });
       const data = await res.json();
@@ -151,8 +187,8 @@ export function FinanceiroProfessoresClient() {
   return (
     <div className="space-y-4 p-6">
       <p className="text-sm text-muted-foreground">
-        Cadastro interno para regime (CLT/PJ), referência de valor e histórico de repasses. Não
-        substitui folha de pagamento ou obrigações trabalhistas.
+        Cadastro interno (CLT/PJ), referências e campos operacionais de CLT; não substitui folha
+        legal nem eSocial.
       </p>
       <div className="overflow-x-auto rounded-2xl border border-border/60">
         <table className="w-full text-left text-sm">
@@ -206,7 +242,7 @@ export function FinanceiroProfessoresClient() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-md">
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Perfil financeiro</DialogTitle>
           </DialogHeader>
@@ -261,6 +297,41 @@ export function FinanceiroProfessoresClient() {
                 }
                 className="rounded-xl"
               />
+              <p className="text-[11px] text-muted-foreground pt-1">
+                Referências CLT (uso interno)
+              </p>
+              <Input
+                placeholder="Cargo / função"
+                value={form.cargoFuncao}
+                onChange={(e) => setForm((f) => ({ ...f, cargoFuncao: e.target.value }))}
+                className="rounded-xl"
+              />
+              <Input
+                placeholder="Salário base CLT"
+                value={form.salarioBaseCLT}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, salarioBaseCLT: e.target.value }))
+                }
+                className="rounded-xl"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="Vale transporte"
+                  value={form.valeTransporte}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, valeTransporte: e.target.value }))
+                  }
+                  className="rounded-xl"
+                />
+                <Input
+                  placeholder="Vale refeição"
+                  value={form.valeRefeicao}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, valeRefeicao: e.target.value }))
+                  }
+                  className="rounded-xl"
+                />
+              </div>
               <Input
                 type="date"
                 value={form.dataAdmissao}

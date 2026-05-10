@@ -1,9 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type Conta = {
   id: string;
@@ -14,6 +20,8 @@ type Conta = {
   vencimento: string;
   status: string;
   dataPagamento: string | null;
+  numeroDocumentoFiscal: string | null;
+  anexoUrl: string | null;
 };
 
 export function FinanceiroContasPagarClient() {
@@ -26,6 +34,9 @@ export function FinanceiroContasPagarClient() {
     valor: "",
     vencimento: "",
   });
+  const [nfDialog, setNfDialog] = useState<Conta | null>(null);
+  const [nfNumero, setNfNumero] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,6 +55,12 @@ export function FinanceiroContasPagarClient() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (nfDialog) {
+      setNfNumero(nfDialog.numeroDocumentoFiscal ?? "");
+    }
+  }, [nfDialog]);
 
   async function create() {
     try {
@@ -89,6 +106,49 @@ export function FinanceiroContasPagarClient() {
       await load();
     } catch {
       toast.error("Falha ao atualizar.");
+    }
+  }
+
+  async function salvarNumeroFiscal() {
+    if (!nfDialog) return;
+    try {
+      const res = await fetch(`/api/financeiro/contas-pagar/${nfDialog.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          numeroDocumentoFiscal: nfNumero.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error);
+      toast.success("Número fiscal salvo.");
+      await load();
+      setNfDialog((c) =>
+        c ? { ...c, numeroDocumentoFiscal: nfNumero.trim() || null } : null
+      );
+    } catch {
+      toast.error("Falha ao salvar número.");
+    }
+  }
+
+  async function uploadAnexo(file: File) {
+    if (!nfDialog) return;
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/financeiro/contas-pagar/${nfDialog.id}/anexo`, {
+        method: "POST",
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error);
+      toast.success("PDF anexado.");
+      await load();
+      if (data.conta?.anexoUrl) {
+        setNfDialog((c) => (c ? { ...c, anexoUrl: data.conta.anexoUrl } : null));
+      }
+    } catch {
+      toast.error("Envie apenas PDF até 10 MB.");
     }
   }
 
@@ -141,6 +201,7 @@ export function FinanceiroContasPagarClient() {
               <th className="px-4 py-3">Descrição</th>
               <th className="px-4 py-3">Valor</th>
               <th className="px-4 py-3">Vencimento</th>
+              <th className="px-4 py-3">NF</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3" />
             </tr>
@@ -148,7 +209,7 @@ export function FinanceiroContasPagarClient() {
           <tbody>
             {loading ?
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                   Carregando…
                 </td>
               </tr>
@@ -160,19 +221,36 @@ export function FinanceiroContasPagarClient() {
                   <td className="px-4 py-3 tabular-nums">
                     {r.vencimento.slice(0, 10)}
                   </td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground max-w-[120px] truncate">
+                    {r.numeroDocumentoFiscal ?? "—"}
+                    {r.anexoUrl ?
+                      <span className="ml-1 text-emerald-600 dark:text-emerald-400">· PDF</span>
+                    : null}
+                  </td>
                   <td className="px-4 py-3">{r.status}</td>
                   <td className="px-4 py-3">
-                    {r.status === "PENDENTE" ?
+                    <div className="flex flex-wrap gap-1 justify-end">
                       <Button
                         size="sm"
                         variant="outline"
                         className="rounded-xl"
                         type="button"
-                        onClick={() => void marcarPago(r.id)}
+                        onClick={() => setNfDialog(r)}
                       >
-                        Pagar
+                        NF / anexo
                       </Button>
-                    : null}
+                      {r.status === "PENDENTE" ?
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="rounded-xl"
+                          type="button"
+                          onClick={() => void marcarPago(r.id)}
+                        >
+                          Pagar
+                        </Button>
+                      : null}
+                    </div>
                   </td>
                 </tr>
               ))
@@ -180,6 +258,64 @@ export function FinanceiroContasPagarClient() {
           </tbody>
         </table>
       </div>
+
+      <Dialog open={!!nfDialog} onOpenChange={(o) => !o && setNfDialog(null)}>
+        <DialogContent className="rounded-2xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Documento fiscal (NF)</DialogTitle>
+          </DialogHeader>
+          {nfDialog ?
+            <div className="grid gap-3 text-sm">
+              <p className="text-muted-foreground">
+                {nfDialog.fornecedorNome} — {nfDialog.descricao}
+              </p>
+              <label className="grid gap-1">
+                <span className="text-xs text-muted-foreground">Número da nota / documento</span>
+                <Input
+                  value={nfNumero}
+                  onChange={(e) => setNfNumero(e.target.value)}
+                  className="rounded-xl"
+                  placeholder="Chave, número ou referência"
+                />
+              </label>
+              <Button type="button" className="rounded-xl" onClick={() => void salvarNumeroFiscal()}>
+                Salvar número
+              </Button>
+              <div className="border-t border-border/50 pt-3 space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Anexe o PDF da nota (até 10 MB).
+                </p>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void uploadAnexo(f);
+                    e.target.value = "";
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl w-full"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  Enviar PDF
+                </Button>
+                {nfDialog.anexoUrl ?
+                  <Button variant="link" className="h-auto p-0 text-sm" asChild>
+                    <a href={nfDialog.anexoUrl} target="_blank" rel="noreferrer">
+                      Abrir anexo atual
+                    </a>
+                  </Button>
+                : null}
+              </div>
+            </div>
+          : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

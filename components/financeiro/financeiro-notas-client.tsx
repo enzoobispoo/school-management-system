@@ -15,6 +15,7 @@ type Nota = {
   tomadorNome: string;
   total: unknown;
   dataEmissao: string;
+  emissionRequestedAt: string | null;
 };
 
 export function FinanceiroNotasClient() {
@@ -91,11 +92,33 @@ export function FinanceiroNotasClient() {
     }
   }
 
+  async function solicitarEmissaoFiscal(id: string) {
+    try {
+      const res = await fetch(`/api/financeiro/notas/${id}/solicitar-emissao`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error);
+      if (data.webhook === "NOT_CONFIGURED") {
+        toast.message("Webhook fiscal não configurado", {
+          description:
+            data.hint ??
+            "Defina FISCAL_EMISSION_WEBHOOK_URL para enfileirar NFS-e/NF-e.",
+        });
+      } else {
+        toast.success("Pedido enviado à fila fiscal.");
+      }
+      await load();
+    } catch {
+      toast.error("Falha ao solicitar emissão (webhook ou rede).");
+    }
+  }
+
   return (
     <div className="space-y-6 p-6">
       <p className="text-sm text-muted-foreground">
-        Prefatura com linhas, quantidades, valores e descontos. O PDF é um documento interno; para
-        NFS-e/NF-e válida é necessário conectar um provedor fiscal (`providerFiscal` / API futura).
+        Prefatura com linhas e PDF interno. Use “Solicitar emissão fiscal” para enviar o payload ao
+        webhook configurado em produção (fila NFS-e/NF-e externa).
       </p>
 
       <div className="rounded-2xl border border-border/60 bg-muted/10 p-4 space-y-3">
@@ -196,13 +219,14 @@ export function FinanceiroNotasClient() {
               <th className="px-4 py-3">Tomador</th>
               <th className="px-4 py-3">Total</th>
               <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Fiscal</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
             {loading ?
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                   Carregando…
                 </td>
               </tr>
@@ -213,6 +237,11 @@ export function FinanceiroNotasClient() {
                   <td className="px-4 py-3">{r.tomadorNome}</td>
                   <td className="px-4 py-3 tabular-nums">{String(r.total)}</td>
                   <td className="px-4 py-3">{r.status}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                    {r.emissionRequestedAt ?
+                      new Date(r.emissionRequestedAt).toLocaleString("pt-BR")
+                    : "—"}
+                  </td>
                   <td className="px-4 py-3 flex flex-wrap gap-2">
                     <Button size="sm" variant="outline" className="rounded-xl" asChild>
                       <a href={`/api/financeiro/notas/${r.id}/pdf`} target="_blank" rel="noreferrer">
@@ -230,6 +259,15 @@ export function FinanceiroNotasClient() {
                         Emitir (interno)
                       </Button>
                     : null}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-xl"
+                      type="button"
+                      onClick={() => void solicitarEmissaoFiscal(r.id)}
+                    >
+                      Solicitar fiscal
+                    </Button>
                   </td>
                 </tr>
               ))

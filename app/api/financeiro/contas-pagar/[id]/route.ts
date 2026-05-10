@@ -34,6 +34,7 @@ export async function PATCH(
       status?: StatusContaPagar;
       dataPagamento?: string | null;
       valor?: number;
+      numeroDocumentoFiscal?: string | null;
     };
 
     const existing = await prisma.contaPagar.findFirst({
@@ -47,6 +48,7 @@ export async function PATCH(
       status?: StatusContaPagar;
       dataPagamento?: Date | null;
       valor?: Prisma.Decimal;
+      numeroDocumentoFiscal?: string | null;
     } = {};
 
     if (body.status && Object.values(StatusContaPagar).includes(body.status)) {
@@ -61,6 +63,13 @@ export async function PATCH(
 
     if (typeof body.valor === "number" && Number.isFinite(body.valor) && body.valor > 0) {
       data.valor = new Prisma.Decimal(body.valor.toFixed(2));
+    }
+
+    if (typeof body.numeroDocumentoFiscal === "string") {
+      data.numeroDocumentoFiscal = body.numeroDocumentoFiscal.slice(0, 80);
+    }
+    if (body.numeroDocumentoFiscal === null) {
+      data.numeroDocumentoFiscal = null;
     }
 
     const conta = await prisma.contaPagar.update({

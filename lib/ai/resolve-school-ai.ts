@@ -18,13 +18,12 @@ export type ResolvedSchoolAi = {
   useOpenAi: boolean;
 };
 
-export async function resolveSchoolAiForUser(user: {
-  schoolId: string | null;
-}): Promise<ResolvedSchoolAi | null> {
-  if (!user.schoolId) return null;
-
+/** Resolve limite/chave OpenAI por escola (workers, cron, Trigger.dev). */
+export async function resolveSchoolAiForSchoolId(
+  schoolId: string
+): Promise<ResolvedSchoolAi | null> {
   const school = await prisma.school.findUnique({
-    where: { id: user.schoolId },
+    where: { id: schoolId },
     select: { plano: true, escolaSettings: true },
   });
 
@@ -33,12 +32,12 @@ export async function resolveSchoolAiForUser(user: {
   let settings = school.escolaSettings;
   if (!settings) {
     settings = await prisma.escolaSettings.create({
-      data: { id: user.schoolId, schoolId: user.schoolId, nomeEscola: "Escola" },
+      data: { id: schoolId, schoolId, nomeEscola: "Escola" },
     });
   }
 
   const tier = normalizePlanTier(school.plano);
-  const usageRow = await ensureSchoolAiUsageWindow(user.schoolId, {
+  const usageRow = await ensureSchoolAiUsageWindow(schoolId, {
     aiUsageCount: settings.aiUsageCount,
     aiUsageResetAt: settings.aiUsageResetAt,
   });
@@ -50,7 +49,8 @@ export async function resolveSchoolAiForUser(user: {
   );
   const useOpenAi = planAllowsOpenAi(tier);
   const apiKey = useOpenAi ? (settings.openaiApiKey?.trim() ?? "") : "";
-  const limitExceeded = useOpenAi && monthlyLimit > 0 && usageCount >= monthlyLimit;
+  const limitExceeded =
+    useOpenAi && monthlyLimit > 0 && usageCount >= monthlyLimit;
   const schoolDisplayName = settings.nomeEscola?.trim() || "Escola";
 
   return {
@@ -62,4 +62,11 @@ export async function resolveSchoolAiForUser(user: {
     limitExceeded,
     useOpenAi,
   };
+}
+
+export async function resolveSchoolAiForUser(user: {
+  schoolId: string | null;
+}): Promise<ResolvedSchoolAi | null> {
+  if (!user.schoolId) return null;
+  return resolveSchoolAiForSchoolId(user.schoolId);
 }

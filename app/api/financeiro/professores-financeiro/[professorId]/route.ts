@@ -18,6 +18,18 @@ export const dynamic = "force-dynamic";
 const REGIMES = new Set(Object.values(ProfessorRegimeTrabalho));
 const SITUACOES = new Set(Object.values(ProfessorSituacaoFinanceira));
 
+function optionalDecimal(
+  body: Record<string, unknown>,
+  key: string
+): Prisma.Decimal | null | undefined {
+  const v = body[key];
+  if (typeof v === "number" && Number.isFinite(v)) {
+    return new Prisma.Decimal(v.toFixed(2));
+  }
+  if (v === null) return null;
+  return undefined;
+}
+
 export async function GET(
   _request: Request,
   ctx: { params: Promise<{ professorId: string }> }
@@ -125,6 +137,13 @@ export async function PATCH(
           typeof body.observacoes === "string" ?
             body.observacoes.slice(0, 4000)
           : null,
+        cargoFuncao:
+          typeof body.cargoFuncao === "string" ?
+            body.cargoFuncao.slice(0, 200)
+          : null,
+        salarioBaseCLT: optionalDecimal(body, "salarioBaseCLT") ?? null,
+        valeTransporte: optionalDecimal(body, "valeTransporte") ?? null,
+        valeRefeicao: optionalDecimal(body, "valeRefeicao") ?? null,
       },
       update: {
         regime,
@@ -155,6 +174,13 @@ export async function PATCH(
           typeof body.observacoes === "string" ?
             body.observacoes.slice(0, 4000)
           : body.observacoes === null ? null : undefined,
+        cargoFuncao:
+          typeof body.cargoFuncao === "string" ?
+            body.cargoFuncao.slice(0, 200)
+          : body.cargoFuncao === null ? null : undefined,
+        salarioBaseCLT: optionalDecimal(body, "salarioBaseCLT"),
+        valeTransporte: optionalDecimal(body, "valeTransporte"),
+        valeRefeicao: optionalDecimal(body, "valeRefeicao"),
       },
     });
 
